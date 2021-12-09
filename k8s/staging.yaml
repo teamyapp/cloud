@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: staging
+  name: cloud
+  labels:
+    app: cloud
+  annotations:
+    # force policy will ensure that deployment is updated
+    # even when tag is unchanged (latest remains)
+    keel.sh/policy: force
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: cloud
+  template:
+    metadata:
+      labels:
+        app: cloud
+    spec:
+      containers:
+        - name: cloud
+          image: registry.digitalocean.com/teamyapp/cloud-staging:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: staging
+  name: cloud
+spec:
+  selector:
+    app: cloud
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  namespace: staging
+  name: cloud
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`cloud.staging.teamyapp.com`)
+      services:
+        - kind: Service
+          name: cloud
+          namespace: staging
+          port: 80
+          passHostHeader: true
+  tls:
+    secretName: teamy-cert

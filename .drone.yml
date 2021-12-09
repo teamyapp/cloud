@@ -1,0 +1,109 @@
+kind: pipeline
+type: kubernetes
+name: testing
+
+steps:
+  - name: build & publish Docker image
+    image: plugins/docker
+    settings:
+      username:
+        from_secret: DOCKER_USERNAME
+      password:
+        from_secret: DOCKER_PASSWORD
+      repo: registry.digitalocean.com/teamyapp/cloud-testing
+      registry: registry.digitalocean.com
+      target: production
+      cache_from: registry.digitalocean.com/teamyapp/cloud-testing
+  - name: notify image update
+    image: plugins/webhook
+    settings:
+      urls: http://keel.keel.svc.cluster.local:9300/v1/webhooks/native
+      template: |
+        {
+          "name": "registry.digitalocean.com/teamyapp/cloud-testing",
+          "tag": "latest"
+        }
+trigger:
+  branch:
+    - testing
+  event:
+    - push
+---
+kind: pipeline
+type: kubernetes
+name: feature
+
+steps:
+  - name: Run unit tests
+    image: golang:1.17
+    commands:
+      - go test ./...
+trigger:
+  branch:
+    - master
+    - main
+  event:
+    - pull_request
+---
+kind: pipeline
+type: kubernetes
+name: staging
+
+steps:
+  - name: build & publish Docker image
+    image: plugins/docker
+    settings:
+      username:
+        from_secret: DOCKER_USERNAME
+      password:
+        from_secret: DOCKER_PASSWORD
+      repo: registry.digitalocean.com/teamyapp/cloud-staging
+      registry: registry.digitalocean.com
+      target: production
+      cache_from: registry.digitalocean.com/teamyapp/cloud-staging
+  - name: notify image update
+    image: plugins/webhook
+    settings:
+      urls: http://keel.keel.svc.cluster.local:9300/v1/webhooks/native
+      template: |
+        {
+          "name": "registry.digitalocean.com/teamyapp/cloud-staging",
+          "tag": "latest"
+        }
+trigger:
+  branch:
+    - master
+    - main
+  event:
+    - push
+---
+kind: pipeline
+type: kubernetes
+name: production
+
+steps:
+  - name: build & publish Docker image
+    image: plugins/docker
+    settings:
+      username:
+        from_secret: DOCKER_USERNAME
+      password:
+        from_secret: DOCKER_PASSWORD
+      repo: registry.digitalocean.com/teamyapp/cloud
+      registry: registry.digitalocean.com
+      target: production
+      cache_from: registry.digitalocean.com/teamyapp/cloud
+  - name: notify image update
+    image: plugins/webhook
+    settings:
+      urls: http://keel.keel.svc.cluster.local:9300/v1/webhooks/native
+      template: |
+        {
+          "name": "registry.digitalocean.com/teamyapp/cloud",
+          "tag": "latest"
+        }
+trigger:
+  branch:
+    - production
+  event:
+    - push
