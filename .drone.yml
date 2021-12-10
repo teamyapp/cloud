@@ -23,6 +23,14 @@ steps:
           "name": "registry.digitalocean.com/teamyapp/cloud-testing",
           "tag": "latest"
         }
+  - name: slack
+    image: plugins/slack
+    settings:
+      webhook:
+        from_secret: SLACK_WEBHOOK
+      channel: code
+    when:
+      status: [ success, failure ]
 trigger:
   branch:
     - testing
@@ -38,6 +46,14 @@ steps:
     image: golang:1.17
     commands:
       - go test ./...
+  - name: slack
+    image: plugins/slack
+    settings:
+      webhook:
+        from_secret: SLACK_WEBHOOK
+      channel: code
+    when:
+      status: [ success, failure ]
 trigger:
   branch:
     - master
@@ -70,6 +86,14 @@ steps:
           "name": "registry.digitalocean.com/teamyapp/cloud-staging",
           "tag": "latest"
         }
+  - name: slack
+    image: plugins/slack
+    settings:
+      webhook:
+        from_secret: SLACK_WEBHOOK
+      channel: code
+    when:
+      status: [ success, failure ]
 trigger:
   branch:
     - master
@@ -102,6 +126,14 @@ steps:
           "name": "registry.digitalocean.com/teamyapp/cloud",
           "tag": "latest"
         }
+  - name: slack
+    image: plugins/slack
+    settings:
+      webhook:
+        from_secret: SLACK_WEBHOOK
+      channel: code
+    when:
+      status: [ success, failure ]
 trigger:
   branch:
     - production
