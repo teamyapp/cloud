@@ -3,33 +3,30 @@ package main
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
-	"strings"
-	"time"
 
-	"github.com/teamyapp/cloud/app"
+	"github.com/teamyapp/cloud/app/config"
+	"github.com/teamyapp/cloud/app/dep"
 )
 
-const version = 1
-
 func main() {
-	rand.Seed(time.Now().Unix())
+	cfg, err := config.FromEnv()
+	if err != nil {
+		log.Println(err)
+		panic(err)
+	}
 
-	http.HandleFunc("/random", func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(http.StatusOK)
+	StartAPIServer(cfg)
+}
 
-		randIntA := rand.Int()
-		randIntB := rand.Int()
+func StartAPIServer(cfg config.Config) {
+	webAPIServer, err := dep.InitWebAPIServer(cfg)
+	if err != nil {
+		panic(err)
+	}
 
-		sum := app.Add(randIntA, randIntB)
-		writer.Write([]byte(fmt.Sprintf(
-			strings.TrimPrefix(`
-Version = %d
-Random Int A = %d
-Random Int B = %d
-Sum = %d`, "\n"), version, randIntA, randIntB, sum)))
-	})
-	fmt.Println("Server started at port 8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	fmt.Printf("Web server started at port %d\n", cfg.WebAPIPort)
+	if err = http.ListenAndServe(fmt.Sprintf(":%d", cfg.WebAPIPort), webAPIServer); err != nil {
+		panic(err)
+	}
 }

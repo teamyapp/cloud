@@ -1,28 +1,14 @@
 FROM golang:1.17-alpine AS builder
 
+RUN apk add --no-cache git
+
 WORKDIR /app
-
-RUN apk add git bash
-
-# Install dependencies
-COPY go.mod go.sum ./
-
-ARG GITHUB_USERNAME
-
-ARG GITHUB_PERSONAL_ACCESS_TOKEN
-
-RUN git config --global url."https://${GITHUB_USERNAME}:${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com".insteadOf "https://github.com"
-
-RUN go env -w GOPRIVATE=github.com/teamyapp/*
-
-RUN go mod download
-
-# Verify dependencies
-RUN go mod verify
 
 COPY . .
 
 RUN go build -o bin/main main.go
+
+RUN sh ./scripts/prepare_env.sh
 
 FROM alpine:3.13 as production
 
@@ -31,5 +17,7 @@ WORKDIR /app
 RUN apk add --no-cache bash
 
 COPY --from=builder /app/bin/main ./bin/main
+
+COPY --from=builder /app/.repo.env .repo.env
 
 CMD ["/app/bin/main"]
