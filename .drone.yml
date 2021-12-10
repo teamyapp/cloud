@@ -3,6 +3,14 @@ type: kubernetes
 name: testing
 
 steps:
+  - name: slack
+    image: plugins/slack
+    settings:
+      webhook:
+        from_secret: SLACK_WEBHOOK
+      channel: code
+    when:
+      status: [ success, failure ]
   - name: build & publish Docker image
     image: plugins/docker
     settings:
@@ -23,14 +31,6 @@ steps:
           "name": "registry.digitalocean.com/teamyapp/cloud-testing",
           "tag": "latest"
         }
-  - name: slack
-    image: plugins/slack
-    settings:
-      webhook:
-        from_secret: SLACK_WEBHOOK
-      channel: code
-    when:
-      status: [ success, failure ]
 trigger:
   branch:
     - testing
@@ -42,10 +42,6 @@ type: kubernetes
 name: feature
 
 steps:
-  - name: Run unit tests
-    image: golang:1.17
-    commands:
-      - go test ./...
   - name: slack
     image: plugins/slack
     settings:
@@ -54,6 +50,10 @@ steps:
       channel: code
     when:
       status: [ success, failure ]
+  - name: Run unit tests
+    image: golang:1.17
+    commands:
+      - go test ./...
 trigger:
   branch:
     - master
@@ -66,6 +66,14 @@ type: kubernetes
 name: staging
 
 steps:
+  - name: slack
+    image: plugins/slack
+    settings:
+      webhook:
+        from_secret: SLACK_WEBHOOK
+      channel: code
+    when:
+      status: [ success, failure ]
   - name: build & publish Docker image
     image: plugins/docker
     settings:
@@ -86,14 +94,6 @@ steps:
           "name": "registry.digitalocean.com/teamyapp/cloud-staging",
           "tag": "latest"
         }
-  - name: slack
-    image: plugins/slack
-    settings:
-      webhook:
-        from_secret: SLACK_WEBHOOK
-      channel: code
-    when:
-      status: [ success, failure ]
 trigger:
   branch:
     - master
@@ -106,6 +106,14 @@ type: kubernetes
 name: production
 
 steps:
+  - name: slack
+    image: plugins/slack
+    settings:
+      webhook:
+        from_secret: SLACK_WEBHOOK
+      channel: code
+    when:
+      status: [ success, failure ]
   - name: build & publish Docker image
     image: plugins/docker
     settings:
@@ -126,14 +134,6 @@ steps:
           "name": "registry.digitalocean.com/teamyapp/cloud",
           "tag": "latest"
         }
-  - name: slack
-    image: plugins/slack
-    settings:
-      webhook:
-        from_secret: SLACK_WEBHOOK
-      channel: code
-    when:
-      status: [ success, failure ]
 trigger:
   branch:
     - production
