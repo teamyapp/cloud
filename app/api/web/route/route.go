@@ -20,4 +20,3 @@ func WithChildPath(baseURL string, childPath string) (string, error) {
 	u.Path = path.Join(u.Path, childPath)
 	return u.String(), nil
 }
-

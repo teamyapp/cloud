@@ -6,7 +6,10 @@
 package dep
 
 import (
+	"net/http"
+
 	"github.com/google/wire"
+	"github.com/teamyapp/cloud/app/api/rpc"
 	"github.com/teamyapp/cloud/app/api/web"
 	"github.com/teamyapp/cloud/app/api/web/identity"
 	"github.com/teamyapp/cloud/app/config"
@@ -16,7 +19,7 @@ import (
 	"github.com/teamyapp/cloud/app/repo"
 	"github.com/teamyapp/cloud/app/security"
 	"github.com/teamyapp/cloud/app/service"
-	"net/http"
+	"google.golang.org/grpc"
 )
 
 // Injectors from wire.go:
@@ -33,6 +36,11 @@ func InitWebAPIServer(cfg config.Config) (*http.ServeMux, error) {
 	}
 	serveMux := web.NewAPIServer(identity)
 	return serveMux, nil
+}
+
+func InitGRPCAPIServer(cfg config.Config) *grpc.Server {
+	server := rpc.NewAPIServer()
+	return server
 }
 
 // wire.go:

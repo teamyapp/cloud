@@ -16,6 +16,7 @@ type Config struct {
 	IDRangeLength      int           `envconfig:"ID_RANGE_LENGTH" default:"100"`
 	WebAPIBaseURL      string        `envconfig:"WEB_API_BASE_URL" default:""`
 	WebAPIPort         int           `envconfig:"WEB_API_PORT" default:"9500"`
+	GRPCAPIPort        int           `envconfig:"GRPC_API_PORT" default:"9600"`
 }
 
 func FromEnv() (Config, error) {

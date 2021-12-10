@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/google/wire"
+	"github.com/teamyapp/cloud/app/api/rpc"
 	"github.com/teamyapp/cloud/app/api/web"
 	"github.com/teamyapp/cloud/app/api/web/identity"
 	"github.com/teamyapp/cloud/app/config"
@@ -15,6 +16,7 @@ import (
 	"github.com/teamyapp/cloud/app/repo"
 	"github.com/teamyapp/cloud/app/security"
 	"github.com/teamyapp/cloud/app/service"
+	"google.golang.org/grpc"
 )
 
 var repoSet = wire.NewSet(
@@ -38,6 +40,11 @@ func InitWebAPIServer(cfg config.Config) (*http.ServeMux, error) {
 		web.NewAPIServer,
 	)
 	return &http.ServeMux{}, nil
+}
+
+func InitGRPCAPIServer(cfg config.Config) *grpc.Server {
+	wire.Build(rpc.NewAPIServer)
+	return nil
 }
 
 func newIdentityService(
