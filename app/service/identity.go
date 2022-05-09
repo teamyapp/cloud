@@ -1,184 +1,182 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"log"
-	"strconv"
+	"net/url"
 	"time"
 
-	"github.com/teamyapp/cloud/app/channel"
-	"github.com/teamyapp/cloud/app/errs"
-	"github.com/teamyapp/cloud/app/idgen"
+	"github.com/teamyapp/cloud/app/dao"
+	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
-	"github.com/teamyapp/cloud/app/pubsub"
-	"github.com/teamyapp/cloud/app/repo"
 	"github.com/teamyapp/cloud/app/security"
-	oneEntity "github.com/teamyapp/one/entity"
 )
 
-type TokenPayload struct {
-	UserID   oneEntity.ID `json:"user_id"`
-	IssuedAt string       `json:"issued_at"`
+type tokenPayload struct {
+	UserID   uint64 `json:"user_id"`
+	IssuedAt string `json:"issued_at"`
 }
 
 type Identity struct {
-	userIDGenerator    *idgen.IDGenerator
-	sessionIDGenerator *idgen.IDGenerator
-	jwtAuthority       security.JWTAuthority
-	pubSub             pubsub.PubSub
-	userLinkingRepo    repo.UserLinking
-	oauthProviders     map[string]oauth.OAuth
-	accessTokenTLL     time.Duration
-	signInTimeOut      time.Duration
+	signInSessionDao dao.SignInSession
+	userLinkDao      dao.UserLink
+	userIDGenerator  *gen.UniqueNumber
+	stateIDGenerator *gen.UniqueNumber
+	jwtAuthority     security.JWTAuthority
+	oauthProviders   map[string]oauth.Provider
+	accessTokenTLL   time.Duration
 }
 
-func (i Identity) RequestOAuthSignInURL(oauthProvider string, sessionID oneEntity.ID) (string, error) {
-	oauthHandler, ok := i.oauthProviders[oauthProvider]
-	if !ok {
-		return "", errors.New("invalid oauthProvider")
-	}
-
-	signInURL, err := oauthHandler.GetSignInURL(sessionID)
-	if err == nil {
-		log.Printf("sign in URL: %s", signInURL)
-	}
-	return signInURL, err
-}
-
-func (i Identity) FinishOAuthSignIn(authorizationCode string, sessionID oneEntity.ID, oauthProvider string) error {
-	provider, ok := i.oauthProviders[oauthProvider]
-	if !ok {
-		return fmt.Errorf("unknown oauth provider: %s", provider)
-	}
-
-	externalUser, err := provider.GetUser(authorizationCode)
-	if err != nil {
-		return err
-	}
-
-	userID, err := i.getInternalUserID(provider.GetName(), externalUser.ID)
-	if err != nil {
-		return err
-	}
-
-	payload := TokenPayload{
-		UserID:   userID,
-		IssuedAt: time.Now().Format(time.RFC3339),
-	}
-
-	jwt, err := i.jwtAuthority.GenerateToken(payload)
-	if err != nil {
-		return err
-	}
-	return i.pubSub.Publish(strconv.Itoa(int(sessionID)), jwt)
-}
-
-func (i Identity) ClientSubscribe(channel channel.Channel, sessionID oneEntity.ID) {
-	go func() {
-		defer channel.Disconnect()
-		onSessionTokenReceived := make(chan string)
-
-		subscription := i.pubSub.Subscribe(strconv.Itoa(int(sessionID)), func(data interface{}) {
-			sessionToken := data.(string)
-			onSessionTokenReceived <- sessionToken
-		})
-		defer subscription.Unsubscribe()
-		log.Printf("client subscribed: session-id=%d", sessionID)
-
-		select {
-		case sessionToken := <-onSessionTokenReceived:
-			err := channel.SendMessage(sessionToken)
-			log.Printf("sent session token: session-id=%d", sessionID)
-			if err != nil {
-				log.Println(err)
-			}
-		case <-time.After(i.signInTimeOut):
-		}
-	}()
-}
-
-func (i Identity) VerifyAccessToken(accessToken string) (oneEntity.ID, bool) {
-	payload := TokenPayload{}
+func (i Identity) VerifyAccessToken(accessToken string) (uint64, bool) {
+	payload := tokenPayload{}
 	err := i.jwtAuthority.DecodeToken(accessToken, &payload)
 	if err != nil {
-		return -1, false
+		return 0, false
 	}
 
 	tm, err := time.Parse(time.RFC3339, payload.IssuedAt)
 	if err != nil {
-		return -1, false
+		return 0, false
 	}
 
 	if tm.Add(i.accessTokenTLL).Before(time.Now()) {
-		return -1, false
+		return 0, false
 	}
+
 	return payload.UserID, true
 }
 
-func (i Identity) NewSessionID() (oneEntity.ID, error) {
-	return i.sessionIDGenerator.GenerateUniqueID()
+func (i Identity) GenerateSignInURL(providerName string, redirectURL string) (string, error) {
+	provider, err := i.GetOAuthProvider(providerName)
+	if err != nil {
+		return "", err
+	}
+
+	sessionID, err := i.stateIDGenerator.GenerateUniqueNumber()
+	if err != nil {
+		return "", err
+	}
+
+	session := entity.SignInSession{
+		ID:          sessionID,
+		RedirectURL: redirectURL,
+	}
+
+	err = i.signInSessionDao.Add(session)
+	if err != nil {
+		return "", err
+	}
+
+	signInURL, err := provider.GetSignInURL(sessionID)
+	if err == nil {
+		log.Printf("sign in URL: %s", signInURL)
+	}
+
+	return signInURL, err
 }
 
-func (i Identity) GetOAuthProvider(providerName string) (oauth.OAuth, error) {
+func (i Identity) GetOAuthProvider(providerName string) (oauth.Provider, error) {
 	provider, ok := i.oauthProviders[providerName]
 	if !ok {
 		return nil, fmt.Errorf("provider not found: %s", provider)
 	}
+
 	return provider, nil
 }
 
-func (i Identity) getInternalUserID(oauthProvider string, externalUserID string) (oneEntity.ID, error) {
-	internalUserID, err := i.userLinkingRepo.GetInternalUser(oauthProvider, externalUserID)
+func (i Identity) FinishOAuthSignIn(providerName string, authorizationCode string, sessionID uint64) (string, error) {
+	provider, err := i.GetOAuthProvider(providerName)
+	if err != nil {
+		return "", err
+	}
+
+	externalUser, err := provider.GetUser(authorizationCode)
+	if err != nil {
+		return "", err
+	}
+
+	userID, err := i.getOrLinkInternalUserID(providerName, externalUser.ID)
+	if err != nil {
+		return "", err
+	}
+
+	payload := tokenPayload{
+		UserID:   userID,
+		IssuedAt: time.Now().Format(time.RFC3339),
+	}
+
+	accessToken, err := i.jwtAuthority.GenerateToken(payload)
+	if err != nil {
+		return "", err
+	}
+
+	session, err := i.signInSessionDao.FindByID(sessionID)
+	if err != nil {
+		return "", err
+	}
+
+	u, err := url.Parse(session.RedirectURL)
+	if err != nil {
+		return "", err
+	}
+
+	u.Query().Add("accessToken", accessToken)
+	return u.String(), nil
+}
+
+func (i Identity) getOrLinkInternalUserID(authProvider string, externalUserID string) (uint64, error) {
+	userLink, err := i.userLinkDao.FindByExternalUserID(authProvider, externalUserID)
 	switch err.(type) {
 	case nil:
-		return internalUserID, nil
-	case errs.NotFound:
-		internalUserID, err = i.userIDGenerator.GenerateUniqueID()
+		return userLink.InternalUserID, nil
+	case dao.ErrNotFound:
+		internalUserID, err := i.userIDGenerator.GenerateUniqueNumber()
 		if err != nil {
-			return -1, err
+			return 0, err
 		}
-		err = i.userLinkingRepo.LinkUser(oauthProvider, externalUserID, internalUserID)
-		return internalUserID, err
+
+		userLink = entity.UserLink{
+			AuthProvider:   authProvider,
+			InternalUserID: 0,
+			ExternalUserID: externalUserID,
+		}
+		return internalUserID, i.userLinkDao.Add(userLink)
 	default:
-		return -1, err
+		return 0, err
 	}
 }
 
 func NewIdentity(
+	signInSessionDao dao.SignInSession,
+	userLinkDao dao.UserLink,
+	uniqueNumberFactory gen.UniqueNumberFactory,
 	jwtAuthority security.JWTAuthority,
-	pubSub pubsub.PubSub,
-	idGeneratorFactory idgen.Factory,
-	userLinkingRepo repo.UserLinking,
-	oauthProviders []oauth.OAuth,
+	oauthProviders []oauth.Provider,
 	accessTokenTLL time.Duration,
-	signInTimeOut time.Duration,
 ) (Identity, error) {
-	providerMap := make(map[string]oauth.OAuth)
-	for _, provider := range oauthProviders {
-		providerMap[provider.GetName()] = provider
-	}
-
-	userIDGen, err := idGeneratorFactory.NewIDGenerator("userID")
+	userIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("userID")
 	if err != nil {
-		log.Println(err)
 		return Identity{}, err
 	}
 
-	sessionIDGen, err := idGeneratorFactory.NewIDGenerator("sessionID")
+	stateIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("stateID")
 	if err != nil {
-		log.Println(err)
 		return Identity{}, err
+	}
+
+	oauthProviderMap := make(map[string]oauth.Provider)
+	for _, oauthProvider := range oauthProviders {
+		oauthProviderMap[oauthProvider.GetName()] = oauthProvider
 	}
 
 	return Identity{
-		jwtAuthority:       jwtAuthority,
-		userIDGenerator:    userIDGen,
-		sessionIDGenerator: sessionIDGen,
-		oauthProviders:     providerMap,
-		pubSub:             pubSub,
-		userLinkingRepo:    userLinkingRepo,
-		accessTokenTLL:     accessTokenTLL,
-		signInTimeOut:      signInTimeOut,
+		signInSessionDao: signInSessionDao,
+		userLinkDao:      userLinkDao,
+		userIDGenerator:  userIDGenerator,
+		stateIDGenerator: stateIDGenerator,
+		jwtAuthority:     jwtAuthority,
+		oauthProviders:   oauthProviderMap,
+		accessTokenTLL:   accessTokenTLL,
 	}, nil
 }

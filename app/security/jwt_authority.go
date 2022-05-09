@@ -12,7 +12,9 @@ type JWTAuthority struct {
 }
 
 func (j JWTAuthority) GenerateToken(payload interface{}) (string, error) {
-	payloadMap, err := toMap(payload)
+	payloadMap := make(map[string]interface{})
+	jsonBuf, _ := json.Marshal(payload)
+	err := json.Unmarshal(jsonBuf, &payloadMap)
 	if err != nil {
 		return "", err
 	}
@@ -33,7 +35,7 @@ func (j JWTAuthority) DecodeToken(jwtToken string, output interface{}) error {
 		return errors.New("token is invalid")
 	}
 
-	return parseClaims(token.Claims, output)
+	return parseJWTClaims(token.Claims, output)
 }
 
 func (j JWTAuthority) DecodeUnverifiedToken(jwtToken string, output interface{}) error {
@@ -42,22 +44,16 @@ func (j JWTAuthority) DecodeUnverifiedToken(jwtToken string, output interface{})
 	if err != nil {
 		return err
 	}
-	return parseClaims(claims, output)
+
+	return parseJWTClaims(claims, output)
 }
 
-func parseClaims(claims jwt.Claims, output interface{}) error {
+func parseJWTClaims(claims jwt.Claims, output interface{}) error {
 	buf, err := json.Marshal(claims)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(buf, output)
-}
-
-func toMap(input interface{}) (map[string]interface{}, error) {
-	output := make(map[string]interface{})
-	jsonBuf, _ := json.Marshal(input)
-	err := json.Unmarshal(jsonBuf, &output)
-	return output, err
 }
 
 func NewJWTAuthority(signingKey string) JWTAuthority {

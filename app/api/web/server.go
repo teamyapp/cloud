@@ -4,29 +4,28 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/teamyapp/cloud/app/api/web/identity"
-	"github.com/teamyapp/cloud/app/service"
 )
 
-func NewAPIServer(identityService service.Identity) *http.ServeMux {
+type Service interface {
+	getRoutes() []Route
+}
+
+func NewServer(services []Service) *http.ServeMux {
 	serveMux := http.NewServeMux()
 	router := mux.NewRouter()
 
-	webSocketOriginChecker := func(r *http.Request) bool {
-		return true
-	}
-	routes := identity.GetRoutes(
-		webSocketOriginChecker,
-		identityService)
-	for _, r := range routes {
-		router.HandleFunc(r.Path, r.HandleFunc).Methods(r.Method)
+	for _, service := range services {
+		routes := service.getRoutes()
+		for _, r := range routes {
+			router.HandleFunc(r.Path, r.HandlerFunc).Methods(r.Method)
+		}
 	}
 
-	serveMux.HandleFunc("/", enableCORS(router.ServeHTTP))
+	serveMux.HandleFunc("/", EnableCORS(router.ServeHTTP))
 	return serveMux
 }
 
-func enableCORS(handlerFunc http.HandlerFunc) http.HandlerFunc {
+func EnableCORS(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
 		writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, PUT, OPTIONS, DELETE")

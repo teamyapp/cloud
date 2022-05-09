@@ -3,79 +3,93 @@
 package dep
 
 import (
-	"net/http"
+	"database/sql"
+	"time"
 
 	"github.com/google/wire"
-	"github.com/teamyapp/cloud/app/api/rpc"
 	"github.com/teamyapp/cloud/app/api/web"
-	"github.com/teamyapp/cloud/app/api/web/identity"
-	"github.com/teamyapp/cloud/app/config"
-	"github.com/teamyapp/cloud/app/idgen"
+	"github.com/teamyapp/cloud/app/dao"
+	"github.com/teamyapp/cloud/app/dao/sqldb"
+	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
-	"github.com/teamyapp/cloud/app/pubsub"
-	"github.com/teamyapp/cloud/app/repo"
 	"github.com/teamyapp/cloud/app/security"
 	"github.com/teamyapp/cloud/app/service"
-	"google.golang.org/grpc"
 )
 
-var repoSet = wire.NewSet(
-	wire.Bind(new(repo.UserLinking), new(*repo.InMemoryUserLinking)),
-	wire.Bind(new(repo.IDRange), new(*repo.InMemoryIDRange)),
+type OAuthProviders []oauth.Provider
+type AccessTokenTTL time.Duration
+type GenRangeSize uint64
+type JWTSigningKey string
+type WebAPIBaseURL string
 
-	repo.NewInMemoryUserLinking,
-	repo.NewInMemoryIDRange,
-)
+type ClientID string
+type ClientSecret string
 
-func InitWebAPIServer(cfg config.Config) (*http.ServeMux, error) {
+func InitGoogleOAuthProvider(
+	webAPIBaseURL WebAPIBaseURL,
+	jwtSigningKey JWTSigningKey,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.Google {
 	wire.Build(
-		repoSet,
-		wire.Bind(new(idgen.Factory), new(idgen.InMemoryIDGeneratorFactory)),
-		wire.Bind(new(pubsub.PubSub), new(*pubsub.InMemory)),
-
 		newJWTAuthority,
-		newInMemoryIDRangeFactory,
-		pubsub.NewInMemory,
-		newIdentityService,
-		web.NewAPIServer,
+		newGoogleOAuthProvider,
 	)
-	return &http.ServeMux{}, nil
+	return oauth.Google{}
 }
 
-func InitGRPCAPIServer(cfg config.Config) *grpc.Server {
-	wire.Build(rpc.NewAPIServer)
-	return nil
+func InitIdentityWebAPI(
+	sqlDB *sql.DB,
+	oauthProviders OAuthProviders,
+	accessTokenTTL AccessTokenTTL,
+	jwtSigningKey JWTSigningKey,
+	genRangeSize GenRangeSize,
+) (web.IdentityAPI, error) {
+	wire.Build(
+		wire.Bind(new(dao.UserLink), new(sqldb.UserLink)),
+		wire.Bind(new(dao.AllocatedRange), new(sqldb.AllocatedRange)),
+		wire.Bind(new(dao.SignInSession), new(sqldb.SignInSession)),
+		newUniqueNumberGenFactory,
+		newJWTAuthority,
+		sqldb.NewAllocatedRange,
+		sqldb.NewUserLink,
+		sqldb.NewSignInSession,
+		web.NewIdentityAPI,
+		newIdentityService,
+	)
+	return web.IdentityAPI{}, nil
+}
+
+func newGoogleOAuthProvider(
+	jwtAuthority security.JWTAuthority,
+	webAPIBaseURL WebAPIBaseURL,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.Google {
+	return oauth.NewGoogle(jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
+}
+
+func newJWTAuthority(signingKey JWTSigningKey) security.JWTAuthority {
+	return security.NewJWTAuthority(string(signingKey))
+}
+
+func newUniqueNumberGenFactory(allocatedRangeDao dao.AllocatedRange, genRangeSize GenRangeSize) gen.UniqueNumberFactory {
+	return gen.NewUniqueNumberFactory(allocatedRangeDao, uint64(genRangeSize))
 }
 
 func newIdentityService(
+	signInSessionDao dao.SignInSession,
+	userLinkDao dao.UserLink,
+	uniqueNumberFactory gen.UniqueNumberFactory,
 	jwtAuthority security.JWTAuthority,
-	pubSub pubsub.PubSub,
-	idGeneratorFactory idgen.Factory,
-	userLinkingRepo repo.UserLinking,
-	cfg config.Config,
+	oauthProviders OAuthProviders,
+	accessTokenTLL AccessTokenTTL,
 ) (service.Identity, error) {
-	urlString, err := identity.GetRootURL(cfg.WebAPIBaseURL)
-	if err != nil {
-		return service.Identity{}, err
-	}
-	var oauthProviders = []oauth.OAuth{
-		oauth.NewGoogle(jwtAuthority, cfg.GoogleClientID, cfg.GoogleClientSecret, urlString),
-	}
 	return service.NewIdentity(
+		signInSessionDao,
+		userLinkDao,
+		uniqueNumberFactory,
 		jwtAuthority,
-		pubSub,
-		idGeneratorFactory,
-		userLinkingRepo,
 		oauthProviders,
-		cfg.AccessTokenTTL,
-		cfg.SignInTimeOut,
-	)
-}
-
-func newJWTAuthority(cfg config.Config) security.JWTAuthority {
-	return security.NewJWTAuthority(cfg.JWTSigningKey)
-}
-
-func newInMemoryIDRangeFactory(idRangeRepo repo.IDRange, cfg config.Config) idgen.InMemoryIDGeneratorFactory {
-	return idgen.NewInMemoryIDGeneratorFactory(idRangeRepo, cfg.IDRangeLength)
+		time.Duration(accessTokenTLL))
 }

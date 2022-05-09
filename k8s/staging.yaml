@@ -66,9 +66,7 @@ spec:
                   key: google-client-secret
             - name: ACCESS_TOKEN_TTL
               value: 168h
-            - name: SIGN_IN_TIMEOUT
-              value: 5m
-            - name: ID_RANGE_LENGTH
+            - name: GEN_RANGE_SIZE
               value: "100"
             - name: WEB_API_BASE_URL
               value: https://cloud.staging.teamyapp.com
