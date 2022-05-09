@@ -2,29 +2,64 @@ package config
 
 import (
 	"log"
+	"os"
 	"time"
 
-	"github.com/teamyapp/one/config"
+	"github.com/joho/godotenv"
+	"github.com/kelseyhightower/envconfig"
+	"github.com/teamyapp/cloud/app/dao/sqldb"
 )
 
 type Config struct {
+	sqldb.Config
 	AccessTokenTTL     time.Duration `envconfig:"ACCESS_TOKEN_TTL" default:""`
-	SignInTimeOut      time.Duration `envconfig:"SIGN_IN_TIMEOUT" default:""`
-	JWTSigningKey      string        `envconfig:"JWT_SIGNING_KEY" default:""`
 	GoogleClientID     string        `envconfig:"GOOGLE_CLIENT_ID" default:""`
 	GoogleClientSecret string        `envconfig:"GOOGLE_CLIENT_SECRET" default:""`
-	IDRangeLength      int           `envconfig:"ID_RANGE_LENGTH" default:"100"`
+	JWTSigningKey      string        `envconfig:"JWT_SIGNING_KEY" default:""`
+	GenRangeSize       int           `envconfig:"GEN_RANGE_SIZE" default:"100"`
 	WebAPIBaseURL      string        `envconfig:"WEB_API_BASE_URL" default:""`
 	WebAPIPort         int           `envconfig:"WEB_API_PORT" default:"9500"`
-	GRPCAPIPort        int           `envconfig:"GRPC_API_PORT" default:"9600"`
 }
 
-func FromEnv() (Config, error) {
+func AppConfigFromEnv() (Config, error) {
 	cfg := Config{}
-	err := config.FromEnv(&cfg)
+	err := FromEnv(&cfg)
 	if err != nil {
 		log.Println(err)
 		return Config{}, err
 	}
 	return cfg, nil
+}
+
+func FromEnv(config interface{}) error {
+	err := autoLoadEnv(".env")
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	err = autoLoadEnv(".repo.env")
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	err = envconfig.Process("", config)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	return nil
+}
+
+func autoLoadEnv(fileName string) error {
+	_, err := os.Stat(fileName)
+	if err == nil {
+		return godotenv.Load(fileName)
+	} else if os.IsNotExist(err) {
+		return nil
+	} else {
+		return err
+	}
 }

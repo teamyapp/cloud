@@ -11,13 +11,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/security"
-	oneEntity "github.com/teamyapp/one/entity"
 )
-
-// https://developers.google.com/identity/protocols/oauth2/web-server#httprest_1
 
 const googleName = "google"
 
+// https://developers.google.com/identity/protocols/oauth2/web-server#httprest_1
 var googleAuthURLString = "https://accounts.google.com/o/oauth2/v2/auth"
 var googleTokenURLString = "https://oauth2.googleapis.com/token"
 
@@ -28,30 +26,57 @@ type Google struct {
 	redirectURI  string
 }
 
-var _ OAuth = (*Google)(nil)
+var _ Provider = (*Google)(nil)
 
 func (g Google) GetName() string {
 	return googleName
 }
 
-func (g Google) GetSignInURL(stateID oneEntity.ID) (string, error) {
+func (g Google) GetUser(authorizationCode string) (entity.ExternalUser, error) {
+	// https://developers.google.com/identity/protocols/oauth2/openid-connect#exchangecode
+	idToken, err := g.getIDToken(authorizationCode)
+	if err != nil {
+		return entity.ExternalUser{}, err
+	}
+
+	// https://developers.google.com/identity/protocols/oauth2/openid-connect#obtainuserinfo
+	tokenPayload := struct {
+		UserID         string `json:"sub"`
+		Issuer         string `json:"iss"`
+		ExpirationTime int    `json:"exp"`
+		IssuedAt       int    `json:"iat"`
+	}{}
+
+	err = g.jwtAuthority.DecodeUnverifiedToken(idToken, &tokenPayload)
+	return entity.ExternalUser{
+		ID: tokenPayload.UserID,
+	}, err
+}
+
+func (g Google) GetStateID(request *http.Request) (uint64, error) {
+	return strconv.ParseUint(request.URL.Query().Get("state"), 10, 64)
+}
+
+func (g Google) GetAuthorizationCode(request *http.Request) string {
+	return request.URL.Query().Get("code")
+}
+
+func (g Google) GetSignInURL(stateID uint64) (string, error) {
 	baseURL, err := url.Parse(googleAuthURLString)
 	if err != nil {
 		return "", err
 	}
 
-	query := url.Values{}
+	query := baseURL.Query()
 	query.Add("client_id", g.clientID)
 	query.Add("redirect_uri", g.redirectURI)
 	query.Add("response_type", "code")
 	query.Add("state", strconv.Itoa(int(stateID)))
 	query.Add("scope", "openid")
-	baseURL.RawQuery = query.Encode()
 	return baseURL.String(), nil
 }
 
-func (g Google) GetUser(authorizationCode string) (entity.ExternalUser, error) {
-	// https://developers.google.com/identity/protocols/oauth2/openid-connect#exchangecode
+func (g Google) getIDToken(authorizationCode string) (string, error) {
 	tokenBody := struct {
 		ClientID     string `json:"client_id"`
 		ClientSecret string `json:"client_secret"`
@@ -68,20 +93,23 @@ func (g Google) GetUser(authorizationCode string) (entity.ExternalUser, error) {
 
 	buf, err := json.Marshal(tokenBody)
 	if err != nil {
-		return entity.ExternalUser{}, err
+		return "", err
 	}
 
 	res, err := http.Post(googleTokenURLString, "application/json", bytes.NewReader(buf))
 	if err != nil {
-		return entity.ExternalUser{}, err
+		return "", err
 	}
+
 	if res.StatusCode > 300 || res.StatusCode < 200 {
-		return entity.ExternalUser{}, fmt.Errorf("fail to obtain %s access token", g.GetName())
+		return "", fmt.Errorf("fail to obtain %s access token", g.GetName())
 	}
+
 	buf, err = ioutil.ReadAll(res.Body)
 	if err != nil {
-		return entity.ExternalUser{}, err
+		return "", err
 	}
+
 	body := struct {
 		IDToken      string `json:"id_token"`
 		AccessToken  string `json:"access_token"`
@@ -91,36 +119,15 @@ func (g Google) GetUser(authorizationCode string) (entity.ExternalUser, error) {
 		RefreshToken string `json:"refresh_token"`
 	}{}
 	err = json.Unmarshal(buf, &body)
-	if err != nil {
-		return entity.ExternalUser{}, err
-	}
-
-	// https://developers.google.com/identity/protocols/oauth2/openid-connect#obtainuserinfo
-	tokenPayload := struct {
-		UserID         string `json:"sub"`
-		Issuer         string `json:"iss"`
-		ExpirationTime int    `json:"exp"`
-		IssuedAt       int    `json:"iat"`
-	}{}
-	err = g.jwtAuthority.DecodeUnverifiedToken(body.IDToken, &tokenPayload)
-	return entity.ExternalUser{
-		ID: tokenPayload.UserID,
-	}, err
-}
-
-func (g Google) GetStateID(request *http.Request) string {
-	return request.URL.Query().Get("state")
-}
-
-func (g Google) GetAuthorizationCode(request *http.Request) string {
-	return request.URL.Query().Get("code")
+	return body.IDToken, err
 }
 
 func NewGoogle(
 	jwtAuthority security.JWTAuthority,
+	webAPIBaseURL string,
 	clientID string,
 	clientSecret string,
-	webAPIBaseURL string) Google {
+) Google {
 	return Google{
 		jwtAuthority: jwtAuthority,
 		clientID:     clientID,
