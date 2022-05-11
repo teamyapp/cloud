@@ -10,7 +10,7 @@ import (
 	"github.com/teamyapp/cloud/app/service"
 )
 
-const identityPathPrefix = "identity"
+const identityPathPrefix = "/identity"
 
 type IdentityAPI struct {
 	identityService service.Identity
@@ -26,12 +26,12 @@ func (i IdentityAPI) getRoutes() []Route {
 			HandlerFunc: i.verifyToken,
 		},
 		{
-			Path:        path.Join(identityPathPrefix, "sign-in/oauth/{auth-provider}"),
+			Path:        path.Join(identityPathPrefix, "sign-in/oauth/{provider}"),
 			Method:      http.MethodGet,
 			HandlerFunc: i.oauthSignIn,
 		},
 		{
-			Path:        path.Join(identityPathPrefix, "sign-in/oauth/{auth-provider}/finish"),
+			Path:        path.Join(identityPathPrefix, "sign-in/oauth/{provider}/finish"),
 			Method:      http.MethodGet,
 			HandlerFunc: i.finishOAuthSignIn,
 		},
@@ -57,7 +57,7 @@ func (i IdentityAPI) verifyToken(w http.ResponseWriter, r *http.Request) {
 func (i IdentityAPI) oauthSignIn(w http.ResponseWriter, r *http.Request) {
 	authProviderName := mux.Vars(r)["provider"]
 	query := r.URL.Query()
-	redirectURL := query.Get("redirect-url")
+	redirectURL := query.Get("redirectUrl")
 
 	url, err := i.identityService.GenerateSignInURL(authProviderName, redirectURL)
 	if err != nil {

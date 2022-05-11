@@ -19,12 +19,10 @@ type UniqueNumber struct {
 
 func (u *UniqueNumber) GenerateUniqueNumber() (uint64, error) {
 	if u.allocatedRange.NextNumber > u.allocatedRange.RangeEnd {
-		newRange, err := u.allocateNewRange()
+		err := u.allocateNewRange()
 		if err != nil {
 			return uint64(0), err
 		}
-
-		u.allocatedRange = newRange
 	}
 
 	num := u.allocatedRange.NextNumber
@@ -37,10 +35,10 @@ func (u *UniqueNumber) init() error {
 	return nil
 }
 
-func (u UniqueNumber) allocateNewRange() (entity.AllocatedRange, error) {
+func (u *UniqueNumber) allocateNewRange() error {
 	// TODO: partition based on resource type for distributed systems
 	if u.allocatedRange.RangeEnd == math.MaxInt64 {
-		return entity.AllocatedRange{}, fmt.Errorf("out of number to allocate")
+		return fmt.Errorf("out of number to allocate")
 	}
 
 	newRangeStart := u.allocatedRange.RangeEnd + 1
@@ -51,10 +49,13 @@ func (u UniqueNumber) allocateNewRange() (entity.AllocatedRange, error) {
 		NextNumber: newRangeStart,
 	}
 	err := u.allocatedRangeDao.Update(newRange)
-	if err == nil {
-		log.Printf("allocated range: %v", newRange)
+	if err != nil {
+		return err
 	}
-	return newRange, err
+
+	u.allocatedRange = newRange
+	log.Printf("allocated range: %v", newRange)
+	return nil
 }
 
 func min[Number int | uint64](num1 Number, num2 Number) Number {
@@ -77,23 +78,26 @@ func newUniqueNumber(
 			return nil, err
 		}
 
-		err = allocatedRangeDao.Add(entity.AllocatedRange{
+		allocatedRange = entity.AllocatedRange{
 			Key:        name,
-			RangeEnd:   rangeSize,
+			RangeEnd:   0,
 			NextNumber: 0,
-		})
+		}
+
+		err = allocatedRangeDao.Add(allocatedRange)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	uniqueNumber := UniqueNumber{
+	uniqueNumber := &UniqueNumber{
 		name:              name,
 		rangeSize:         rangeSize,
 		allocatedRange:    allocatedRange,
 		allocatedRangeDao: allocatedRangeDao,
 	}
-	return &uniqueNumber, nil
+	err = uniqueNumber.allocateNewRange()
+	return uniqueNumber, err
 }
 
 type UniqueNumberFactory struct {
