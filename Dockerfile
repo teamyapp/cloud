@@ -2,7 +2,7 @@ FROM golang:1.18-alpine AS builder
 
 RUN apk add --no-cache git
 
-WORKDIR /app
+WORKDIR /workspace
 
 COPY . .
 
@@ -16,10 +16,10 @@ WORKDIR /bin
 
 RUN apk add --no-cache bash
 
-COPY --from=builder /app/bin/main main
+COPY --from=builder /workspace/bin/main main
 
-COPY --from=builder /app/dao/sqldb/migrations/ app/dao/sqldb/migrations/
+COPY --from=builder /workspace/app/dao/sqldb/migrations/ app/dao/sqldb/migrations/
 
-COPY --from=builder /app/.repo.env .repo.env
+COPY --from=builder /workspace/.repo.env .repo.env
 
 CMD ["/bin/main"]
