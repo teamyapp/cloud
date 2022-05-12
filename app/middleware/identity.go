@@ -83,7 +83,7 @@ func getBearerToken(request *http.Request) (string, error) {
 	return parts[1], nil
 }
 
-func WithIdentity(identityAPIEndpoint string, handler http.Handler) Identity {
+func WithIdentity(identityAPIEndpoint string, handler http.Handler) http.Handler {
 	verifyTokenURL := fmt.Sprintf("%s/verify-token", identityAPIEndpoint)
 	return Identity{
 		verifyTokenURL: verifyTokenURL,

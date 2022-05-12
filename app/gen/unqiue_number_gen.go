@@ -30,13 +30,7 @@ func (u *UniqueNumber) GenerateUniqueNumber() (uint64, error) {
 	return num, nil
 }
 
-func (u *UniqueNumber) init() error {
-
-	return nil
-}
-
 func (u *UniqueNumber) allocateNewRange() error {
-	// TODO: partition based on resource type for distributed systems
 	if u.allocatedRange.RangeEnd == math.MaxInt64 {
 		return fmt.Errorf("out of number to allocate")
 	}
