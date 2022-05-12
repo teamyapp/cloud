@@ -18,6 +18,8 @@ RUN apk add --no-cache bash
 
 COPY --from=builder /app/bin/main ./bin/main
 
+COPY --from=builder /app/dao/sqldb/migrations/ app/dao/sqldb/migrations/
+
 COPY --from=builder /app/.repo.env .repo.env
 
 CMD ["/app/bin/main"]
