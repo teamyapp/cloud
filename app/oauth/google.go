@@ -73,6 +73,7 @@ func (g Google) GetSignInURL(stateID uint64) (string, error) {
 	query.Add("response_type", "code")
 	query.Add("state", strconv.Itoa(int(stateID)))
 	query.Add("scope", "openid")
+	baseURL.RawQuery = query.Encode()
 	return baseURL.String(), nil
 }
 
@@ -132,6 +133,6 @@ func NewGoogle(
 		jwtAuthority: jwtAuthority,
 		clientID:     clientID,
 		clientSecret: clientSecret,
-		redirectURI:  fmt.Sprintf("%s/sign-in/oauth/%s/callback", webAPIBaseURL, googleName),
+		redirectURI:  fmt.Sprintf("%s/identity/sign-in/oauth/%s/finish", webAPIBaseURL, googleName),
 	}
 }

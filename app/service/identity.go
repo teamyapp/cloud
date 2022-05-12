@@ -121,7 +121,9 @@ func (i Identity) FinishOAuthSignIn(providerName string, authorizationCode strin
 		return "", err
 	}
 
-	u.Query().Add("accessToken", accessToken)
+	query := u.Query()
+	query.Add("accessToken", accessToken)
+	u.RawQuery = query.Encode()
 	return u.String(), nil
 }
 
@@ -138,7 +140,7 @@ func (i Identity) getOrLinkInternalUserID(authProvider string, externalUserID st
 
 		userLink = entity.UserLink{
 			AuthProvider:   authProvider,
-			InternalUserID: 0,
+			InternalUserID: internalUserID,
 			ExternalUserID: externalUserID,
 		}
 		return internalUserID, i.userLinkDao.Add(userLink)

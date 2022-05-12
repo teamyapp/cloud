@@ -10,7 +10,14 @@ import (
 	"github.com/teamyapp/cloud/app/dao/sqldb"
 )
 
+type RepoConfig struct {
+	GitLongCommitHash string `envconfig:"GIT_LONG_COMMIT_HASH"`
+	GitRepoOwner      string `envconfig:"GIT_REPO_OWNER"`
+	GitRepoName       string `envconfig:"GIT_REPO_NAME"`
+}
+
 type Config struct {
+	RepoConfig
 	sqldb.Config
 	AccessTokenTTL     time.Duration `envconfig:"ACCESS_TOKEN_TTL" default:""`
 	GoogleClientID     string        `envconfig:"GOOGLE_CLIENT_ID" default:""`

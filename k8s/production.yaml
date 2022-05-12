@@ -8,6 +8,15 @@ spec:
   vaultMountPoint: kubernetes
   vaultRole: secrets-read-role
   data:
+    - name: db-user
+      key: kv/data/secrets/production/cloud/db
+      property: user
+    - name: db-password
+      key: kv/data/secrets/production/cloud/db
+      property: password
+    - name: db-name
+      key: kv/data/secrets/production/cloud/db
+      property: name
     - name: jwt-signing-key
       key: kv/data/secrets/production/cloud
       property: jwt-signing-key
@@ -49,6 +58,23 @@ spec:
           ports:
             - containerPort: 8080
           env:
+            - name: DB_HOST
+              value: postgres.db.svc.cluster.local
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: db-user
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: db-password
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: db-name
             - name: JWT_SIGNING_KEY
               valueFrom:
                 secretKeyRef:
