@@ -128,8 +128,8 @@ spec:
       match: Host(`cloud.teamyapp.com`)
       services:
         - kind: Service
-          name: cloud
           namespace: production
+          name: cloud
           port: 8080
           passHostHeader: true
   tls:
@@ -145,10 +145,10 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      priority: 5
       match: Host(`cloud.teamyapp.com`) && Headers(`Content-Type`, `application/grpc`)
       services:
         - kind: Service
+          namespace: production
           name: cloud
           port: 8081
           scheme: h2c

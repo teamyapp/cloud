@@ -128,8 +128,8 @@ spec:
       match: Host(`cloud.testing.teamyapp.com`)
       services:
         - kind: Service
-          name: cloud
           namespace: testing
+          name: cloud
           port: 8080
           passHostHeader: true
   tls:
@@ -149,6 +149,7 @@ spec:
       match: Host(`cloud.testing.teamyapp.com`) && Headers(`Content-Type`, `application/grpc`)
       services:
         - kind: Service
+          namespace: testing
           name: cloud
           port: 8081
           scheme: h2c
