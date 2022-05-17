@@ -12,13 +12,13 @@ import (
 
 const identityPathPrefix = "/identity"
 
-type IdentityAPI struct {
+type IdentityService struct {
 	identityService service.Identity
 }
 
-var _ Service = (*IdentityAPI)(nil)
+var _ Service = (*IdentityService)(nil)
 
-func (i IdentityAPI) getRoutes() []Route {
+func (i IdentityService) getRoutes() []Route {
 	return []Route{
 		{
 			Path:        path.Join(identityPathPrefix, "verify-token"),
@@ -38,7 +38,7 @@ func (i IdentityAPI) getRoutes() []Route {
 	}
 }
 
-func (i IdentityAPI) verifyToken(w http.ResponseWriter, r *http.Request) {
+func (i IdentityService) verifyToken(w http.ResponseWriter, r *http.Request) {
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -54,7 +54,7 @@ func (i IdentityAPI) verifyToken(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (i IdentityAPI) oauthSignIn(w http.ResponseWriter, r *http.Request) {
+func (i IdentityService) oauthSignIn(w http.ResponseWriter, r *http.Request) {
 	authProviderName := mux.Vars(r)["provider"]
 	query := r.URL.Query()
 	redirectURL := query.Get("redirectUrl")
@@ -68,7 +68,7 @@ func (i IdentityAPI) oauthSignIn(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
-func (i IdentityAPI) finishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
+func (i IdentityService) finishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	providerName := mux.Vars(r)["provider"]
 	provider, err := i.identityService.GetOAuthProvider(providerName)
 	if err != nil {
@@ -92,8 +92,8 @@ func (i IdentityAPI) finishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
-func NewIdentityAPI(identityService service.Identity) IdentityAPI {
-	return IdentityAPI{
+func NewIdentityService(identityService service.Identity) IdentityService {
+	return IdentityService{
 		identityService: identityService,
 	}
 }

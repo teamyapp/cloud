@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 
+	"github.com/teamyapp/cloud/app/api/rpc"
 	"github.com/teamyapp/cloud/app/api/web"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
@@ -39,6 +41,11 @@ func main() {
 			defer wg.Done()
 			StartWebServer(cfg, sqlDB)
 		}()
+
+		go func() {
+			defer wg.Done()
+			StartGrpcServer(cfg, sqlDB)
+		}()
 		wg.Wait()
 		return nil
 	})
@@ -58,7 +65,7 @@ func StartWebServer(cfg config.Config, sqlDB *sql.DB) {
 			dep.ClientID(cfg.GoogleClientID),
 			dep.ClientSecret(cfg.GoogleClientSecret)),
 	}
-	identityAPI, err := dep.InitIdentityWebAPI(
+	identityAPI, err := dep.InitIdentityWebService(
 		sqlDB,
 		oauthProviders,
 		dep.AccessTokenTTL(cfg.AccessTokenTTL),
@@ -67,14 +74,33 @@ func StartWebServer(cfg config.Config, sqlDB *sql.DB) {
 	if err != nil {
 		panic(err)
 	}
+	gatewayAPI := web.NewGatewayAPI()
 
-	webServer := web.NewServer([]web.Service{identityAPI})
+	webServer := web.NewServer([]web.Service{identityAPI, gatewayAPI})
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Printf("Web server started at port %d\n", cfg.WebAPIPort)
 	if err = http.ListenAndServe(fmt.Sprintf(":%d", cfg.WebAPIPort), webServer); err != nil {
+		panic(err)
+	}
+}
+
+func StartGrpcServer(cfg config.Config, sqlDB *sql.DB) {
+	lis, err := net.Listen("tcp", fmt.Sprintf(fmt.Sprintf(":%d", cfg.GRPCAPIPort)))
+	if err != nil {
+		panic(err)
+	}
+
+	genRPCService, err := dep.InitGeneratorRPCService(sqlDB, dep.GenRangeSize(cfg.GenRangeSize))
+	if err != nil {
+		panic(err)
+	}
+
+	s := rpc.NewServer([]rpc.Service{genRPCService})
+	fmt.Printf("GRPC server started at port %d\n", cfg.GRPCAPIPort)
+	if err := s.Serve(lis); err != nil {
 		panic(err)
 	}
 }
