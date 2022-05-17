@@ -103,7 +103,7 @@ apiVersion: v1
 kind: Service
 metadata:
   namespace: production
-  name: cloud
+  name: cloud-web
 spec:
   selector:
     app: cloud
@@ -116,7 +116,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
   namespace: production
-  name: cloud
+  name: cloud-grpc
 spec:
   entryPoints:
     - websecure
