@@ -74,9 +74,8 @@ func StartWebServer(cfg config.Config, sqlDB *sql.DB) {
 	if err != nil {
 		panic(err)
 	}
-	gatewayAPI := web.NewGatewayAPI()
 
-	webServer := web.NewServer([]web.Service{identityAPI, gatewayAPI})
+	webServer := web.NewServer([]web.Service{identityAPI})
 	if err != nil {
 		panic(err)
 	}
