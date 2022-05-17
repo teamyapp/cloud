@@ -145,6 +145,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
+      priority: 5
       match: Host(`cloud.teamyapp.com`) && Headers(`Content-Type`, `application/grpc`)
       services:
         - kind: Service
