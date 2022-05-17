@@ -119,7 +119,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
   namespace: testing
-  name: cloud-grpc
+  name: cloud
 spec:
   entryPoints:
     - websecure
@@ -139,7 +139,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
   namespace: testing
-  name: cloud
+  name: cloud-grpc
 spec:
   entryPoints:
     - websecure
