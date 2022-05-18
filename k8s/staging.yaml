@@ -112,9 +112,9 @@ spec:
     app: cloud
   ports:
     - name: http
-      port: 8080
+      port: 80
     - name: grpc
-      port: 8081
+      port: 81
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
@@ -131,7 +131,7 @@ spec:
         - kind: Service
           namespace: staging
           name: cloud
-          port: 8080
+          port: 80
           passHostHeader: true
     - kind: Rule
       match: Host(`rpc-cloud.staging.teamyapp.com`)
@@ -139,7 +139,7 @@ spec:
         - kind: Service
           namespace: staging
           name: cloud
-          port: 8081
+          port: 81
           scheme: h2c
   tls:
     secretName: teamy-cert
