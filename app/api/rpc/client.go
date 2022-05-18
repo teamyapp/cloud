@@ -13,13 +13,13 @@ type CloudAPIClient struct {
 	generatorClient *proto.GeneratorClient
 }
 
-func (c *CloudAPIClient) GeneratorClient() *proto.GeneratorClient {
+func (c *CloudAPIClient) GeneratorClient() proto.GeneratorClient {
 	if c.generatorClient == nil {
 		client := proto.NewGeneratorClient(c.gRPCConn)
 		c.generatorClient = &client
 	}
 
-	return c.generatorClient
+	return *c.generatorClient
 }
 
 func (c *CloudAPIClient) Close() error {
