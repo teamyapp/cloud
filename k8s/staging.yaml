@@ -57,6 +57,7 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
+            - containerPort: 8081
           env:
             - name: DB_HOST
               value: postgres.db.svc.cluster.local
@@ -105,7 +106,7 @@ apiVersion: v1
 kind: Service
 metadata:
   namespace: staging
-  name: cloud-web
+  name: cloud
 spec:
   selector:
     app: cloud
@@ -132,24 +133,11 @@ spec:
           name: cloud
           port: 8080
           passHostHeader: true
-  tls:
-    secretName: teamy-cert
----
-apiVersion: traefik.containo.us/v1alpha1
-kind: IngressRoute
-metadata:
-  namespace: staging
-  name: cloud-grpc
-spec:
-  entryPoints:
-    - websecure
-  routes:
     - kind: Rule
-      priority: 5
-      match: Host(`cloud.staging.teamyapp.com`) && Headers(`Content-Type`, `application/grpc`)
+      match: Host(`rpc-cloud.staging.teamyapp.com`)
       services:
         - kind: Service
-          namespace: staging
+          namespace: testing
           name: cloud
           port: 8081
           scheme: h2c
