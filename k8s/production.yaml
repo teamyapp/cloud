@@ -137,7 +137,7 @@ spec:
       match: Host(`rpc-cloud.teamyapp.com`)
       services:
         - kind: Service
-          namespace: testing
+          namespace: production
           name: cloud
           port: 8081
           scheme: h2c
