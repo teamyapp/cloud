@@ -113,8 +113,10 @@ spec:
   ports:
     - name: http
       port: 80
+      targetPort: 8080
     - name: grpc
       port: 81
+      targetPort: 8081
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
