@@ -26,6 +26,12 @@ spec:
     - name: google-client-secret
       key: kv/data/secrets/testing/cloud
       property: google-client-secret
+    - name: github-client-id
+      key: kv/data/secrets/testing/cloud
+      property: github-client-id
+    - name: github-client-secret
+      key: kv/data/secrets/testing/cloud
+      property: github-client-secret
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -91,6 +97,16 @@ spec:
                 secretKeyRef:
                   name: cloud
                   key: google-client-secret
+            - name: GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: github-client-id
+            - name: GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: github-client-secret
             - name: ACCESS_TOKEN_TTL
               value: 168h
             - name: GEN_RANGE_SIZE

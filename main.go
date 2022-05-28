@@ -64,6 +64,10 @@ func StartWebServer(cfg config.Config, sqlDB *sql.DB) {
 			dep.JWTSigningKey(cfg.JWTSigningKey),
 			dep.ClientID(cfg.GoogleClientID),
 			dep.ClientSecret(cfg.GoogleClientSecret)),
+		dep.InitGitHubOAuthProvider(
+			webAPIBaseURL,
+			dep.ClientID(cfg.GitHubClientID),
+			dep.ClientSecret(cfg.GitHubClientSecret)),
 	}
 	identityAPI, err := dep.InitIdentityWebService(
 		sqlDB,

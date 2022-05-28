@@ -39,6 +39,17 @@ func InitGoogleOAuthProvider(
 	return oauth.Google{}
 }
 
+func InitGitHubOAuthProvider(
+	webAPIBaseURL WebAPIBaseURL,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.GitHub {
+	wire.Build(
+		newGitHubOAuthProvider,
+	)
+	return oauth.GitHub{}
+}
+
 var daoSet = wire.NewSet(
 	wire.Bind(new(dao.UserLink), new(sqldb.UserLink)),
 	wire.Bind(new(dao.AllocatedRange), new(sqldb.AllocatedRange)),
@@ -84,6 +95,14 @@ func newGoogleOAuthProvider(
 	clientSecret ClientSecret,
 ) oauth.Google {
 	return oauth.NewGoogle(jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
+}
+
+func newGitHubOAuthProvider(
+	webAPIBaseURL WebAPIBaseURL,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.GitHub {
+	return oauth.NewGitHub(string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newJWTAuthority(signingKey JWTSigningKey) security.JWTAuthority {
