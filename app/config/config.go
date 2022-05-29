@@ -22,6 +22,8 @@ type Config struct {
 	AccessTokenTTL     time.Duration `envconfig:"ACCESS_TOKEN_TTL" default:""`
 	GoogleClientID     string        `envconfig:"GOOGLE_CLIENT_ID" default:""`
 	GoogleClientSecret string        `envconfig:"GOOGLE_CLIENT_SECRET" default:""`
+	GitHubClientID     string        `envconfig:"GITHUB_CLIENT_ID" default:""`
+	GitHubClientSecret string        `envconfig:"GITHUB_CLIENT_SECRET" default:""`
 	JWTSigningKey      string        `envconfig:"JWT_SIGNING_KEY" default:""`
 	GenRangeSize       int           `envconfig:"GEN_RANGE_SIZE" default:"100"`
 	WebAPIBaseURL      string        `envconfig:"WEB_API_BASE_URL" default:""`

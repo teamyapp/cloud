@@ -86,6 +86,14 @@ func newGoogleOAuthProvider(
 	return oauth.NewGoogle(jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
+func InitGitHubOAuthProvider(
+	webAPIBaseURL WebAPIBaseURL,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.GitHub {
+	return oauth.NewGitHub(string(webAPIBaseURL), string(clientID), string(clientSecret))
+}
+
 func newJWTAuthority(signingKey JWTSigningKey) security.JWTAuthority {
 	return security.NewJWTAuthority(string(signingKey))
 }
