@@ -14,9 +14,9 @@ import (
 const gitHubName = "github"
 
 // https://docs.github.com/en/developers/apps/building-oauth-apps/authorizing-oauth-apps#web-application-flow
-var gitHubAuthURLString = "https://github.com/login/oauth/authorize"
-var gitHubTokenURLString = "https://github.com/login/oauth/access_token"
-var gitHubUserURLString = "https://api.github.com/user"
+var githubAuthorizationURL = "https://github.com/login/oauth/authorize"
+var githubAccessTokenURL = "https://github.com/login/oauth/access_token"
+var githubUserURL = "https://api.github.com/user"
 
 type GitHub struct {
 	clientID     string
@@ -56,7 +56,7 @@ func (g GitHub) GetAuthorizationCode(request *http.Request) string {
 }
 
 func (g GitHub) GetSignInURL(stateID uint64) (string, error) {
-	baseURL, err := url.Parse(gitHubAuthURLString)
+	baseURL, err := url.Parse(githubAuthorizationURL)
 	if err != nil {
 		return "", err
 	}
@@ -86,7 +86,7 @@ func (g GitHub) getAccessToken(authorizationCode string) (string, error) {
 		return "", err
 	}
 
-	req, err := http.NewRequest("POST", gitHubTokenURLString, bytes.NewReader(buf))
+	req, err := http.NewRequest("POST", githubAccessTokenURL, bytes.NewReader(buf))
 	if err != nil {
 		return "", err
 	}
@@ -99,7 +99,7 @@ func (g GitHub) getAccessToken(authorizationCode string) (string, error) {
 	}
 
 	if res.StatusCode > 300 || res.StatusCode < 200 {
-		return "", fmt.Errorf("fail to obtain %s access token", g.GetName())
+		return "", fmt.Errorf("fail to obtain %s access token: HTTPStatusCode=%v", g.GetName(), res.StatusCode)
 	}
 
 	buf, err = ioutil.ReadAll(res.Body)
@@ -121,20 +121,20 @@ type UserProfile struct {
 }
 
 func (g GitHub) getUserID(accessToken string) (string, error) {
-	req, err := http.NewRequest("GET", gitHubUserURLString, nil)
+	req, err := http.NewRequest("GET", githubUserURL, nil)
 	if err != nil {
 		return "", err
 	}
 
-	req.Header.Set("Authorization", "token "+accessToken)
-	req.Header.Set("Accept", "application/vnd.github.v3+jso")
+	req.Header.Set("Authorization", fmt.Sprintf("token %s", accessToken))
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
 	}
 
 	if res.StatusCode > 300 || res.StatusCode < 200 {
-		return "", fmt.Errorf("fail to obtain %s user ID", g.GetName())
+		return "", fmt.Errorf("fail to obtain %s user ID: HTTPStatusCode=%v", g.GetName(), res.StatusCode)
 	}
 
 	buf, err := ioutil.ReadAll(res.Body)

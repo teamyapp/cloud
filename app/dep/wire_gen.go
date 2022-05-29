@@ -27,11 +27,6 @@ func InitGoogleOAuthProvider(webAPIBaseURL WebAPIBaseURL, jwtSigningKey JWTSigni
 	return google
 }
 
-func InitGitHubOAuthProvider(webAPIBaseURL WebAPIBaseURL, clientID ClientID, clientSecret ClientSecret) oauth.GitHub {
-	gitHub := newGitHubOAuthProvider(webAPIBaseURL, clientID, clientSecret)
-	return gitHub
-}
-
 func InitIdentityWebService(sqlDB *sql.DB, oauthProviders OAuthProviders, accessTokenTTL AccessTokenTTL, jwtSigningKey JWTSigningKey, genRangeSize GenRangeSize) (web.IdentityService, error) {
 	signInSession := sqldb.NewSignInSession(sqlDB)
 	userLink := sqldb.NewUserLink(sqlDB)
@@ -80,7 +75,7 @@ func newGoogleOAuthProvider(
 	return oauth.NewGoogle(jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
-func newGitHubOAuthProvider(
+func InitGitHubOAuthProvider(
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
