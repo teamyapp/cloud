@@ -27,10 +27,10 @@ spec:
       key: kv/data/secrets/staging/cloud
       property: google-client-secret
     - name: github-client-id
-      key: kv/data/secrets/testing/cloud
+      key: kv/data/secrets/staging/cloud
       property: github-client-id
     - name: github-client-secret
-      key: kv/data/secrets/testing/cloud
+      key: kv/data/secrets/staging/cloud
       property: github-client-secret
 ---
 apiVersion: apps/v1
