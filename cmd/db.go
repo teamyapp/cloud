@@ -128,7 +128,7 @@ func addDBCmd() {
 }
 
 func useSQLDB(action func(sqlDB *sql.DB) error) error {
-	cfg, err := config.AppConfigFromEnv()
+	cfg, err := config.AppFromEnv()
 	if err != nil {
 		log.Println(err)
 		panic(err)
