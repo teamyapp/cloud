@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/teamyapp/cloud/app/entity"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/teamyapp/cloud/app/entity"
 )
 
 const gitHubName = "github"

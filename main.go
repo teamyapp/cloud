@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.AppConfigFromEnv()
+	cfg, err := config.AppFromEnv()
 	if err != nil {
 		log.Println(err)
 		panic(err)
@@ -56,7 +56,7 @@ func main() {
 	}
 }
 
-func StartWebServer(cfg config.Config, sqlDB *sql.DB) {
+func StartWebServer(cfg config.App, sqlDB *sql.DB) {
 	webAPIBaseURL := dep.WebAPIBaseURL(cfg.WebAPIBaseURL)
 	oauthProviders := []oauth.Provider{
 		dep.InitGoogleOAuthProvider(
@@ -90,7 +90,7 @@ func StartWebServer(cfg config.Config, sqlDB *sql.DB) {
 	}
 }
 
-func StartGrpcServer(cfg config.Config, sqlDB *sql.DB) {
+func StartGrpcServer(cfg config.App, sqlDB *sql.DB) {
 	lis, err := net.Listen("tcp", fmt.Sprintf(fmt.Sprintf(":%d", cfg.GRPCAPIPort)))
 	if err != nil {
 		panic(err)
