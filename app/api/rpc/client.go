@@ -35,7 +35,7 @@ func NewCloudAPIClient(cfg config.CloudAPIClient) (*CloudAPIClient, error) {
 		opts = grpc.WithInsecure()
 	}
 
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", cfg.Host, cfg.Host), opts)
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port), opts)
 	if err != nil {
 		return nil, err
 	}
