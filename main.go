@@ -69,6 +69,8 @@ func main() {
 			identityAPI,
 			generatorAPI,
 		})
-		return rn.Start()
+
+		rn.Start()
+		return nil
 	})
 }
