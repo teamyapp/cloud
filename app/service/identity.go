@@ -10,7 +10,7 @@ import (
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
-	"github.com/teamyapp/cloud/app/security"
+	"github.com/teamyapp/cloud/libs/security"
 )
 
 type tokenPayload struct {

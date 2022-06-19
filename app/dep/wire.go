@@ -7,14 +7,13 @@ import (
 	"time"
 
 	"github.com/google/wire"
-	"github.com/teamyapp/cloud/app/api/rpc"
-	"github.com/teamyapp/cloud/app/api/web"
+	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
-	"github.com/teamyapp/cloud/app/security"
 	"github.com/teamyapp/cloud/app/service"
+	"github.com/teamyapp/cloud/libs/security"
 )
 
 type OAuthProviders []oauth.Provider
@@ -48,33 +47,33 @@ var daoSet = wire.NewSet(
 	sqldb.NewSignInSession,
 )
 
-func InitIdentityWebService(
+func InitIdentityAPI(
 	sqlDB *sql.DB,
 	oauthProviders OAuthProviders,
 	accessTokenTTL AccessTokenTTL,
 	jwtSigningKey JWTSigningKey,
 	genRangeSize GenRangeSize,
-) (web.IdentityService, error) {
+) (api.Identity, error) {
 	wire.Build(
 		daoSet,
 		newUniqueNumberGenFactory,
 		newJWTAuthority,
-		web.NewIdentityService,
+		api.NewIdentity,
 		newIdentityService,
 	)
-	return web.IdentityService{}, nil
+	return api.Identity{}, nil
 }
 
-func InitGeneratorRPCService(
+func InitGeneratorAPI(
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
-) (rpc.GeneratorService, error) {
+) (api.Generator, error) {
 	wire.Build(
 		daoSet,
 		newUniqueNumberGenFactory,
-		rpc.NewGeneratorService,
+		api.NewGenerator,
 	)
-	return rpc.GeneratorService{}, nil
+	return api.Generator{}, nil
 }
 
 func newGoogleOAuthProvider(

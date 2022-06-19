@@ -1,31 +1,21 @@
 package web
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
 )
 
-type Service interface {
-	getRoutes() []Route
-}
-
-func NewServer(services []Service) *http.ServeMux {
+func StartWebServer(router *mux.Router, port int) error {
 	serveMux := http.NewServeMux()
-	router := mux.NewRouter()
-
-	for _, service := range services {
-		routes := service.getRoutes()
-		for _, r := range routes {
-			router.HandleFunc(r.Path, r.HandlerFunc).Methods(r.Method)
-		}
-	}
-
-	serveMux.HandleFunc("/", EnableCORS(router.ServeHTTP))
-	return serveMux
+	serveMux.HandleFunc("/", enableCORS(router.ServeHTTP))
+	log.Printf("Service runner web server started at port %d\n", port)
+	return http.ListenAndServe(fmt.Sprintf(":%d", port), serveMux)
 }
 
-func EnableCORS(handlerFunc http.HandlerFunc) http.HandlerFunc {
+func enableCORS(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
 		writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, PUT, OPTIONS, DELETE")
@@ -37,4 +27,10 @@ func EnableCORS(handlerFunc http.HandlerFunc) http.HandlerFunc {
 
 		handlerFunc(writer, request)
 	}
+}
+
+func WriteJSON(writer http.ResponseWriter, body []byte) {
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(http.StatusAccepted)
+	writer.Write(body)
 }

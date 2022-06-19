@@ -1,4 +1,4 @@
-package web
+package api
 
 import (
 	"io/ioutil"
@@ -8,18 +8,18 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/teamyapp/cloud/app/service"
+	"github.com/teamyapp/cloud/libs/runner"
+	"github.com/teamyapp/cloud/libs/web"
 )
 
 const identityPathPrefix = "/identity"
 
-type IdentityService struct {
+type Identity struct {
 	identityService service.Identity
 }
 
-var _ Service = (*IdentityService)(nil)
-
-func (i IdentityService) getRoutes() []Route {
-	return []Route{
+func (i Identity) Start(runner *runner.ServiceRunner) error {
+	runner.RegisterWebRoutes([]web.Route{
 		{
 			Path:        path.Join(identityPathPrefix, "verify-token"),
 			Method:      http.MethodPost,
@@ -34,11 +34,11 @@ func (i IdentityService) getRoutes() []Route {
 			Path:        path.Join(identityPathPrefix, "sign-in/oauth/{provider}/finish"),
 			Method:      http.MethodGet,
 			HandlerFunc: i.finishOAuthSignIn,
-		},
-	}
+		}})
+	return nil
 }
 
-func (i IdentityService) verifyToken(w http.ResponseWriter, r *http.Request) {
+func (i Identity) verifyToken(w http.ResponseWriter, r *http.Request) {
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -54,7 +54,7 @@ func (i IdentityService) verifyToken(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (i IdentityService) oauthSignIn(w http.ResponseWriter, r *http.Request) {
+func (i Identity) oauthSignIn(w http.ResponseWriter, r *http.Request) {
 	authProviderName := mux.Vars(r)["provider"]
 	query := r.URL.Query()
 	redirectURL := query.Get("redirectUrl")
@@ -68,7 +68,7 @@ func (i IdentityService) oauthSignIn(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
-func (i IdentityService) finishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
+func (i Identity) finishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	providerName := mux.Vars(r)["provider"]
 	provider, err := i.identityService.GetOAuthProvider(providerName)
 	if err != nil {
@@ -92,8 +92,8 @@ func (i IdentityService) finishOAuthSignIn(w http.ResponseWriter, r *http.Reques
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
-func NewIdentityService(identityService service.Identity) IdentityService {
-	return IdentityService{
+func NewIdentity(identityService service.Identity) Identity {
+	return Identity{
 		identityService: identityService,
 	}
 }
