@@ -10,7 +10,7 @@ import (
 	"strconv"
 
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/app/security"
+	"github.com/teamyapp/cloud/libs/security"
 )
 
 const googleName = "google"

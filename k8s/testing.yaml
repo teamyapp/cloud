@@ -113,9 +113,9 @@ spec:
               value: "100"
             - name: WEB_API_BASE_URL
               value: https://cloud.testing.teamyapp.com
-            - name: WEB_API_PORT
+            - name: SERVICE_RUNNER_WEB_SERVER_PORT
               value: "8080"
-            - name: GRPC_API_PORT
+            - name: SERVICE_RUNNER_GRPC_SERVER_PORT
               value: "8081"
 ---
 apiVersion: v1
