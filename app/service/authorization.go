@@ -3,16 +3,21 @@ package service
 import (
 	"log"
 
+	"github.com/teamyapp/cloud/app/dao"
+
 	"github.com/teamyapp/cloud/app/entity"
 )
 
 type Authorization struct {
-	deps *Dependencies
+	permissionDao        dao.Permission
+	securityGroupUserDao dao.SecurityGroupUser
+	resourceOperationDao dao.ResourceOperation
+	resourceDao          dao.Resource
 }
 
 func (a Authorization) HasPermission(resourceType string, resourceID uint64, operation string, userID uint64) (bool, error) {
 	// No nested group
-	groupIDs, err := a.deps.securityGroupUserDao.FindGroupIDsByUserID(userID)
+	groupIDs, err := a.securityGroupUserDao.FindGroupIDsByUserID(userID)
 	if err != nil {
 		log.Println(err)
 		return false, err
@@ -49,7 +54,7 @@ func (a Authorization) searchPermission(permissionQuery entity.PermissionQuery) 
 		currPermissionQuery := s[0]
 		s = s[1:]
 
-		canFind, err := a.deps.permissionDao.FindPermission(currPermissionQuery)
+		canFind, err := a.permissionDao.FindPermission(currPermissionQuery)
 		if err != nil {
 			log.Println(err)
 			return false, err
@@ -59,7 +64,7 @@ func (a Authorization) searchPermission(permissionQuery entity.PermissionQuery) 
 			return canFind, nil
 		}
 
-		parentResourceOperations, err := a.deps.resourceOperation.GetAllParentResourceOperations(entity.ResourceOperation{
+		parentResourceOperations, err := a.resourceOperationDao.GetAllParentResourceOperations(entity.ResourceOperation{
 			ResourceType: currPermissionQuery.ResourceType,
 			Operation:    currPermissionQuery.Operation,
 		})
@@ -68,7 +73,7 @@ func (a Authorization) searchPermission(permissionQuery entity.PermissionQuery) 
 			return false, err
 		}
 
-		parentResources, err := a.deps.resource.FindParentResources(entity.Resource{
+		parentResources, err := a.resourceDao.FindParentResources(entity.Resource{
 			ID:           currPermissionQuery.ResourceID,
 			ResourceType: currPermissionQuery.ResourceType,
 		})
@@ -120,16 +125,3 @@ func (a Authorization) searchPermission(permissionQuery entity.PermissionQuery) 
 
 	return false, nil
 }
-
-/*
-table: permission
-- resourceType: Team, Task, User, Invitation
-- resourceId
-- operation: (action + resourceType) GetTask, CreateTask, UpdateTeam, etc.
-- groupID
-
-table PermissionHierarchy
-- childResourceTypeOperation
-- parentResourceTypeOperation
-
-*/

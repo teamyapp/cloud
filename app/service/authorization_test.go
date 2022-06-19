@@ -198,14 +198,11 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			dependencies := NewDependencies(
-				dao_test.NewPermission(fakePermissionDao),
-				dao_test.NewSecurityGroupUser(fakeSecurityGroupUserDao),
-				dao_test.NewResourceOperation(fakeResourceOperationDao),
-				dao_test.NewResource(fakeResourceDao))
-
 			mockAuthorization := Authorization{
-				deps: &dependencies,
+				permissionDao:        dao_test.NewPermission(fakePermissionDao),
+				securityGroupUserDao: dao_test.NewSecurityGroupUser(fakeSecurityGroupUserDao),
+				resourceOperationDao: dao_test.NewResourceOperation(fakeResourceOperationDao),
+				resourceDao:          dao_test.NewResource(fakeResourceDao),
 			}
 
 			hasPermission, err := mockAuthorization.HasPermission(testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)
