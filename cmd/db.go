@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
-	"github.com/teamyapp/cloud/app/io"
+	"github.com/teamyapp/cloud/libs/io"
 )
 
 var dbName string
