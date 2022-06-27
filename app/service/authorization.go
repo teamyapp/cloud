@@ -77,16 +77,9 @@ func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery
 		}
 
 		for _, parentOperation := range parentOperations {
-			for _, parentResource := range parentResources {
-				nextResourceID := uint64(0)
-				if parentOperation.ResourceType == currPermissionQuery.ResourceType {
-					nextResourceID = currPermissionQuery.ResourceID
-				} else {
-					nextResourceID = parentResource.ID
-				}
-
+			if parentOperation.ResourceType == currPermissionQuery.ResourceType {
 				newPermissionQuery := entity.PermissionQuery{
-					ResourceID:   nextResourceID,
+					ResourceID:   currPermissionQuery.ResourceID,
 					ResourceType: parentOperation.ResourceType,
 					Operation:    parentOperation.Operation,
 					GroupID:      groupId,
@@ -97,8 +90,29 @@ func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery
 					continue
 				}
 
-				queries = append(queries, newPermissionQuery)
 				visited[newPermissionQuery] = true
+				queries = append(queries, newPermissionQuery)
+				continue
+			}
+
+			for _, parentResource := range parentResources {
+				if parentOperation.ResourceType != parentResource.ResourceType {
+					continue
+				}
+
+				newPermissionQuery := entity.PermissionQuery{
+					ResourceID:   parentResource.ID,
+					ResourceType: parentOperation.ResourceType,
+					Operation:    parentOperation.Operation,
+					GroupID:      groupId,
+				}
+				_, ok := visited[newPermissionQuery]
+				if ok {
+					continue
+				}
+
+				visited[newPermissionQuery] = true
+				queries = append(queries, newPermissionQuery)
 			}
 		}
 	}
