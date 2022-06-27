@@ -4,27 +4,26 @@ import (
 	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
-
 	"github.com/teamyapp/cloud/app/entity"
 )
 
 type Authorization struct {
 	permissionDao        dao.Permission
-	securityGroupUserDao dao.SecurityGroupUser
-	resourceOperationDao dao.ResourceOperation
-	resourceDao          dao.Resource
+	userGroupMemberDao   dao.UserGroupMember
+	operationRelationDao dao.OperationRelation
+	resourceRelationDao  dao.ResourceRelation
 }
 
 func (a Authorization) HasPermission(resourceType string, resourceID uint64, operation string, userID uint64) (bool, error) {
 	// No nested group
-	groupIDs, err := a.securityGroupUserDao.FindGroupIDsByUserID(userID)
+	groupIDs, err := a.userGroupMemberDao.FindGroupIDsByUserID(userID)
 	if err != nil {
 		log.Println(err)
 		return false, err
 	}
 
 	for _, groupID := range groupIDs {
-		canFind, err := a.searchPermission(entity.PermissionQuery{
+		hasPermission, err := a.groupHasPermission(entity.PermissionQuery{
 			ResourceID:   resourceID,
 			ResourceType: resourceType,
 			Operation:    operation,
@@ -32,39 +31,34 @@ func (a Authorization) HasPermission(resourceType string, resourceID uint64, ope
 		})
 		if err != nil {
 			log.Println(err)
+			// user should continue to find permission in other groups if current group fails to grant permission
+			continue
 		}
 
-		if canFind {
-			return canFind, nil
+		if hasPermission {
+			return hasPermission, nil
 		}
 	}
 
 	return false, err
 }
 
-func (a Authorization) searchPermission(permissionQuery entity.PermissionQuery) (bool, error) {
+func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery) (bool, error) {
 	groupId := permissionQuery.GroupID
+	queries := []entity.PermissionQuery{permissionQuery}
+	visited := make(map[entity.PermissionQuery]bool)
+	visited[permissionQuery] = true
+	for len(queries) > 0 {
+		currPermissionQuery := queries[0]
+		queries = queries[1:]
 
-	s := make([]entity.PermissionQuery, 0)
-	s = append(s, permissionQuery)
-	visited := make(map[entity.PermissionQuery]int)
-	visited[permissionQuery] = 1
-
-	for len(s) > 0 {
-		currPermissionQuery := s[0]
-		s = s[1:]
-
-		canFind, err := a.permissionDao.FindPermission(currPermissionQuery)
-		if err != nil {
-			log.Println(err)
-			return false, err
+		_, err := a.permissionDao.FindPermission(currPermissionQuery)
+		if err == nil {
+			return true, nil
 		}
 
-		if canFind {
-			return canFind, nil
-		}
-
-		parentResourceOperations, err := a.resourceOperationDao.GetAllParentResourceOperations(entity.ResourceOperation{
+		log.Println(err)
+		parentOperations, err := a.operationRelationDao.FindParentOperations(entity.OperationRelation{
 			ResourceType: currPermissionQuery.ResourceType,
 			Operation:    currPermissionQuery.Operation,
 		})
@@ -73,7 +67,7 @@ func (a Authorization) searchPermission(permissionQuery entity.PermissionQuery) 
 			return false, err
 		}
 
-		parentResources, err := a.resourceDao.FindParentResources(entity.Resource{
+		parentResources, err := a.resourceRelationDao.FindParentResources(entity.ResourceRelation{
 			ID:           currPermissionQuery.ResourceID,
 			ResourceType: currPermissionQuery.ResourceType,
 		})
@@ -82,43 +76,29 @@ func (a Authorization) searchPermission(permissionQuery entity.PermissionQuery) 
 			return false, err
 		}
 
-		for _, parentResourceOperation := range parentResourceOperations {
+		for _, parentOperation := range parentOperations {
 			for _, parentResource := range parentResources {
-				// e.g. read task 1 -> update task 1
-				if parentResourceOperation.ResourceType == currPermissionQuery.ResourceType {
-					newPermissionQuery := entity.PermissionQuery{
-						ResourceID:   currPermissionQuery.ResourceID,
-						ResourceType: currPermissionQuery.ResourceType,
-						Operation:    parentResourceOperation.Operation,
-						GroupID:      groupId,
-					}
-
-					_, ok := visited[newPermissionQuery]
-					if ok {
-						continue
-					}
-
-					s = append(s, newPermissionQuery)
-					visited[newPermissionQuery] = 1
+				nextResourceID := uint64(0)
+				if parentOperation.ResourceType == currPermissionQuery.ResourceType {
+					nextResourceID = currPermissionQuery.ResourceID
+				} else {
+					nextResourceID = parentResource.ID
 				}
 
-				// e.g. read task 1 -> read team 1
-				if parentResourceOperation.Operation == currPermissionQuery.Operation {
-					newPermissionQuery := entity.PermissionQuery{
-						ResourceID:   parentResource.ID,
-						ResourceType: parentResourceOperation.ResourceType,
-						Operation:    parentResourceOperation.Operation,
-						GroupID:      groupId,
-					}
-
-					_, ok := visited[newPermissionQuery]
-					if ok {
-						continue
-					}
-
-					s = append(s, newPermissionQuery)
-					visited[newPermissionQuery] = 1
+				newPermissionQuery := entity.PermissionQuery{
+					ResourceID:   nextResourceID,
+					ResourceType: parentOperation.ResourceType,
+					Operation:    parentOperation.Operation,
+					GroupID:      groupId,
 				}
+
+				_, ok := visited[newPermissionQuery]
+				if ok {
+					continue
+				}
+
+				queries = append(queries, newPermissionQuery)
+				visited[newPermissionQuery] = true
 			}
 		}
 	}

@@ -1,8 +1,11 @@
 package dao_test
 
 import (
+	"fmt"
+
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/collect"
 )
 
 type Permission struct {
@@ -11,20 +14,29 @@ type Permission struct {
 
 var _ dao.Permission = (*Permission)(nil)
 
-func (p Permission) FindPermission(permissionQuery entity.PermissionQuery) (bool, error) {
-	for _, permissionEntry := range p.permissions {
-		if permissionEntry.ResourceType == permissionQuery.ResourceType &&
-			permissionEntry.ResourceID == permissionQuery.ResourceID &&
-			permissionEntry.Operation == permissionQuery.Operation &&
-			permissionEntry.GroupID == permissionQuery.GroupID {
-			return true, nil
-		}
+func (p Permission) FindPermission(permissionQuery entity.PermissionQuery) (entity.Permission, error) {
+	permissions := collect.Filter(p.permissions, func(permission entity.Permission) bool {
+		return matchPermission(permissionQuery, permission)
+	})
+
+	if len(permissions) == 0 {
+		return entity.Permission{}, dao.ErrNotFound(fmt.Sprintf(
+			"permission not found: id=%v",
+			permissionQuery))
 	}
-	return false, nil
+
+	return permissions[0], nil
 }
 
 func NewPermission(permissions []entity.Permission) Permission {
 	return Permission{
 		permissions: permissions,
 	}
+}
+
+func matchPermission(permissionQuery entity.PermissionQuery, permission entity.Permission) bool {
+	return permissionQuery.ResourceID == permission.ResourceID &&
+		permissionQuery.ResourceType == permission.ResourceType &&
+		permissionQuery.Operation == permission.Operation &&
+		permissionQuery.GroupID == permission.GroupID
 }

@@ -9,7 +9,7 @@ import (
 )
 
 func TestAuthorization_HasPermission(t *testing.T) {
-	fakeResourceDao := []entity.Resource{
+	fakeResourceDao := []entity.ResourceRelation{
 		{
 			ID:                 1,
 			ResourceType:       "task",
@@ -56,7 +56,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		},
 	}
 
-	fakeSecurityGroupUserDao := []entity.SecurityGroupUser{
+	fakeUserGroupMemberDao := []entity.UserGroupMember{
 		{
 			GroupID: 1,
 			UserID:  1,
@@ -122,7 +122,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		},
 	}
 
-	fakeResourceOperationDao := []entity.ResourceOperation{
+	fakeResourceOperationDao := []entity.OperationRelation{
 		{
 			ResourceType:       "invitation",
 			Operation:          "read",
@@ -200,9 +200,9 @@ func TestAuthorization_HasPermission(t *testing.T) {
 
 			mockAuthorization := Authorization{
 				permissionDao:        dao_test.NewPermission(fakePermissionDao),
-				securityGroupUserDao: dao_test.NewSecurityGroupUser(fakeSecurityGroupUserDao),
-				resourceOperationDao: dao_test.NewResourceOperation(fakeResourceOperationDao),
-				resourceDao:          dao_test.NewResource(fakeResourceDao),
+				userGroupMemberDao:   dao_test.NewUserGroupMember(fakeUserGroupMemberDao),
+				operationRelationDao: dao_test.NewOperationRelation(fakeResourceOperationDao),
+				resourceRelationDao:  dao_test.NewResourceRelation(fakeResourceDao),
 			}
 
 			hasPermission, err := mockAuthorization.HasPermission(testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)

@@ -2,7 +2,7 @@ package entity
 
 import "time"
 
-type SecurityGroup struct {
+type UserGroup struct {
 	ID          uint64
 	Name        string
 	Description string

@@ -1,6 +1,6 @@
 package entity
 
-type Resource struct {
+type ResourceRelation struct {
 	ID                 uint64
 	ResourceType       string
 	ParentResourceID   uint64

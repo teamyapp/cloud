@@ -1,5 +1,5 @@
 -- +migrate Up
-CREATE TABLE resource
+CREATE TABLE resource_relation
 (
     id                   BIGINT PRIMARY KEY,
     resource_type        VARCHAR(50) NOT NULL,
@@ -7,7 +7,7 @@ CREATE TABLE resource
     parent_resource_type VARCHAR(50) NOT NULL
 );
 
-CREATE TABLE security_group
+CREATE TABLE user_group
 (
     id          BIGINT PRIMARY KEY,
     name        VARCHAR(50) NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE security_group
     updated_at  TIMESTAMP
 );
 
-CREATE TABLE security_group_user
+CREATE TABLE user_group_member
 (
     group_id   BIGINT NOT NULL REFERENCES resource (id) ON UPDATE CASCADE ON DELETE CASCADE,
     user_id    BIGINT NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE permission
     updated_at    TIMESTAMP
 );
 
-CREATE TABLE resource_operation
+CREATE TABLE operation_relation
 (
     resource_type        VARCHAR(50) NOT NULL,
     operation            VARCHAR(50) NOT NULL,
@@ -42,9 +42,8 @@ CREATE TABLE resource_operation
 );
 
 -- +migrate Down
-DROP TABLE resource_operation;
+DROP TABLE operation_relation;
 DROP TABLE permission;
-DROP TABLE security_group_user;
-DROP TABLE security_group;
-DROP TABLE resource;
-
+DROP TABLE user_group_member;
+DROP TABLE user_group;
+DROP TABLE resource_relation;

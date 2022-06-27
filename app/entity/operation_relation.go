@@ -1,6 +1,6 @@
 package entity
 
-type ResourceOperation struct {
+type OperationRelation struct {
 	ResourceType       string
 	Operation          string
 	ParentResourceType string
