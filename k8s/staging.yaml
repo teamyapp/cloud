@@ -158,6 +158,7 @@ spec:
           namespace: staging
           name: cloud
           port: 81
+          passHostHeader: true
           scheme: h2c
   tls:
     secretName: teamy-cert
