@@ -8,13 +8,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type ClientConnectionConfig struct {
+type ConnectionConfig struct {
 	Host          string
 	Port          int
 	ShouldEncrypt bool
 }
 
-func NewClientConnection(cfg ClientConnectionConfig) (*grpc.ClientConn, error) {
+func NewClientConnection(cfg ConnectionConfig) (*grpc.ClientConn, error) {
 	var cred credentials.TransportCredentials
 	if cfg.ShouldEncrypt {
 		cred = credentials.NewTLS(nil)
