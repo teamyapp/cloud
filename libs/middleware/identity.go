@@ -82,7 +82,8 @@ func ServerWithWebSocketIdentity(
 	})
 }
 
-func ServerWithGRPCIdentity(verifyTokenURL string) grpc.UnaryServerInterceptor {
+func ServerWithGRPCIdentity(identityAPIEndpoint string) grpc.UnaryServerInterceptor {
+	verifyTokenURL := fmt.Sprintf("%s/verify-token", identityAPIEndpoint)
 	return func(ct context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		md, ok := metadata.FromIncomingContext(ct)
 		if !ok {
