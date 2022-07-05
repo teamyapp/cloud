@@ -12,19 +12,12 @@ type ResourceRelation struct {
 
 var _ dao.ResourceRelation = (*ResourceRelation)(nil)
 
-func (r ResourceRelation) FindParentResources(resourceQuery entity.ResourceRelation) ([]entity.ResourceRelation, error) {
+func (r ResourceRelation) FindResourceRelations(childResourceID uint64, childResourceType string) ([]entity.ResourceRelation, error) {
 	resourceRelations := collect.Filter(r.resourceRelations, func(resourceRelation entity.ResourceRelation) bool {
-		return resourceQuery.ID == resourceRelation.ID && resourceQuery.ResourceType == resourceRelation.ResourceType
+		return childResourceID == resourceRelation.ChileResourceID && childResourceType == resourceRelation.ChildResourceType
 	})
 
-	parentResources := collect.Map(resourceRelations, func(resourceRelation entity.ResourceRelation, _ int) entity.ResourceRelation {
-		return entity.ResourceRelation{
-			ID:           resourceRelation.ParentResourceID,
-			ResourceType: resourceRelation.ParentResourceType,
-		}
-	})
-
-	return parentResources, nil
+	return resourceRelations, nil
 }
 
 func NewResourceRelation(resourceRelations []entity.ResourceRelation) ResourceRelation {

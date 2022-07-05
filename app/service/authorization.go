@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
@@ -31,7 +32,7 @@ func (a Authorization) HasPermission(resourceType string, resourceID uint64, ope
 		})
 		if err != nil {
 			log.Println(err)
-			// user should continue to find permission in other groups if current group fails to grant permission
+			// Continue check permission in other groups if current group fails to grant permission
 			continue
 		}
 
@@ -44,78 +45,88 @@ func (a Authorization) HasPermission(resourceType string, resourceID uint64, ope
 }
 
 func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery) (bool, error) {
-	groupId := permissionQuery.GroupID
-	queries := []entity.PermissionQuery{permissionQuery}
 	visited := make(map[entity.PermissionQuery]bool)
 	visited[permissionQuery] = true
+	queries := []entity.PermissionQuery{permissionQuery}
 	for len(queries) > 0 {
-		currPermissionQuery := queries[0]
+		currQuery := queries[0]
 		queries = queries[1:]
 
-		_, err := a.permissionDao.FindPermission(currPermissionQuery)
+		_, err := a.permissionDao.FindPermission(currQuery)
 		if err == nil {
 			return true, nil
 		}
 
-		log.Println(err)
-		parentOperations, err := a.operationRelationDao.FindParentOperations(entity.OperationRelation{
-			ResourceType: currPermissionQuery.ResourceType,
-			Operation:    currPermissionQuery.Operation,
-		})
-		if err != nil {
+		var errNotFound dao.ErrNotFound
+		if !errors.As(err, &errNotFound) {
 			log.Println(err)
+			continue
+		}
+
+		parentPermissionQueries, err := a.getParentPermissionQueries(currQuery, visited)
+		if err != nil {
 			return false, err
 		}
 
-		parentResources, err := a.resourceRelationDao.FindParentResources(entity.ResourceRelation{
-			ID:           currPermissionQuery.ResourceID,
-			ResourceType: currPermissionQuery.ResourceType,
-		})
-		if err != nil {
-			log.Println(err)
-			return false, err
-		}
-
-		for _, parentOperation := range parentOperations {
-			if parentOperation.ResourceType == currPermissionQuery.ResourceType {
-				newPermissionQuery := entity.PermissionQuery{
-					ResourceID:   currPermissionQuery.ResourceID,
-					ResourceType: parentOperation.ResourceType,
-					Operation:    parentOperation.Operation,
-					GroupID:      groupId,
-				}
-
-				_, ok := visited[newPermissionQuery]
-				if ok {
-					continue
-				}
-
-				visited[newPermissionQuery] = true
-				queries = append(queries, newPermissionQuery)
-				continue
-			}
-
-			for _, parentResource := range parentResources {
-				if parentOperation.ResourceType != parentResource.ResourceType {
-					continue
-				}
-
-				newPermissionQuery := entity.PermissionQuery{
-					ResourceID:   parentResource.ID,
-					ResourceType: parentOperation.ResourceType,
-					Operation:    parentOperation.Operation,
-					GroupID:      groupId,
-				}
-				_, ok := visited[newPermissionQuery]
-				if ok {
-					continue
-				}
-
-				visited[newPermissionQuery] = true
-				queries = append(queries, newPermissionQuery)
-			}
-		}
+		queries = append(queries, parentPermissionQueries...)
 	}
 
 	return false, nil
+}
+
+func (a Authorization) getParentPermissionQueries(currQuery entity.PermissionQuery, visited map[entity.PermissionQuery]bool) ([]entity.PermissionQuery, error) {
+	var parentPermissionQueries []entity.PermissionQuery
+	operationRelations, err := a.operationRelationDao.FindOperationRelations(currQuery.ResourceType, currQuery.Operation)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	resourceRelations, err := a.resourceRelationDao.FindResourceRelations(currQuery.ResourceID, currQuery.ResourceType)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	for _, operationRelation := range operationRelations {
+		if operationRelation.ParentResourceType == currQuery.ResourceType {
+			newPermissionQuery := entity.PermissionQuery{
+				ResourceID:   currQuery.ResourceID,
+				ResourceType: operationRelation.ParentResourceType,
+				Operation:    operationRelation.ParentOperation,
+				GroupID:      currQuery.GroupID,
+			}
+
+			_, ok := visited[newPermissionQuery]
+			if ok {
+				continue
+			}
+
+			visited[newPermissionQuery] = true
+			parentPermissionQueries = append(parentPermissionQueries, newPermissionQuery)
+			continue
+		}
+
+		for _, resourceRelation := range resourceRelations {
+			if resourceRelation.ParentResourceType != operationRelation.ParentResourceType {
+				continue
+			}
+
+			newPermissionQuery := entity.PermissionQuery{
+				ResourceID:   resourceRelation.ParentResourceID,
+				ResourceType: operationRelation.ParentResourceType,
+				Operation:    operationRelation.ParentOperation,
+				GroupID:      currQuery.GroupID,
+			}
+			_, ok := visited[newPermissionQuery]
+			if ok {
+				continue
+			}
+
+			visited[newPermissionQuery] = true
+			parentPermissionQueries = append(parentPermissionQueries, newPermissionQuery)
+		}
+	}
+
+	return parentPermissionQueries, nil
 }

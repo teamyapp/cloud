@@ -3,5 +3,5 @@ package dao
 import "github.com/teamyapp/cloud/app/entity"
 
 type ResourceRelation interface {
-	FindParentResources(resource entity.ResourceRelation) ([]entity.ResourceRelation, error)
+	FindResourceRelations(childResourceID uint64, childResourceType string) ([]entity.ResourceRelation, error)
 }

@@ -1,8 +1,8 @@
 package entity
 
 type OperationRelation struct {
-	ResourceType       string
-	Operation          string
+	ChildResourceType  string
+	ChildOperation     string
 	ParentResourceType string
 	ParentOperation    string
 }

@@ -21,7 +21,7 @@ func (p Permission) FindPermission(permissionQuery entity.PermissionQuery) (enti
 
 	if len(permissions) == 0 {
 		return entity.Permission{}, dao.ErrNotFound(fmt.Sprintf(
-			"permission not found: id=%v",
+			"permission not found: query=%v",
 			permissionQuery))
 	}
 

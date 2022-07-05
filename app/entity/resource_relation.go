@@ -1,8 +1,8 @@
 package entity
 
 type ResourceRelation struct {
-	ID                 uint64
-	ResourceType       string
+	ChileResourceID    uint64
+	ChildResourceType  string
 	ParentResourceID   uint64
 	ParentResourceType string
 }
