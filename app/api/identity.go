@@ -9,7 +9,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/libs/runner"
-	"github.com/teamyapp/cloud/libs/web"
 )
 
 const identityPathPrefix = "/identity"
@@ -20,8 +19,8 @@ type Identity struct {
 
 var _ runner.Service = (*Identity)(nil)
 
-func (i Identity) Start(runner *runner.ServiceRunner) error {
-	runner.RegisterWebRoutes([]web.Route{
+func (i Identity) Start(rn *runner.ServiceRunner) error {
+	rn.RegisterWebRoutes([]runner.WebRoute{
 		{
 			Path:        path.Join(identityPathPrefix, "verify-token"),
 			Method:      http.MethodPost,
