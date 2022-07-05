@@ -16,6 +16,8 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const gRPCAccessTokenKey = "Authorization"
+
 func withIdentity(
 	identityAPIEndpoint string,
 	handlerFunc http.HandlerFunc,
@@ -87,7 +89,7 @@ func ServerWithGRPCIdentity(verifyTokenURL string) grpc.UnaryServerInterceptor {
 			return handler(ct, req)
 		}
 
-		values := md.Get("Authorization")
+		values := md.Get(gRPCAccessTokenKey)
 		if len(values) > 0 {
 			accessToken := values[0]
 			ct, err = ctxWithUserID(ct, verifyTokenURL, accessToken)
