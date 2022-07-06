@@ -128,8 +128,9 @@ func (s ServiceAccount) UpdateServiceAccount(serviceAccount entity.ServiceAccoun
 
 func (s ServiceAccount) DeleteServiceAccount(serviceAccountID uint64) error {
 	_, err := s.db.Exec(`
-		DELETE FROM identity_service_account
-	   WHERE id = $1;`,
+		DELETE 
+		FROM identity_service_account
+		WHERE id = $1;`,
 		serviceAccountID)
 	return err
 }

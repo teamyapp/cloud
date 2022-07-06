@@ -16,10 +16,10 @@ import (
 )
 
 type tokenPayload struct {
-	UserID           uint64  `json:"user_id"`
-	IssuedAt         string  `json:"issued_at"`
-	IsServiceAccount bool    `json:"is_service_account"`
-	Secret           *string `json:"secret"`
+	UserID           uint64     `json:"user_id"`
+	IssuedAt         *time.Time `json:"issued_at"`
+	IsServiceAccount bool       `json:"is_service_account"`
+	Secret           *string    `json:"secret"`
 }
 
 type Identity struct {
@@ -53,12 +53,8 @@ func (i Identity) VerifyAccessToken(accessToken string) (uint64, bool) {
 
 		return serviceAccount.ID, *serviceAccount.Secret == *payload.Secret
 	} else {
-		tm, err := time.Parse(time.RFC3339, payload.IssuedAt)
-		if err != nil {
-			return 0, false
-		}
-
-		if tm.Add(i.accessTokenTLL).Before(time.Now()) {
+		issuedAt := *payload.IssuedAt
+		if issuedAt.Add(i.accessTokenTLL).Before(time.Now()) {
 			return 0, false
 		}
 	}
@@ -120,9 +116,10 @@ func (i Identity) FinishOAuthSignIn(providerName string, authorizationCode strin
 		return "", err
 	}
 
+	now := time.Now()
 	payload := tokenPayload{
 		UserID:   userID,
-		IssuedAt: time.Now().Format(time.RFC3339),
+		IssuedAt: &now,
 	}
 
 	accessToken, err := i.jwtAuthority.GenerateToken(payload)
