@@ -42,9 +42,11 @@ var daoSet = wire.NewSet(
 	wire.Bind(new(dao.UserLink), new(sqldb.UserLink)),
 	wire.Bind(new(dao.AllocatedRange), new(sqldb.AllocatedRange)),
 	wire.Bind(new(dao.SignInSession), new(sqldb.SignInSession)),
+	wire.Bind(new(dao.ServiceAccount), new(sqldb.ServiceAccount)),
 	sqldb.NewAllocatedRange,
 	sqldb.NewUserLink,
 	sqldb.NewSignInSession,
+	sqldb.NewServiceAccount,
 )
 
 func InitIdentityAPI(
@@ -104,6 +106,7 @@ func newUniqueNumberGenFactory(allocatedRangeDao dao.AllocatedRange, genRangeSiz
 func newIdentityService(
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
+	serviceAccountDao dao.ServiceAccount,
 	uniqueNumberFactory gen.UniqueNumberFactory,
 	jwtAuthority security.JWTAuthority,
 	oauthProviders OAuthProviders,
@@ -112,6 +115,7 @@ func newIdentityService(
 	return service.NewIdentity(
 		signInSessionDao,
 		userLinkDao,
+		serviceAccountDao,
 		uniqueNumberFactory,
 		jwtAuthority,
 		oauthProviders,

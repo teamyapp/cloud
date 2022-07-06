@@ -11,12 +11,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/teamyapp/cloud/app/ctx"
+	"github.com/teamyapp/cloud/libs/ctx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
-const gRPCAccessTokenKey = "Authorization"
+const gRPCAuthorizationKey = "Authorization"
 
 func withIdentity(
 	identityAPIEndpoint string,
@@ -90,7 +90,7 @@ func ServerWithGRPCIdentity(identityAPIEndpoint string) grpc.UnaryServerIntercep
 			return handler(ct, req)
 		}
 
-		values := md.Get(gRPCAccessTokenKey)
+		values := md.Get(gRPCAuthorizationKey)
 		if len(values) > 0 {
 			accessToken := values[0]
 			ct, err = ctxWithUserID(ct, verifyTokenURL, accessToken)
@@ -101,6 +101,16 @@ func ServerWithGRPCIdentity(identityAPIEndpoint string) grpc.UnaryServerIntercep
 		}
 
 		return handler(ct, req)
+	}
+}
+
+func ClientWithGRPCIdentity(getAccessToken func() string) grpc.UnaryClientInterceptor {
+	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		if getAccessToken != nil {
+			ct = metadata.AppendToOutgoingContext(ct, gRPCAuthorizationKey, getAccessToken())
+		}
+
+		return invoker(ct, method, req, reply, cc, opts...)
 	}
 }
 
