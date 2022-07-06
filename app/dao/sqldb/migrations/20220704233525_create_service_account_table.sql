@@ -5,8 +5,7 @@ CREATE TABLE identity_service_account
     name VARCHAR(50) NOT NULL,
     secret VARCHAR(10),
     owner_user_id BIGINT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (owner_user_id, id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- +migrate Down
