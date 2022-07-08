@@ -78,7 +78,7 @@ func (i Identity) GenerateSignInURL(providerName string, redirectURL string) (st
 		RedirectURL: redirectURL,
 	}
 
-	err = i.signInSessionDao.Add(session)
+	err = i.signInSessionDao.CreateSignInSession(session)
 	if err != nil {
 		return "", err
 	}
@@ -111,7 +111,7 @@ func (i Identity) FinishOAuthSignIn(providerName string, authorizationCode strin
 		return "", err
 	}
 
-	userID, err := i.getOrLinkInternalUserID(providerName, externalUser.ID)
+	userID, err := i.getOrLinkInternalUserID(providerName, externalUser)
 	if err != nil {
 		return "", err
 	}
@@ -127,7 +127,7 @@ func (i Identity) FinishOAuthSignIn(providerName string, authorizationCode strin
 		return "", err
 	}
 
-	session, err := i.signInSessionDao.FindByID(sessionID)
+	session, err := i.signInSessionDao.FindSignInSessionByID(sessionID)
 	if err != nil {
 		return "", err
 	}
@@ -143,8 +143,8 @@ func (i Identity) FinishOAuthSignIn(providerName string, authorizationCode strin
 	return u.String(), nil
 }
 
-func (i Identity) getOrLinkInternalUserID(authProvider string, externalUserID string) (uint64, error) {
-	userLink, err := i.userLinkDao.FindByExternalUserID(authProvider, externalUserID)
+func (i Identity) getOrLinkInternalUserID(authProvider string, externalUser entity.ExternalUser) (uint64, error) {
+	userLink, err := i.userLinkDao.FindUserLinkByExternalUserID(authProvider, externalUser.ID)
 	switch err.(type) {
 	case nil:
 		return userLink.InternalUserID, nil
@@ -155,11 +155,12 @@ func (i Identity) getOrLinkInternalUserID(authProvider string, externalUserID st
 		}
 
 		userLink = entity.UserLink{
-			AuthProvider:   authProvider,
-			InternalUserID: internalUserID,
-			ExternalUserID: externalUserID,
+			AuthProvider:      authProvider,
+			InternalUserID:    internalUserID,
+			ExternalUserID:    externalUser.ID,
+			ExternalUserLabel: externalUser.Label,
 		}
-		return internalUserID, i.userLinkDao.Add(userLink)
+		return internalUserID, i.userLinkDao.CreateUserLink(userLink)
 	default:
 		return 0, err
 	}
@@ -242,6 +243,10 @@ func (i Identity) DeleteServiceAccount(accountOwnerID uint64, serviceAccountID u
 	}
 
 	return i.serviceAccountDao.DeleteServiceAccount(serviceAccountID)
+}
+
+func (i Identity) ListUserLinks(internalUserID uint64) ([]entity.UserLink, error) {
+	return i.userLinkDao.FindUserLinksByInternalUserID(internalUserID)
 }
 
 func NewIdentity(

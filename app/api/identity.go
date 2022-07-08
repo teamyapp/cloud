@@ -41,6 +41,11 @@ func (i Identity) Start(rn *runner.ServiceRunner) error {
 			HandlerFunc: i.finishOAuthSignIn,
 		},
 		{
+			Path:        path.Join(identityPathPrefix, "user-links"),
+			Method:      http.MethodGet,
+			HandlerFunc: i.listUserLinks,
+		},
+		{
 			Path:        path.Join(identityPathPrefix, "service-accounts"),
 			Method:      http.MethodGet,
 			HandlerFunc: i.listServiceAccounts,
@@ -118,6 +123,24 @@ func (i Identity) finishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
+func (i Identity) listUserLinks(writer http.ResponseWriter, request *http.Request) {
+	userID, err := ctx.UserIDFromContext(request.Context())
+	if err != nil {
+		log.Println(err)
+		writer.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	userLinks, err := i.identityService.ListUserLinks(userID)
+	if err != nil {
+		log.Println(err)
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	web.WriteJSON(writer, userLinks)
+}
+
 func (i Identity) listServiceAccounts(writer http.ResponseWriter, request *http.Request) {
 	userID, err := ctx.UserIDFromContext(request.Context())
 	if err != nil {
@@ -133,14 +156,7 @@ func (i Identity) listServiceAccounts(writer http.ResponseWriter, request *http.
 		return
 	}
 
-	buf, err := json.MarshalIndent(serviceAccounts, "", "  ")
-	if err != nil {
-		log.Println(err)
-		writer.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	web.WriteJSON(writer, buf)
+	web.WriteJSON(writer, serviceAccounts)
 }
 
 func (i Identity) createServiceAccount(writer http.ResponseWriter, request *http.Request) {
