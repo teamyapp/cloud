@@ -72,6 +72,7 @@ func (i Identity) Start(rn *runner.ServiceRunner) error {
 func (i Identity) verifyToken(w http.ResponseWriter, r *http.Request) {
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
+		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -92,6 +93,7 @@ func (i Identity) oauthSignIn(w http.ResponseWriter, r *http.Request) {
 
 	url, err := i.identityService.GenerateSignInURL(authProviderName, redirectURL)
 	if err != nil {
+		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -103,12 +105,14 @@ func (i Identity) finishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	providerName := mux.Vars(r)["provider"]
 	provider, err := i.identityService.GetOAuthProvider(providerName)
 	if err != nil {
+		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	stateID, err := provider.GetStateID(r)
 	if err != nil {
+		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -116,6 +120,7 @@ func (i Identity) finishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	authorizationCode := provider.GetAuthorizationCode(r)
 	url, err := i.identityService.FinishOAuthSignIn(providerName, authorizationCode, stateID)
 	if err != nil {
+		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
