@@ -21,6 +21,7 @@ const dbType = "postgres"
 
 const DefaultMigrationRoot = "app/dao/sqldb/migrations"
 const DefaultSeedFile = "app/dao/sqldb/seed.sql"
+const MigrateAll = 0
 
 const lowerCaseLetters = "abcdefghijklmnopqrstuvwxyz"
 const upperCaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
