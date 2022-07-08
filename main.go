@@ -24,7 +24,7 @@ func main() {
 		cfg.GitLongCommitHash)
 
 	err = sqldb.Use(cfg.Config, func(sqlDB *sql.DB) error {
-		err = sqldb.MigrateUp(sqlDB, sqldb.DefaultMigrationRoot)
+		err = sqldb.MigrateUp(sqlDB, sqldb.DefaultMigrationRoot, sqldb.MigrateAll)
 		if err != nil {
 			log.Println(err)
 			return err
