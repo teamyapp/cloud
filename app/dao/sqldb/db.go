@@ -48,12 +48,12 @@ func Use(cfg Config, action func(sqlDB *sql.DB) error) error {
 	return action(sqlDB)
 }
 
-func MigrateUp(sqlDB *sql.DB, migrationRoot string) error {
-	return migrateDB(sqlDB, migrationRoot, migrate.Up)
+func MigrateUp(sqlDB *sql.DB, migrationRoot string, steps int) error {
+	return migrateDB(sqlDB, migrationRoot, migrate.Up, steps)
 }
 
-func MigrateDown(sqlDB *sql.DB, migrationRoot string) error {
-	return migrateDB(sqlDB, migrationRoot, migrate.Down)
+func MigrateDown(sqlDB *sql.DB, migrationRoot string, steps int) error {
+	return migrateDB(sqlDB, migrationRoot, migrate.Down, steps)
 }
 
 func NewMigration(migrationDir string, fileName string) (string, error) {
@@ -171,11 +171,12 @@ func migrateDB(
 	db *sql.DB,
 	migrationRoot string,
 	migrateDirection migrate.MigrationDirection,
+	steps int,
 ) error {
 	migrations := &migrate.FileMigrationSource{
 		Dir: migrationRoot,
 	}
-	_, err := migrate.Exec(db, dbType, migrations, migrateDirection)
+	_, err := migrate.ExecMax(db, dbType, migrations, migrateDirection, steps)
 	if err == nil {
 		log.Println("migration finished")
 	}

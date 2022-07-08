@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"database/sql"
@@ -15,6 +15,7 @@ import (
 var dbName string
 var migrationDir string
 var migrationFileName string
+var migrationSteps int
 var seedFilePath string
 
 const migrationTemplate = `
@@ -44,7 +45,7 @@ var migrateUpCmd = &cobra.Command{
 	Use: "up",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return useSQLDB(func(sqlDB *sql.DB) error {
-			return sqldb.MigrateUp(sqlDB, migrationDir)
+			return sqldb.MigrateUp(sqlDB, migrationDir, migrationSteps)
 		})
 	},
 }
@@ -53,7 +54,7 @@ var migrateDownCmd = &cobra.Command{
 	Use: "down",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return useSQLDB(func(sqlDB *sql.DB) error {
-			return sqldb.MigrateDown(sqlDB, migrationDir)
+			return sqldb.MigrateDown(sqlDB, migrationDir, migrationSteps)
 		})
 	},
 }
@@ -102,6 +103,12 @@ func addDBCmd() {
 		"d",
 		sqldb.DefaultMigrationRoot,
 		"location of DB migration files")
+	migrateCmd.PersistentFlags().IntVarP(
+		&migrationSteps,
+		"steps",
+		"s",
+		0,
+		"number of migrations to perform")
 	migrateCmd.AddCommand(migrateUpCmd)
 	migrateCmd.AddCommand(migrateDownCmd)
 	dbCmd.AddCommand(migrateCmd)
