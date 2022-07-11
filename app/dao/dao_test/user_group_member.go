@@ -16,7 +16,6 @@ func (u UserGroupMember) FindGroupIDsByUserID(userID uint64) ([]uint64, error) {
 	groupMembers := collect.Filter(u.userGroupMembers, func(userGroupMember entity.UserGroupMember) bool {
 		return userGroupMember.UserID == userID
 	})
-
 	return collect.Map(groupMembers, func(groupMember entity.UserGroupMember, _ int) uint64 {
 		return groupMember.GroupID
 	}), nil
