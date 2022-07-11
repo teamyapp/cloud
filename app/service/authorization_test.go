@@ -11,14 +11,28 @@ import (
 func TestAuthorization_HasPermission(t *testing.T) {
 	fakeResourceDao := []entity.ResourceRelation{
 		{
-			ChileResourceID:    1,
-			ChildResourceType:  "task",
+			ChileResourceID:   1,
+			ChildResourceType: "team",
+		},
+		{
+			ChileResourceID:   2,
+			ChildResourceType: "team",
+		},
+		{
+			ChileResourceID:    11,
+			ChildResourceType:  "project",
 			ParentResourceID:   1,
 			ParentResourceType: "team",
 		},
 		{
-			ChileResourceID:    2,
-			ChildResourceType:  "task",
+			ChileResourceID:    12,
+			ChildResourceType:  "project",
+			ParentResourceID:   1,
+			ParentResourceType: "team",
+		},
+		{
+			ChileResourceID:    21,
+			ChildResourceType:  "sprint",
 			ParentResourceID:   1,
 			ParentResourceType: "team",
 		},
@@ -29,8 +43,8 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			ParentResourceType: "team",
 		},
 		{
-			ChileResourceID:    3,
-			ChildResourceType:  "task",
+			ChileResourceID:    23,
+			ChildResourceType:  "project",
 			ParentResourceID:   2,
 			ParentResourceType: "team",
 		},
@@ -47,12 +61,46 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			ParentResourceType: "team",
 		},
 		{
-			ChileResourceID:   1,
-			ChildResourceType: "team",
+			ChileResourceID:    1,
+			ChildResourceType:  "task",
+			ParentResourceID:   11,
+			ParentResourceType: "project",
 		},
 		{
-			ChileResourceID:   2,
-			ChildResourceType: "team",
+			ChileResourceID:    1,
+			ChildResourceType:  "task",
+			ParentResourceID:   21,
+			ParentResourceType: "sprint",
+		},
+		{
+			ChileResourceID:    1,
+			ChildResourceType:  "task",
+			ParentResourceID:   12,
+			ParentResourceType: "project",
+		},
+		{
+			ChileResourceID:    2,
+			ChildResourceType:  "task",
+			ParentResourceID:   12,
+			ParentResourceType: "project",
+		},
+		{
+			ChileResourceID:    3,
+			ChildResourceType:  "task",
+			ParentResourceID:   23,
+			ParentResourceType: "project",
+		},
+		{
+			ChileResourceID:    6,
+			ChildResourceType:  "task",
+			ParentResourceID:   11,
+			ParentResourceType: "project",
+		},
+		{
+			ChileResourceID:    5,
+			ChildResourceType:  "task",
+			ParentResourceID:   2,
+			ParentResourceType: "task",
 		},
 	}
 
@@ -81,9 +129,43 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			GroupID: 2,
 			UserID:  5,
 		},
+		{
+			GroupID: 5,
+			UserID:  2,
+		},
 	}
 
 	fakePermissionDao := []entity.Permission{
+		{
+			ResourceType: "project",
+			ResourceID:   11,
+			Operation:    "read",
+			GroupID:      1,
+		},
+		{
+			ResourceType: "sprint",
+			ResourceID:   21,
+			Operation:    "update",
+			GroupID:      1,
+		},
+		{
+			ResourceType: "sprint",
+			ResourceID:   21,
+			Operation:    "read",
+			GroupID:      1,
+		},
+		{
+			ResourceType: "project",
+			ResourceID:   12,
+			Operation:    "read",
+			GroupID:      1,
+		},
+		{
+			ResourceType: "team",
+			ResourceID:   1,
+			Operation:    "read",
+			GroupID:      1,
+		},
 		{
 			ResourceType: "team",
 			ResourceID:   1,
@@ -91,16 +173,28 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			GroupID:      2,
 		},
 		{
-			ResourceType: "task",
+			ResourceType: "team",
 			ResourceID:   1,
-			Operation:    "update",
-			GroupID:      1,
+			Operation:    "updateTask",
+			GroupID:      2,
 		},
 		{
-			ResourceType: "task",
+			ResourceType: "team",
+			ResourceID:   1,
+			Operation:    "readTask",
+			GroupID:      2,
+		},
+		{
+			ResourceType: "project",
+			ResourceID:   23,
+			Operation:    "read",
+			GroupID:      3,
+		},
+		{
+			ResourceType: "team",
 			ResourceID:   2,
-			Operation:    "update",
-			GroupID:      1,
+			Operation:    "read",
+			GroupID:      3,
 		},
 		{
 			ResourceType: "team",
@@ -109,30 +203,104 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			GroupID:      4,
 		},
 		{
-			ResourceType: "task",
-			ResourceID:   3,
-			Operation:    "update",
-			GroupID:      3,
+			ResourceType: "team",
+			ResourceID:   2,
+			Operation:    "updateTask",
+			GroupID:      4,
 		},
 		{
-			ResourceType: "task",
-			ResourceID:   4,
-			Operation:    "update",
-			GroupID:      3,
+			ResourceType: "team",
+			ResourceID:   2,
+			Operation:    "readTask",
+			GroupID:      4,
+		},
+		{
+			ResourceType: "team",
+			ResourceID:   1,
+			Operation:    "addUserTo",
+			GroupID:      5,
+		},
+		{
+			ResourceType: "team",
+			ResourceID:   1,
+			Operation:    "removeUserFrom",
+			GroupID:      5,
 		},
 	}
 
 	fakeResourceOperationDao := []entity.OperationRelation{
 		{
-			ChildResourceType:  "invitation",
+			ChildResourceType: "team",
+			ChildOperation:    "addUserTo",
+		},
+		{
+			ChildResourceType: "team",
+			ChildOperation:    "removeUserFrom",
+		},
+		{
+			ChildResourceType:  "team",
+			ChildOperation:     "update",
+			ParentResourceType: "team",
+			ParentOperation:    "addUserTo",
+		},
+		{
+			ChildResourceType:  "team",
+			ChildOperation:     "update",
+			ParentResourceType: "team",
+			ParentOperation:    "removeUserFrom",
+		},
+		{
+			ChildResourceType: "team",
+			ChildOperation:    "updateTask",
+		},
+		{
+			ChildResourceType:  "team",
 			ChildOperation:     "read",
-			ParentResourceType: "invitation",
-			ParentOperation:    "send",
+			ParentResourceType: "team",
+			ParentOperation:    "update",
+		},
+		{
+			ChildResourceType: "sprint",
+			ChildOperation:    "update",
+		},
+		{
+			ChildResourceType:  "task",
+			ChildOperation:     "update",
+			ParentResourceType: "sprint",
+			ParentOperation:    "update",
+		},
+		{
+			ChildResourceType:  "task",
+			ChildOperation:     "update",
+			ParentResourceType: "team",
+			ParentOperation:    "updateTask",
+		},
+		{
+			ChildResourceType:  "task",
+			ChildOperation:     "update",
+			ParentResourceType: "team",
+			ParentOperation:    "update",
+		},
+		{
+			ChildResourceType:  "project",
+			ChildOperation:     "read",
+			ParentResourceType: "team",
+			ParentOperation:    "read",
+		},
+		{
+			ChildResourceType: "team",
+			ChildOperation:    "readTask",
 		},
 		{
 			ChildResourceType:  "invitation",
 			ChildOperation:     "send",
 			ParentResourceType: "team",
+			ParentOperation:    "update",
+		},
+		{
+			ChildResourceType:  "task",
+			ChildOperation:     "read",
+			ParentResourceType: "sprint",
 			ParentOperation:    "update",
 		},
 		{
@@ -144,26 +312,32 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		{
 			ChildResourceType:  "task",
 			ChildOperation:     "read",
-			ParentResourceType: "team",
+			ParentResourceType: "project",
 			ParentOperation:    "read",
 		},
 		{
 			ChildResourceType:  "task",
-			ChildOperation:     "update",
+			ChildOperation:     "read",
 			ParentResourceType: "team",
-			ParentOperation:    "update",
+			ParentOperation:    "readTask",
+		},
+		{
+			ChildResourceType:  "task",
+			ChildOperation:     "read",
+			ParentResourceType: "task",
+			ParentOperation:    "read",
+		},
+		{
+			ChildResourceType:  "invitation",
+			ChildOperation:     "read",
+			ParentResourceType: "invitation",
+			ParentOperation:    "send",
 		},
 		{
 			ChildResourceType:  "invitation",
 			ChildOperation:     "read",
 			ParentResourceType: "team",
 			ParentOperation:    "read",
-		},
-		{
-			ChildResourceType:  "team",
-			ChildOperation:     "read",
-			ParentResourceType: "team",
-			ParentOperation:    "update",
 		},
 	}
 
@@ -176,7 +350,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		expectedHasPermission bool
 	}{
 		{
-			name:                  "has permission by traversing permission table",
+			name:                  "Case 0: has permission by traversing permission table",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -184,11 +358,67 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "has no permission by traversing permission table",
+			name:                  "Case 0: has no permission by traversing permission table",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
 			userID:                3,
+			expectedHasPermission: false,
+		},
+		{
+			name:                  "Case 1: both operation and resource type change happy case",
+			resourceType:          "task",
+			resourceID:            1,
+			operation:             "read",
+			userID:                2,
+			expectedHasPermission: true,
+		},
+		{
+			name:                  "Case 1: both operation and resource type change failed case",
+			resourceType:          "task",
+			resourceID:            6,
+			operation:             "update",
+			userID:                1,
+			expectedHasPermission: false,
+		},
+		{
+			name:                  "Case 2: operation and resource type do not change ",
+			resourceType:          "task",
+			resourceID:            2,
+			operation:             "read",
+			userID:                5,
+			expectedHasPermission: true,
+		},
+		{
+			name:                  "Case 3: one resource type has multiple same level parent resource types happy case",
+			resourceType:          "task",
+			resourceID:            1,
+			operation:             "read",
+			userID:                2,
+			expectedHasPermission: true,
+		},
+		{
+			name:                  "Case 3: one resource type has multiple same level parent resource types failed case",
+			resourceType:          "task",
+			resourceID:            1,
+			operation:             "update",
+			userID:                2,
+			expectedHasPermission: false,
+		},
+		{
+			name:                  "Case 4: owner group",
+			resourceType:          "team",
+			resourceID:            1,
+			operation:             "read",
+			userID:                2,
+			expectedHasPermission: true,
+		},
+		{
+			name:                  "Case 5: cross team",
+			resourceType:          "task",
+			resourceID:            1,
+			operation:             "read",
+			userID:                4,
 			expectedHasPermission: false,
 		},
 	}

@@ -17,11 +17,9 @@ func (u UserGroupMember) FindGroupIDsByUserID(userID uint64) ([]uint64, error) {
 		return userGroupMember.UserID == userID
 	})
 
-	groupIDs := collect.Map(groupMembers, func(groupMember entity.UserGroupMember, _ int) uint64 {
+	return collect.Map(groupMembers, func(groupMember entity.UserGroupMember, _ int) uint64 {
 		return groupMember.GroupID
-	})
-
-	return groupIDs, nil
+	}), nil
 }
 
 func NewUserGroupMember(userGroupMembers []entity.UserGroupMember) UserGroupMember {

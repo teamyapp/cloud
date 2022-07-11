@@ -16,7 +16,7 @@ type Authorization struct {
 }
 
 func (a Authorization) HasPermission(resourceType string, resourceID uint64, operation string, userID uint64) (bool, error) {
-	// No nested group
+	// No nested group allowed
 	groupIDs, err := a.userGroupMemberDao.FindGroupIDsByUserID(userID)
 	if err != nil {
 		log.Println(err)
@@ -88,6 +88,18 @@ func (a Authorization) getParentPermissionQueries(currQuery entity.PermissionQue
 		return nil, err
 	}
 
+	for _, resourceRelation := range resourceRelations {
+		if resourceRelation.ParentResourceType == currQuery.ResourceType {
+			newPermissionQuery := entity.PermissionQuery{
+				ResourceID:   resourceRelation.ParentResourceID,
+				ResourceType: currQuery.ResourceType,
+				Operation:    currQuery.Operation,
+				GroupID:      currQuery.GroupID,
+			}
+			parentPermissionQueries = tryAddPermissionQueryToQueue(newPermissionQuery, visited, parentPermissionQueries)
+		}
+	}
+
 	for _, operationRelation := range operationRelations {
 		if operationRelation.ParentResourceType == currQuery.ResourceType {
 			newPermissionQuery := entity.PermissionQuery{
@@ -96,14 +108,7 @@ func (a Authorization) getParentPermissionQueries(currQuery entity.PermissionQue
 				Operation:    operationRelation.ParentOperation,
 				GroupID:      currQuery.GroupID,
 			}
-
-			_, ok := visited[newPermissionQuery]
-			if ok {
-				continue
-			}
-
-			visited[newPermissionQuery] = true
-			parentPermissionQueries = append(parentPermissionQueries, newPermissionQuery)
+			parentPermissionQueries = tryAddPermissionQueryToQueue(newPermissionQuery, visited, parentPermissionQueries)
 			continue
 		}
 
@@ -118,15 +123,19 @@ func (a Authorization) getParentPermissionQueries(currQuery entity.PermissionQue
 				Operation:    operationRelation.ParentOperation,
 				GroupID:      currQuery.GroupID,
 			}
-			_, ok := visited[newPermissionQuery]
-			if ok {
-				continue
-			}
-
-			visited[newPermissionQuery] = true
-			parentPermissionQueries = append(parentPermissionQueries, newPermissionQuery)
+			parentPermissionQueries = tryAddPermissionQueryToQueue(newPermissionQuery, visited, parentPermissionQueries)
 		}
 	}
 
 	return parentPermissionQueries, nil
+}
+
+func tryAddPermissionQueryToQueue(permissionQuery entity.PermissionQuery, visited map[entity.PermissionQuery]bool, queries []entity.PermissionQuery) []entity.PermissionQuery {
+	_, ok := visited[permissionQuery]
+	if ok {
+		return queries
+	}
+
+	visited[permissionQuery] = true
+	return append(queries, permissionQuery)
 }
