@@ -144,17 +144,17 @@ func (i Identity) FinishOAuthSignIn(providerName string, authorizationCode strin
 }
 
 func (i Identity) getOrLinkInternalUserID(authProvider string, externalUser entity.ExternalUser) (uint64, error) {
-	userLink, err := i.userLinkDao.FindUserLinkByExternalUserID(authProvider, externalUser.ID)
+	internalUserID, err := i.GetInternalUserID(authProvider, externalUser.ID)
 	switch err.(type) {
 	case nil:
-		return userLink.InternalUserID, nil
+		return internalUserID, nil
 	case dao.ErrNotFound:
 		internalUserID, err := i.userIDGenerator.GenerateUniqueNumber()
 		if err != nil {
 			return 0, err
 		}
 
-		userLink = entity.UserLink{
+		userLink := entity.UserLink{
 			AuthProvider:      authProvider,
 			InternalUserID:    internalUserID,
 			ExternalUserID:    externalUser.ID,
@@ -164,6 +164,16 @@ func (i Identity) getOrLinkInternalUserID(authProvider string, externalUser enti
 	default:
 		return 0, err
 	}
+}
+
+func (i Identity) GetInternalUserID(authProvider string, externalUserID string) (uint64, error) {
+	userLink, err := i.userLinkDao.FindUserLinkByExternalUserID(authProvider, externalUserID)
+	if err != nil {
+		log.Println(err)
+		return 0, err
+	}
+
+	return userLink.InternalUserID, nil
 }
 
 func (i Identity) ListServiceAccounts(accountOwnerID uint64) ([]entity.ServiceAccount, error) {
