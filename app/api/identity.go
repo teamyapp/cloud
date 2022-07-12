@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -9,67 +10,74 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/libs/ctx"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/web"
+	"google.golang.org/grpc"
 )
 
 const identityPathPrefix = "/identity"
 
 type Identity struct {
 	identityService service.Identity
+	proto.UnimplementedIdentityServer
 }
 
 var _ runner.Service = (*Identity)(nil)
+var _ proto.IdentityServer = (*Identity)(nil)
 
 func (i Identity) Start(rn *runner.ServiceRunner) error {
 	rn.RegisterWebRoutes([]runner.WebRoute{
 		{
 			Path:        path.Join(identityPathPrefix, "verify-token"),
 			Method:      http.MethodPost,
-			HandlerFunc: i.verifyToken,
+			HandlerFunc: i.webVerifyToken,
 		},
 		{
 			Path:        path.Join(identityPathPrefix, "sign-in", "oauth", "{provider}"),
 			Method:      http.MethodGet,
-			HandlerFunc: i.oauthSignIn,
+			HandlerFunc: i.webOauthSignIn,
 		},
 		{
 			Path:        path.Join(identityPathPrefix, "sign-in", "oauth", "{provider}", "finish"),
 			Method:      http.MethodGet,
-			HandlerFunc: i.finishOAuthSignIn,
+			HandlerFunc: i.webFinishOAuthSignIn,
 		},
 		{
 			Path:        path.Join(identityPathPrefix, "user-links"),
 			Method:      http.MethodGet,
-			HandlerFunc: i.listUserLinks,
+			HandlerFunc: i.webListUserLinks,
 		},
 		{
 			Path:        path.Join(identityPathPrefix, "service-accounts"),
 			Method:      http.MethodGet,
-			HandlerFunc: i.listServiceAccounts,
+			HandlerFunc: i.webListServiceAccounts,
 		},
 		{
 			Path:        path.Join(identityPathPrefix, "service-accounts", "create"),
 			Method:      http.MethodPost,
-			HandlerFunc: i.createServiceAccount,
+			HandlerFunc: i.webCreateServiceAccount,
 		},
 		{
 			Path:        path.Join(identityPathPrefix, "service-accounts", "{serviceAccountId}", "generate-token"),
 			Method:      http.MethodPost,
-			HandlerFunc: i.generateServiceToken,
+			HandlerFunc: i.webGenerateServiceToken,
 		},
 		{
 			Path:        path.Join(identityPathPrefix, "service-accounts", "{serviceAccountId}", "delete"),
 			Method:      http.MethodDelete,
-			HandlerFunc: i.deleteServiceAccount,
+			HandlerFunc: i.webDeleteServiceAccount,
 		},
+	})
+	rn.WithGRPCServer(func(server *grpc.Server) {
+		proto.RegisterIdentityServer(server, i)
 	})
 	return nil
 }
 
-func (i Identity) verifyToken(w http.ResponseWriter, r *http.Request) {
+func (i Identity) webVerifyToken(w http.ResponseWriter, r *http.Request) {
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Println(err)
@@ -86,7 +94,7 @@ func (i Identity) verifyToken(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (i Identity) oauthSignIn(w http.ResponseWriter, r *http.Request) {
+func (i Identity) webOauthSignIn(w http.ResponseWriter, r *http.Request) {
 	authProviderName := mux.Vars(r)["provider"]
 	query := r.URL.Query()
 	redirectURL := query.Get("redirectUrl")
@@ -101,7 +109,7 @@ func (i Identity) oauthSignIn(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
-func (i Identity) finishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
+func (i Identity) webFinishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	providerName := mux.Vars(r)["provider"]
 	provider, err := i.identityService.GetOAuthProvider(providerName)
 	if err != nil {
@@ -128,7 +136,7 @@ func (i Identity) finishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
-func (i Identity) listUserLinks(writer http.ResponseWriter, request *http.Request) {
+func (i Identity) webListUserLinks(writer http.ResponseWriter, request *http.Request) {
 	userID, err := ctx.UserIDFromContext(request.Context())
 	if err != nil {
 		log.Println(err)
@@ -146,7 +154,7 @@ func (i Identity) listUserLinks(writer http.ResponseWriter, request *http.Reques
 	web.WriteJSON(writer, userLinks)
 }
 
-func (i Identity) listServiceAccounts(writer http.ResponseWriter, request *http.Request) {
+func (i Identity) webListServiceAccounts(writer http.ResponseWriter, request *http.Request) {
 	userID, err := ctx.UserIDFromContext(request.Context())
 	if err != nil {
 		log.Println(err)
@@ -164,7 +172,7 @@ func (i Identity) listServiceAccounts(writer http.ResponseWriter, request *http.
 	web.WriteJSON(writer, serviceAccounts)
 }
 
-func (i Identity) createServiceAccount(writer http.ResponseWriter, request *http.Request) {
+func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *http.Request) {
 	userID, err := ctx.UserIDFromContext(request.Context())
 	if err != nil {
 		log.Println(err)
@@ -199,7 +207,7 @@ func (i Identity) createServiceAccount(writer http.ResponseWriter, request *http
 	writer.WriteHeader(http.StatusNoContent)
 }
 
-func (i Identity) generateServiceToken(writer http.ResponseWriter, request *http.Request) {
+func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *http.Request) {
 	userID, err := ctx.UserIDFromContext(request.Context())
 	if err != nil {
 		log.Println(err)
@@ -225,7 +233,7 @@ func (i Identity) generateServiceToken(writer http.ResponseWriter, request *http
 	writer.Write([]byte(serviceToken))
 }
 
-func (i Identity) deleteServiceAccount(writer http.ResponseWriter, request *http.Request) {
+func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *http.Request) {
 	userID, err := ctx.UserIDFromContext(request.Context())
 	if err != nil {
 		log.Println(err)
@@ -249,6 +257,15 @@ func (i Identity) deleteServiceAccount(writer http.ResponseWriter, request *http
 	}
 
 	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (i Identity) GetInternalUserId(ct context.Context, req *proto.GetInternalUserIdRequest) (*proto.GetInternalUserIdResponse, error) {
+	internalUserID, err := i.identityService.GetInternalUserID(req.AuthProvider, req.ExternalUserId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &proto.GetInternalUserIdResponse{InternalUserId: internalUserID}, nil
 }
 
 func NewIdentity(identityService service.Identity) Identity {
