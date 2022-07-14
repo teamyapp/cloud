@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+option go_package="github.com/cloud/app/api/proto";
+
+service Authorization {
+  rpc HasPermission(HasPermissionRequest) returns (HasPermissionResponse);
+  rpc RegisterResourceRelation(RegisterResourceRelationRequest) returns (google.protobuf.Empty);
+  rpc UnregisterResourceRelation(UnregisterResourceRelationRequest) returns (google.protobuf.Empty);
+  rpc RegisterUserGroup(RegisterUserGroupRequest) returns (RegisterUserGroupResponse);
+  rpc UnregisterUserGroup(UnregisterUserGroupRequest) returns (google.protobuf.Empty);
+}
+
+message HasPermissionRequest {
+  string resourceType = 1;
+  uint64 resourceId = 2;
+  string operation = 3;
+  uint64 userId = 4;
+}
+
+message HasPermissionResponse {
+  bool hasPermission = 1;
+}
+
+message RegisterResourceRelationRequest {
+  string childResourceType = 1;
+  uint64 childResourceId = 2;
+  string parentResourceType = 3;
+  uint64 parentResourceId = 4;
+}
+
+message UnregisterResourceRelationRequest {
+  optional string childResourceType = 1;
+  optional uint64 childResourceId = 2;
+  optional string parentResourceType = 3;
+  optional uint64 parentResourceId = 4;
+}
+
+message RegisterUserGroupRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message RegisterUserGroupResponse {
+  uint64 id = 1;
+  string name = 2;
+}
+
+message UnregisterUserGroupRequest {
+  uint64 id = 1;
+}
+

@@ -65,9 +65,16 @@ func main() {
 			return err
 		}
 
+		authorizationAPI, err := dep.InitAuthorizationAPI(sqlDB)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
 		rn := runner.NewServiceRunner(runnerConfig, []runner.Service{
 			identityAPI,
 			generatorAPI,
+			authorizationAPI,
 		})
 
 		rn.Start()
