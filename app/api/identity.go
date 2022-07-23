@@ -38,7 +38,7 @@ func (i Identity) Start(rn *runner.ServiceRunner) error {
 		{
 			Path:        path.Join(identityPathPrefix, "sign-in", "oauth", "{provider}"),
 			Method:      http.MethodGet,
-			HandlerFunc: i.webOauthSignIn,
+			HandlerFunc: i.webOAuthSignIn,
 		},
 		{
 			Path:        path.Join(identityPathPrefix, "sign-in", "oauth", "{provider}", "finish"),
@@ -49,6 +49,16 @@ func (i Identity) Start(rn *runner.ServiceRunner) error {
 			Path:        path.Join(identityPathPrefix, "user-links"),
 			Method:      http.MethodGet,
 			HandlerFunc: i.webListUserLinks,
+		},
+		{
+			Path:        path.Join(identityPathPrefix, "user-links", "{provider}", "create"),
+			Method:      http.MethodGet,
+			HandlerFunc: i.webCreateUserLink,
+		},
+		{
+			Path:        path.Join(identityPathPrefix, "user-links", "{provider}", "delete"),
+			Method:      http.MethodDelete,
+			HandlerFunc: i.webDeleteUserLink,
 		},
 		{
 			Path:        path.Join(identityPathPrefix, "service-accounts"),
@@ -94,12 +104,12 @@ func (i Identity) webVerifyToken(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (i Identity) webOauthSignIn(w http.ResponseWriter, r *http.Request) {
+func (i Identity) webOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	authProviderName := mux.Vars(r)["provider"]
 	query := r.URL.Query()
 	redirectURL := query.Get("redirectUrl")
 
-	url, err := i.identityService.GenerateSignInURL(authProviderName, redirectURL)
+	url, err := i.identityService.GenerateUnknownUserSignInURL(authProviderName, redirectURL)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -152,6 +162,46 @@ func (i Identity) webListUserLinks(writer http.ResponseWriter, request *http.Req
 	}
 
 	web.WriteJSON(writer, userLinks)
+}
+
+func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Request) {
+	userID, err := ctx.UserIDFromContext(request.Context())
+	if err != nil {
+		log.Println(err)
+		writer.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	authProviderName := mux.Vars(request)["provider"]
+	query := request.URL.Query()
+	redirectURL := query.Get("redirectUrl")
+	url, err := i.identityService.GenerateLinkUsersSignInURL(authProviderName, userID, redirectURL)
+	if err != nil {
+		log.Println(err)
+		writer.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	writer.Write([]byte(url))
+}
+
+func (i Identity) webDeleteUserLink(writer http.ResponseWriter, request *http.Request) {
+	authProviderName := mux.Vars(request)["provider"]
+	userID, err := ctx.UserIDFromContext(request.Context())
+	if err != nil {
+		log.Println(err)
+		writer.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	err = i.identityService.DeleteUserLink(userID, authProviderName)
+	if err != nil {
+		log.Println(err)
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	writer.WriteHeader(http.StatusNoContent)
 }
 
 func (i Identity) webListServiceAccounts(writer http.ResponseWriter, request *http.Request) {
