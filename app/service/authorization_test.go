@@ -9,7 +9,7 @@ import (
 )
 
 func TestAuthorization_HasPermission(t *testing.T) {
-	fakeResourceDao := []entity.ResourceRelation{
+	fakeResourceRelationDao := []entity.ResourceRelation{
 		{
 			ChileResourceID:   1,
 			ChildResourceType: "team",
@@ -228,7 +228,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		},
 	}
 
-	fakeResourceOperationDao := []entity.OperationRelation{
+	fakeOperationRelationDao := []entity.OperationRelation{
 		{
 			ChildResourceType: "team",
 			ChildOperation:    "addUserTo",
@@ -431,8 +431,8 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			mockAuthorization := Authorization{
 				permissionDao:        dao_test.NewPermission(fakePermissionDao),
 				userGroupMemberDao:   dao_test.NewUserGroupMember(fakeUserGroupMemberDao),
-				operationRelationDao: dao_test.NewOperationRelation(fakeResourceOperationDao),
-				resourceRelationDao:  dao_test.NewResourceRelation(fakeResourceDao),
+				operationRelationDao: dao_test.NewOperationRelation(fakeOperationRelationDao),
+				resourceRelationDao:  dao_test.NewResourceRelation(fakeResourceRelationDao),
 			}
 
 			hasPermission, err := mockAuthorization.HasPermission(testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)
