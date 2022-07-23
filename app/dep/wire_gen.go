@@ -56,10 +56,7 @@ func InitAuthorizationAPI(sqlDB *sql.DB) (api.Authorization, error) {
 	userGroupMember := newUserGroupMember()
 	permission := newPermission()
 	operationRelation := newOperationRelation()
-	authorization, err := newAuthorizationService(resourceRelation, userGroupMember, permission, operationRelation)
-	if err != nil {
-		return api.Authorization{}, err
-	}
+	authorization := service.NewAuthorization(resourceRelation, userGroupMember, permission, operationRelation)
 	apiAuthorization := api.NewAuthorization(authorization)
 	return apiAuthorization, nil
 }
@@ -127,20 +124,6 @@ func newIdentityService(
 		uniqueNumberFactory,
 		jwtAuthority,
 		oauthProviders, time.Duration(accessTokenTLL))
-}
-
-func newAuthorizationService(
-	resourceRelationDao dao.ResourceRelation,
-	userGroupMemberDao dao.UserGroupMember,
-	permissionDao dao.Permission,
-	operationRelationDao dao.OperationRelation,
-) (service.Authorization, error) {
-	return service.NewAuthorization(
-		resourceRelationDao,
-		userGroupMemberDao,
-		permissionDao,
-		operationRelationDao,
-	), nil
 }
 
 func newOperationRelation() dao_test.OperationRelation {

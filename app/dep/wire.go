@@ -6,13 +6,12 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/teamyapp/cloud/app/dao/dao_test"
-	"github.com/teamyapp/cloud/app/entity"
-
 	"github.com/google/wire"
 	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/dao"
+	"github.com/teamyapp/cloud/app/dao/dao_test"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
+	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
@@ -95,7 +94,7 @@ func InitAuthorizationAPI(
 	wire.Build(
 		daoSet,
 		api.NewAuthorization,
-		newAuthorizationService,
+		service.NewAuthorization,
 	)
 	return api.Authorization{}, nil
 }
@@ -142,20 +141,6 @@ func newIdentityService(
 		jwtAuthority,
 		oauthProviders,
 		time.Duration(accessTokenTLL))
-}
-
-func newAuthorizationService(
-	resourceRelationDao dao.ResourceRelation,
-	userGroupMemberDao dao.UserGroupMember,
-	permissionDao dao.Permission,
-	operationRelationDao dao.OperationRelation,
-) (service.Authorization, error) {
-	return service.NewAuthorization(
-		resourceRelationDao,
-		userGroupMemberDao,
-		permissionDao,
-		operationRelationDao,
-	), nil
 }
 
 func newOperationRelation() dao_test.OperationRelation {

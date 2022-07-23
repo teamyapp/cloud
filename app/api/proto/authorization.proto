@@ -44,7 +44,6 @@ message RegisterUserGroupRequest {
 
 message RegisterUserGroupResponse {
   uint64 id = 1;
-  string name = 2;
 }
 
 message UnregisterUserGroupRequest {
