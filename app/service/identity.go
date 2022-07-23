@@ -103,16 +103,19 @@ func (i Identity) GetOAuthProvider(providerName string) (oauth.Provider, error) 
 func (i Identity) FinishOAuthSignIn(providerName string, authorizationCode string, sessionID uint64) (string, error) {
 	provider, err := i.GetOAuthProvider(providerName)
 	if err != nil {
+		log.Println(err)
 		return "", err
 	}
 
 	externalUser, err := provider.GetUser(authorizationCode)
 	if err != nil {
+		log.Println(err)
 		return "", err
 	}
 
 	userID, err := i.getOrLinkInternalUserID(providerName, externalUser)
 	if err != nil {
+		log.Println(err)
 		return "", err
 	}
 
@@ -124,11 +127,19 @@ func (i Identity) FinishOAuthSignIn(providerName string, authorizationCode strin
 
 	accessToken, err := i.jwtAuthority.GenerateToken(payload)
 	if err != nil {
+		log.Println(err)
 		return "", err
 	}
 
 	session, err := i.signInSessionDao.FindSignInSessionByID(sessionID)
 	if err != nil {
+		log.Println(err)
+		return "", err
+	}
+
+	err = i.signInSessionDao.DeleteSignInSession(sessionID)
+	if err != nil {
+		log.Println(err)
 		return "", err
 	}
 
