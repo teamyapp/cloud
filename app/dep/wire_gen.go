@@ -8,6 +8,8 @@ package dep
 
 import (
 	"database/sql"
+	"time"
+
 	"github.com/google/wire"
 	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/dao"
@@ -18,7 +20,6 @@ import (
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/libs/security"
-	"time"
 )
 
 // Injectors from wire.go:
