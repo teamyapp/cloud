@@ -55,6 +55,15 @@ WHERE id = $2;
 	return err
 }
 
+func (s SignInSession) DeleteSignInSession(sessionID uint64) error {
+	_, err := s.db.Exec(`
+		DELETE 
+		FROM identity_sign_in_session
+		WHERE id = $1;`,
+		sessionID)
+	return err
+}
+
 func NewSignInSession(sqlDB *sql.DB) SignInSession {
 	return SignInSession{
 		db: sqlDB,
