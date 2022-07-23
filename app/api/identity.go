@@ -179,6 +179,11 @@ func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Re
 	authProviderName := mux.Vars(request)["provider"]
 	query := request.URL.Query()
 	redirectURL := query.Get("redirectUrl")
+	if len(redirectURL) == 0 {
+		writer.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	url, err := i.identityService.GenerateLinkUsersSignInURL(authProviderName, userID, redirectURL)
 	if err != nil {
 		log.Println(err)
