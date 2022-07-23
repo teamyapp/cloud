@@ -91,7 +91,7 @@ func (i Identity) webVerifyToken(w http.ResponseWriter, r *http.Request) {
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Println(err)
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -108,11 +108,15 @@ func (i Identity) webOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	authProviderName := mux.Vars(r)["provider"]
 	query := r.URL.Query()
 	redirectURL := query.Get("redirectUrl")
+	if len(redirectURL) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
 	url, err := i.identityService.GenerateUnknownUserSignInURL(authProviderName, redirectURL)
 	if err != nil {
 		log.Println(err)
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -139,7 +143,7 @@ func (i Identity) webFinishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	url, err := i.identityService.FinishOAuthSignIn(providerName, authorizationCode, stateID)
 	if err != nil {
 		log.Println(err)
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -178,7 +182,7 @@ func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Re
 	url, err := i.identityService.GenerateLinkUsersSignInURL(authProviderName, userID, redirectURL)
 	if err != nil {
 		log.Println(err)
-		writer.WriteHeader(http.StatusBadRequest)
+		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
