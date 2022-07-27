@@ -176,7 +176,7 @@ func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 
 func (f File) webGetFileMetadata(writer http.ResponseWriter, request *http.Request) {
 	fileIDParam := mux.Vars(request)["fileId"]
-	fileID, err := strconv.ParseUint(fileIDParam, 10, 16)
+	fileID, err := strconv.ParseUint(fileIDParam, 10, 64)
 	if err != nil {
 		log.Println(err)
 		writer.WriteHeader(http.StatusBadRequest)
