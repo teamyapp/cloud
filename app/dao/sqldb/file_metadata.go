@@ -63,12 +63,12 @@ func (f FileMetadata) CreateFileMetadata(metadata entity.FileMetadata) error {
 	INSERT INTO file_metadata
 	(
 	 	id,
-	    name,
-	    size_in_bytes,
-	    mime_type,
-	    chunk_ids,
-	    created_at,
-	    last_modified_at
+	 	name,
+	 	size_in_bytes,
+	 	mime_type,
+	 	chunk_ids,
+	 	created_at,
+	 	last_modified_at
 	)
 	VALUES ($1, $2, $3, $4, $5, $6, $7);`,
 		metadata.ID,

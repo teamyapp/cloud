@@ -67,7 +67,7 @@ func (f File) Start(rn *runner.ServiceRunner) error {
 	return nil
 }
 
-func (f File) CreateUploadSection(ct context.Context, empty *emptypb.Empty) (*proto.CreateUploadSessionResponse, error) {
+func (f File) CreateUploadSession(ct context.Context, empty *emptypb.Empty) (*proto.CreateUploadSessionResponse, error) {
 	uploadSessionID, err := f.fileService.CreateUploadSession(ct)
 	if err != nil {
 		return nil, err

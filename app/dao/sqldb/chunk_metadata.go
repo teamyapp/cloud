@@ -45,8 +45,8 @@ func (c ChunkMetadata) CreateChunkMetadata(metadata entity.ChunkMetadata) error 
 	INSERT INTO file_chunk_metadata
 	(
 	 	id,
-	    size_in_bytes,
-	    created_at
+	 	size_in_bytes,
+	 	created_at
 	)
 	VALUES ($1, $2, $3);`,
 		metadata.ID,

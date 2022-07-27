@@ -5,7 +5,7 @@ import "google/protobuf/empty.proto";
 option go_package="github.com/cloud/app/api/proto";
 
 service File {
-  rpc CreateUploadSection(google.protobuf.Empty) returns (CreateUploadSessionResponse);
+  rpc CreateUploadSession(google.protobuf.Empty) returns (CreateUploadSessionResponse);
 }
 
 message CreateUploadSessionResponse {

@@ -23,7 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FileClient interface {
-	CreateUploadSection(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CreateUploadSessionResponse, error)
+	CreateUploadSession(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CreateUploadSessionResponse, error)
 }
 
 type fileClient struct {
@@ -34,9 +34,9 @@ func NewFileClient(cc grpc.ClientConnInterface) FileClient {
 	return &fileClient{cc}
 }
 
-func (c *fileClient) CreateUploadSection(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CreateUploadSessionResponse, error) {
+func (c *fileClient) CreateUploadSession(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CreateUploadSessionResponse, error) {
 	out := new(CreateUploadSessionResponse)
-	err := c.cc.Invoke(ctx, "/File/CreateUploadSection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/File/CreateUploadSession", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (c *fileClient) CreateUploadSection(ctx context.Context, in *emptypb.Empty,
 // All implementations must embed UnimplementedFileServer
 // for forward compatibility
 type FileServer interface {
-	CreateUploadSection(context.Context, *emptypb.Empty) (*CreateUploadSessionResponse, error)
+	CreateUploadSession(context.Context, *emptypb.Empty) (*CreateUploadSessionResponse, error)
 	mustEmbedUnimplementedFileServer()
 }
 
@@ -55,8 +55,8 @@ type FileServer interface {
 type UnimplementedFileServer struct {
 }
 
-func (UnimplementedFileServer) CreateUploadSection(context.Context, *emptypb.Empty) (*CreateUploadSessionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateUploadSection not implemented")
+func (UnimplementedFileServer) CreateUploadSession(context.Context, *emptypb.Empty) (*CreateUploadSessionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateUploadSession not implemented")
 }
 func (UnimplementedFileServer) mustEmbedUnimplementedFileServer() {}
 
@@ -71,20 +71,20 @@ func RegisterFileServer(s grpc.ServiceRegistrar, srv FileServer) {
 	s.RegisterService(&File_ServiceDesc, srv)
 }
 
-func _File_CreateUploadSection_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _File_CreateUploadSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(FileServer).CreateUploadSection(ctx, in)
+		return srv.(FileServer).CreateUploadSession(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/File/CreateUploadSection",
+		FullMethod: "/File/CreateUploadSession",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FileServer).CreateUploadSection(ctx, req.(*emptypb.Empty))
+		return srv.(FileServer).CreateUploadSession(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -97,8 +97,8 @@ var File_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*FileServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateUploadSection",
-			Handler:    _File_CreateUploadSection_Handler,
+			MethodName: "CreateUploadSession",
+			Handler:    _File_CreateUploadSession_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

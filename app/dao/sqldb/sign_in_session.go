@@ -18,9 +18,9 @@ var _ dao.SignInSession = (*SignInSession)(nil)
 func (s SignInSession) FindSignInSessionByID(sessionID uint64) (entity.SignInSession, error) {
 	row := s.db.QueryRow(`
 	SELECT 
-	    id, 
-	    redirect_url, 
-	    type, 
+	    id,
+	    redirect_url,
+	    type,
 	    internal_user_id
 	FROM identity_sign_in_session
 	WHERE id = $1;
@@ -44,11 +44,13 @@ func (s SignInSession) FindSignInSessionByID(sessionID uint64) (entity.SignInSes
 
 func (s SignInSession) CreateSignInSession(session entity.SignInSession) error {
 	_, err := s.db.Exec(`
-	INSERT INTO identity_sign_in_session (
-	    id, 
-	    redirect_url, 
-	    type, 
-	    internal_user_id)
+	INSERT INTO identity_sign_in_session 
+	(
+	 	id,
+	 	redirect_url,
+	 	type,
+	 	internal_user_id
+	)
 	VALUES ($1, $2, $3, $4);
 	`,
 		session.ID,
@@ -63,8 +65,8 @@ func (s SignInSession) UpdateSignInSession(session entity.SignInSession) error {
 	UPDATE identity_sign_in_session
 	SET 
 	    redirect_url = $1,
-		type = $2,
-		internal_user_id = $3
+	    type = $2,
+	    internal_user_id = $3
 	WHERE id = $4;
 	`,
 		session.RedirectURL,
