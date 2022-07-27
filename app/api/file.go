@@ -150,7 +150,7 @@ func (f File) webDeleteUploadSession(writer http.ResponseWriter, request *http.R
 
 func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 	uploadSessionIDParam := mux.Vars(request)["uploadSessionId"]
-	uploadSessionID, err := strconv.ParseUint(uploadSessionIDParam, 10, 16)
+	uploadSessionID, err := strconv.ParseUint(uploadSessionIDParam, 10, 64)
 	if err != nil {
 		log.Println(err)
 		writer.WriteHeader(http.StatusBadRequest)
