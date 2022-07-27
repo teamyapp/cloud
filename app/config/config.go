@@ -31,7 +31,7 @@ type App struct {
 	S3Endpoint         string        `envconfig:"S3_ENDPOINT" default:""`
 	S3AccessKeyID      string        `envconfig:"S3_ACCESS_KEY_ID" default:""`
 	S3AccessKey        string        `envconfig:"S3_ACCESS_KEY" default:""`
-	S3BucketName       string        `envconfig:"S3_BUCKET_NAME" default:""`
+	S3BucketName       string        `envconfig:"S3_BUCKET_NAME" default:"teamyapp"`
 }
 
 func AppFromEnv() (App, error) {

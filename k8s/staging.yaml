@@ -41,9 +41,6 @@ spec:
     - name: s3-access-key
       key: kv/data/secrets/staging/cloud
       property: s3-access-key
-    - name: s3-bucket-name
-      key: kv/data/secrets/staging/cloud
-      property: s3-bucket-name
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -141,10 +138,7 @@ spec:
                   name: cloud
                   key: s3-access-key
             - name: S3_BUCKET_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: cloud
-                  key: s3-bucket-name
+              value: teamyapp
 ---
 apiVersion: v1
 kind: Service
