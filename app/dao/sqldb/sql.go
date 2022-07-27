@@ -14,7 +14,6 @@ func parseIDs(idsString string) ([]uint64, error) {
 	}
 
 	chunkIDStrings := strings.Split(idsString, ",")
-
 	for _, chunkIDString := range chunkIDStrings {
 		chunkID, err := strconv.ParseUint(chunkIDString, 10, 64)
 		if err != nil {
