@@ -47,7 +47,7 @@ func (c *ChunksIterator) Next() ([]byte, error) {
 	return data, nil
 }
 
-func newChunksIterator(mapBackend storage.MapBackend, chunkIDs []uint64) ChunksIterator {
+func newChunksIterator(mapBackend storage.MapBackend, chunkIDs []uint64) *ChunksIterator {
 	return ChunksIterator{
 		mapBackend:     mapBackend,
 		chunkIDs:       chunkIDs,
