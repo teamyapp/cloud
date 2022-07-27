@@ -20,6 +20,7 @@ type App struct {
 	Repo
 	sqldb.Config
 	Environment        Environment   `json:"ENVIRONMENT" default:"development"`
+	WebAPIBaseURL      string        `envconfig:"WEB_API_BASE_URL" default:""`
 	AccessTokenTTL     time.Duration `envconfig:"ACCESS_TOKEN_TTL" default:""`
 	GoogleClientID     string        `envconfig:"GOOGLE_CLIENT_ID" default:""`
 	GoogleClientSecret string        `envconfig:"GOOGLE_CLIENT_SECRET" default:""`
@@ -27,7 +28,6 @@ type App struct {
 	GitHubClientSecret string        `envconfig:"GITHUB_CLIENT_SECRET" default:""`
 	JWTSigningKey      string        `envconfig:"JWT_SIGNING_KEY" default:""`
 	GenRangeSize       int           `envconfig:"GEN_RANGE_SIZE" default:"100"`
-	WebAPIBaseURL      string        `envconfig:"WEB_API_BASE_URL" default:""`
 	S3Endpoint         string        `envconfig:"S3_ENDPOINT" default:""`
 	S3AccessKeyID      string        `envconfig:"S3_ACCESS_KEY_ID" default:""`
 	S3AccessKey        string        `envconfig:"S3_ACCESS_KEY" default:""`

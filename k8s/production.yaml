@@ -77,6 +77,16 @@ spec:
             - containerPort: 8080
             - containerPort: 8081
           env:
+            - name: ENVIRONMENT
+              value: production
+            - name: WEB_API_BASE_URL
+              value: https://cloud.teamyapp.com
+            - name: SERVICE_RUNNER_WEB_SERVER_PORT
+              value: "8080"
+            - name: SERVICE_RUNNER_GRPC_SERVER_PORT
+              value: "8081"
+            - name: SERVICE_RUNNER_IDENTITY_API_ENDPOINT
+              value: "http://localhost:8080/identity"
             - name: DB_HOST
               value: postgres.db.svc.cluster.local
             - name: DB_USER
@@ -94,14 +104,6 @@ spec:
                 secretKeyRef:
                   name: cloud
                   key: db-name
-            - name: WEB_API_BASE_URL
-              value: https://cloud.teamyapp.com
-            - name: SERVICE_RUNNER_WEB_SERVER_PORT
-              value: "8080"
-            - name: SERVICE_RUNNER_GRPC_SERVER_PORT
-              value: "8081"
-            - name: SERVICE_RUNNER_IDENTITY_API_ENDPOINT
-              value: "http://localhost:8080/identity"
             - name: JWT_SIGNING_KEY
               valueFrom:
                 secretKeyRef:
