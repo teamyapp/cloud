@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/wire"
 	"github.com/teamyapp/cloud/app/api"
+	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/dao/dao_test"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
@@ -15,6 +16,7 @@ import (
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
+	"github.com/teamyapp/cloud/app/storage"
 	"github.com/teamyapp/cloud/libs/security"
 )
 
@@ -49,6 +51,9 @@ var daoSet = wire.NewSet(
 	wire.Bind(new(dao.ResourceRelation), new(dao_test.ResourceRelation)),
 	wire.Bind(new(dao.UserGroupMember), new(dao_test.UserGroupMember)),
 	wire.Bind(new(dao.Permission), new(dao_test.Permission)),
+	wire.Bind(new(dao.UploadSession), new(sqldb.UploadSession)),
+	wire.Bind(new(dao.FileMetadata), new(sqldb.FileMetadata)),
+	wire.Bind(new(dao.ChunkMetadata), new(sqldb.ChunkMetadata)),
 	sqldb.NewAllocatedRange,
 	sqldb.NewUserLink,
 	sqldb.NewSignInSession,
@@ -57,6 +62,14 @@ var daoSet = wire.NewSet(
 	newResourceRelation,
 	newUserGroupMember,
 	newPermission,
+	sqldb.NewUploadSession,
+	sqldb.NewFileMetadata,
+	sqldb.NewChunkMetadata,
+)
+
+var storageSet = wire.NewSet(
+	wire.Bind(new(storage.MapBackend), new(storage.S3Bucket)),
+	newS3Bucket,
 )
 
 func InitIdentityAPI(
@@ -97,6 +110,40 @@ func InitAuthorizationAPI(
 		service.NewAuthorization,
 	)
 	return api.Authorization{}, nil
+}
+
+func InitFileAPI(
+	env config.Environment,
+	sqlDB *sql.DB,
+	genRangeSize GenRangeSize,
+	s3Endpoint S3Endpoint,
+	s3AccessKeyID S3AccessKeyID,
+	s3AccessKey S3AccessKey,
+	s3BucketName S3BucketName,
+) (api.File, error) {
+	wire.Build(
+		daoSet,
+		storageSet,
+		newUniqueNumberGenFactory,
+		service.NewFile,
+		api.NewFile,
+	)
+	return api.File{}, nil
+}
+
+type S3Endpoint string
+type S3AccessKeyID string
+type S3AccessKey string
+type S3BucketName string
+
+func newS3Bucket(
+	s3Endpoint S3Endpoint,
+	s3AccessKeyID S3AccessKeyID,
+	s3AccessKey S3AccessKey,
+	s3BucketName S3BucketName,
+	env config.Environment,
+) (storage.S3Bucket, error) {
+	return storage.NewS3Bucket(string(s3Endpoint), string(s3AccessKeyID), string(s3AccessKey), env, string(s3BucketName))
 }
 
 func newGoogleOAuthProvider(

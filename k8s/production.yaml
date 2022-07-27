@@ -32,6 +32,18 @@ spec:
     - name: github-client-secret
       key: kv/data/secrets/production/cloud
       property: github-client-secret
+    - name: s3-endpoint
+      key: kv/data/secrets/production/cloud
+      property: s3-endpoint
+    - name: s3-access-key-id
+      key: kv/data/secrets/production/cloud
+      property: s3-access-key-id
+    - name: s3-access-key
+      key: kv/data/secrets/production/cloud
+      property: s3-access-key
+    - name: s3-bucket-name
+      key: kv/data/secrets/production/cloud
+      property: s3-bucket-name
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -82,6 +94,14 @@ spec:
                 secretKeyRef:
                   name: cloud
                   key: db-name
+            - name: WEB_API_BASE_URL
+              value: https://cloud.teamyapp.com
+            - name: SERVICE_RUNNER_WEB_SERVER_PORT
+              value: "8080"
+            - name: SERVICE_RUNNER_GRPC_SERVER_PORT
+              value: "8081"
+            - name: SERVICE_RUNNER_IDENTITY_API_ENDPOINT
+              value: "http://localhost:8080/identity"
             - name: JWT_SIGNING_KEY
               valueFrom:
                 secretKeyRef:
@@ -111,14 +131,26 @@ spec:
               value: 168h
             - name: GEN_RANGE_SIZE
               value: "100"
-            - name: WEB_API_BASE_URL
-              value: https://cloud.teamyapp.com
-            - name: SERVICE_RUNNER_WEB_SERVER_PORT
-              value: "8080"
-            - name: SERVICE_RUNNER_GRPC_SERVER_PORT
-              value: "8081"
-            - name: SERVICE_RUNNER_IDENTITY_API_ENDPOINT
-              value: "http://localhost:8080/identity"
+            - name: S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: s3-endpoint
+            - name: S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: s3-access-key-id
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: s3-access-key
+            - name: S3_BUCKET_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: s3-bucket-name
 ---
 apiVersion: v1
 kind: Service

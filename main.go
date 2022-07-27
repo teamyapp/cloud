@@ -11,6 +11,10 @@ import (
 	"github.com/teamyapp/cloud/libs/runner"
 )
 
+func init() {
+	log.SetFlags(log.LstdFlags | log.Llongfile)
+}
+
 func main() {
 	cfg, err := config.AppFromEnv()
 	if err != nil {
@@ -71,10 +75,24 @@ func main() {
 			return err
 		}
 
+		fileAPI, err := dep.InitFileAPI(
+			cfg.Environment,
+			sqlDB,
+			dep.GenRangeSize(cfg.GenRangeSize),
+			dep.S3Endpoint(cfg.S3Endpoint),
+			dep.S3AccessKeyID(cfg.S3AccessKeyID),
+			dep.S3AccessKey(cfg.S3AccessKey),
+			dep.S3BucketName(cfg.S3BucketName))
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
 		rn := runner.NewServiceRunner(runnerConfig, []runner.Service{
 			identityAPI,
 			generatorAPI,
 			authorizationAPI,
+			fileAPI,
 		})
 
 		rn.Start()
