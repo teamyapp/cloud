@@ -49,7 +49,6 @@ func (f File) CreateUploadSession(ct context.Context) (uint64, error) {
 	return chunkID, f.uploadSessionDao.CreateUploadSession(uploadSession)
 }
 
-// Hash can be computed as from a data stream
 func (f File) InitUploadSession(
 	ct context.Context,
 	uploadSessionID uint64,
