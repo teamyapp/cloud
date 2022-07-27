@@ -44,7 +44,11 @@ func (s SignInSession) FindSignInSessionByID(sessionID uint64) (entity.SignInSes
 
 func (s SignInSession) CreateSignInSession(session entity.SignInSession) error {
 	_, err := s.db.Exec(`
-	INSERT INTO identity_sign_in_session (id, redirect_url, type, internal_user_id)
+	INSERT INTO identity_sign_in_session (
+	    id, 
+	    redirect_url, 
+	    type, 
+	    internal_user_id)
 	VALUES ($1, $2, $3, $4);
 	`,
 		session.ID,
