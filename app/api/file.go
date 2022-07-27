@@ -195,7 +195,7 @@ func (f File) webGetFileMetadata(writer http.ResponseWriter, request *http.Reque
 
 func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 	fileIDParam := mux.Vars(request)["fileId"]
-	fileID, err := strconv.ParseUint(fileIDParam, 10, 16)
+	fileID, err := strconv.ParseUint(fileIDParam, 10, 64)
 	if err != nil {
 		log.Println(err)
 		writer.WriteHeader(http.StatusBadRequest)
