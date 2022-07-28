@@ -24,7 +24,7 @@ type UploadSession struct {
 	TotalNumOfChunks       int                 `json:"totalNumOfChunks"`
 	ChunkIDs               []uint64            `json:"chunkIds"`
 	NextChunkIndexToUpload int                 `json:"nextChunkIndexToUpload"`
-	HashState              []byte              `json:"hash_state"`
+	HashState              []byte              `json:"hashState"`
 	ActualContentHash      string              `json:"actualContentHash"`
 	ExpectedContentHash    string              `json:"expectedContentHash"`
 	CreatedAt              time.Time           `json:"createdAt"`
