@@ -17,10 +17,14 @@ var _ dao.SignInSession = (*SignInSession)(nil)
 
 func (s SignInSession) FindSignInSessionByID(sessionID uint64) (entity.SignInSession, error) {
 	row := s.db.QueryRow(`
-SELECT id, redirect_url, type, internal_user_id
-FROM identity_sign_in_session
-WHERE id = $1;
-`,
+	SELECT 
+	    id,
+	    redirect_url,
+	    type,
+	    internal_user_id
+	FROM identity_sign_in_session
+	WHERE id = $1;
+	`,
 		sessionID)
 
 	var signInSession entity.SignInSession
@@ -40,9 +44,15 @@ WHERE id = $1;
 
 func (s SignInSession) CreateSignInSession(session entity.SignInSession) error {
 	_, err := s.db.Exec(`
-INSERT INTO identity_sign_in_session (id, redirect_url, type, internal_user_id)
-VALUES ($1, $2, $3, $4);
-`,
+	INSERT INTO identity_sign_in_session 
+	(
+	 	id,
+	 	redirect_url,
+	 	type,
+	 	internal_user_id
+	)
+	VALUES ($1, $2, $3, $4);
+	`,
 		session.ID,
 		session.RedirectURL,
 		session.Type,
@@ -52,12 +62,13 @@ VALUES ($1, $2, $3, $4);
 
 func (s SignInSession) UpdateSignInSession(session entity.SignInSession) error {
 	_, err := s.db.Exec(`
-UPDATE identity_sign_in_session
-SET redirect_url = $1,
-    type = $2,
-    internal_user_id = $3
-WHERE id = $4;
-`,
+	UPDATE identity_sign_in_session
+	SET 
+	    redirect_url = $1,
+	    type = $2,
+	    internal_user_id = $3
+	WHERE id = $4;
+	`,
 		session.RedirectURL,
 		session.Type,
 		session.InternalUserID,
@@ -67,9 +78,9 @@ WHERE id = $4;
 
 func (s SignInSession) DeleteSignInSession(sessionID uint64) error {
 	_, err := s.db.Exec(`
-		DELETE 
-		FROM identity_sign_in_session
-		WHERE id = $1;`,
+	DELETE 
+	FROM identity_sign_in_session
+	WHERE id = $1;`,
 		sessionID)
 	return err
 }

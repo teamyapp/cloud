@@ -18,8 +18,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-const identityPathPrefix = "/identity"
-
 type Identity struct {
 	identityService service.Identity
 	proto.UnimplementedIdentityServer
