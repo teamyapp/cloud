@@ -3,8 +3,8 @@ CREATE TABLE resource_type
 (
     resource_type VARCHAR(50) PRIMARY KEY,
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    creator_user_id BIGINT NOT NULL,
-)
+    creator_user_id BIGINT NOT NULL
+);
 
 CREATE TABLE resource
 (
@@ -13,7 +13,7 @@ CREATE TABLE resource
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     creator_user_id BIGINT NOT NULL,
     PRIMARY KEY (resource_type, resource_id)
-)
+);
 
 CREATE TABLE resource_relation
 (
@@ -67,9 +67,9 @@ CREATE TABLE operation
 
 CREATE TABLE operation_relation
 (
-    child_resource_type  VARCHAR(50) NOT NULL REFERENCES resource_type (resource_type) ON UPDATE CASCADE ON DELETE CASCADE,,
+    child_resource_type  VARCHAR(50) NOT NULL REFERENCES resource_type (resource_type) ON UPDATE CASCADE ON DELETE CASCADE,
     child_operation      VARCHAR(50) NOT NULL,
-    parent_resource_type VARCHAR(50) NOT NULL REFERENCES resource_type (resource_type) ON UPDATE CASCADE ON DELETE CASCADE,,
+    parent_resource_type VARCHAR(50) NOT NULL REFERENCES resource_type (resource_type) ON UPDATE CASCADE ON DELETE CASCADE,
     parent_operation     VARCHAR(50) NOT NULL,
     created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     creator_user_id      BIGINT NOT NULL,
@@ -78,7 +78,7 @@ CREATE TABLE operation_relation
 
 -- +migrate Down
 DROP TABLE operation_relation;
-DROP TABLE operation
+DROP TABLE operation;
 DROP TABLE permission;
 DROP TABLE user_group_member;
 DROP TABLE user_group;
