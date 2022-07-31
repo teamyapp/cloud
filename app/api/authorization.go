@@ -8,7 +8,6 @@ import (
 	"github.com/teamyapp/cloud/libs/runner"
 
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type Authorization struct {
@@ -26,26 +25,6 @@ func (a Authorization) HasPermission(ctx context.Context, req *proto.HasPermissi
 	}
 
 	return &proto.HasPermissionResponse{HasPermission: hasPermission}, nil
-}
-
-func (a Authorization) RegisterResourceRelation(ctx context.Context, request *proto.RegisterResourceRelationRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (a Authorization) UnregisterResourceRelation(ctx context.Context, request *proto.UnregisterResourceRelationRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (a Authorization) RegisterUserGroup(ctx context.Context, request *proto.RegisterUserGroupRequest) (*proto.RegisterUserGroupResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (a Authorization) UnregisterUserGroup(ctx context.Context, request *proto.UnregisterUserGroupRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
 }
 
 func (a Authorization) Start(rn *runner.ServiceRunner) error {

@@ -17,6 +17,7 @@ import (
 	"github.com/teamyapp/cloud/libs/web"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type File struct {
@@ -75,6 +76,30 @@ func (f File) CreateUploadSession(ct context.Context, empty *emptypb.Empty) (*pr
 
 	return &proto.CreateUploadSessionResponse{
 		UploadSessionId: uploadSessionID,
+	}, nil
+}
+
+func (f File) FindUploadSession(ct context.Context, req *proto.FindUploadSessionRequest) (*proto.UploadSession, error) {
+	uploadSession, err := f.fileService.GetUploadSession(ct, req.UploadSessionId)
+	if err != nil {
+		return &proto.UploadSession{}, err
+	}
+
+	return &proto.UploadSession{
+		Id:                     uploadSession.ID,
+		Status:                 toProtoUploadSessionStatus[uploadSession.Status],
+		UploadedSizeInBytes:    uploadSession.UploadedSizeInBytes,
+		FileId:                 uploadSession.FileID,
+		FileName:               uploadSession.FileName,
+		MimeType:               uploadSession.MIMEType,
+		TotalSizeInBytes:       uploadSession.TotalSizeInBytes,
+		TotalNumOfChunks:       int32(uploadSession.TotalNumOfChunks),
+		ChunkIDs:               uploadSession.ChunkIDs,
+		NextChunkIndexToUpload: int32(uploadSession.NextChunkIndexToUpload),
+		ActualContentHash:      uploadSession.ActualContentHash,
+		ExpectedContentHash:    uploadSession.ExpectedContentHash,
+		CreatedAt:              timestamppb.New(uploadSession.CreatedAt),
+		UpdatedAt:              toProtoTimePtr(uploadSession.UpdatedAt),
 	}, nil
 }
 

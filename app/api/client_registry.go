@@ -11,6 +11,7 @@ type ClientRegistry struct {
 	generatorClient     proto.GeneratorClient
 	identityClient      proto.IdentityClient
 	authorizationClient proto.AuthorizationClient
+	fileClient          proto.FileClient
 }
 
 func (c *ClientRegistry) GeneratorClient() proto.GeneratorClient {
@@ -35,6 +36,14 @@ func (c *ClientRegistry) AuthorizationClient() proto.AuthorizationClient {
 	}
 
 	return c.authorizationClient
+}
+
+func (c *ClientRegistry) FileClient() proto.FileClient {
+	if c.fileClient == nil {
+		c.fileClient = proto.NewFileClient(c.conn)
+	}
+
+	return c.fileClient
 }
 
 func NewClientRegistry(connCfg rpc.ConnectionConfig) (*ClientRegistry, error) {
