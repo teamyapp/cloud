@@ -3,7 +3,6 @@ package io
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 )
@@ -30,5 +29,5 @@ func CreateFileWithLog(filePath string) error {
 
 func GetFileURL(cloudWebAPIBaseURL string, fileID uint64) string {
 	fileIDParam := strconv.FormatUint(fileID, 10)
-	return path.Join(cloudWebAPIBaseURL, "file", "files", fileIDParam)
+	return fmt.Sprintf("%s/file/files/%s", cloudWebAPIBaseURL, fileIDParam)
 }
