@@ -194,6 +194,7 @@ func (f File) FinishFileUpload(uploadSession entity.UploadSession, hashBuffer ha
 		ChunkIDs:    uploadSession.ChunkIDs,
 		CreatedAt:   uploadSession.CreatedAt,
 	}
+	uploadSession.FileID = fileID
 	return uploadSession, f.fileMetadataDao.CreateFileMetadata(fileMetadata)
 }
 
