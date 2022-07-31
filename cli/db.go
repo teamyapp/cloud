@@ -13,7 +13,6 @@ import (
 )
 
 var dbName string
-var migrationDir string
 var migrationFileName string
 var migrationSteps int
 var seedFilePath string
@@ -45,7 +44,7 @@ var migrateUpCmd = &cobra.Command{
 	Use: "up",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return useSQLDB(func(sqlDB *sql.DB) error {
-			return sqldb.MigrateUp(sqlDB, migrationDir, migrationSteps)
+			return sqldb.MigrateUp(sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
 		})
 	},
 }
@@ -54,7 +53,7 @@ var migrateDownCmd = &cobra.Command{
 	Use: "down",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return useSQLDB(func(sqlDB *sql.DB) error {
-			return sqldb.MigrateDown(sqlDB, migrationDir, migrationSteps)
+			return sqldb.MigrateDown(sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
 		})
 	},
 }
@@ -62,7 +61,7 @@ var migrateDownCmd = &cobra.Command{
 var newMigrationCmd = &cobra.Command{
 	Use: "new",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fullFilePath, err := sqldb.NewMigration(migrationDir, migrationFileName)
+		fullFilePath, err := sqldb.NewMigration(cliConfig.DBMigrationsDir, migrationFileName)
 		if err != nil {
 			return err
 		}
@@ -96,13 +95,6 @@ func addDBCmd() {
 		"name of data migration file")
 	newMigrationCmd.MarkFlagRequired("fileName")
 	migrateCmd.AddCommand(newMigrationCmd)
-
-	migrateCmd.PersistentFlags().StringVarP(
-		&migrationDir,
-		"migrationDir",
-		"d",
-		sqldb.DefaultMigrationRoot,
-		"location of DB migration files")
 	migrateCmd.PersistentFlags().IntVarP(
 		&migrationSteps,
 		"steps",
