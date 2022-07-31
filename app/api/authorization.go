@@ -2,12 +2,18 @@ package api
 
 import (
 	"context"
+	"time"
 
 	"github.com/teamyapp/cloud/app/api/proto"
+	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/service"
+	"github.com/teamyapp/cloud/libs/collect"
+	"github.com/teamyapp/cloud/libs/ctx"
 	"github.com/teamyapp/cloud/libs/runner"
 
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Authorization struct {
@@ -25,6 +31,179 @@ func (a Authorization) HasPermission(ctx context.Context, req *proto.HasPermissi
 	}
 
 	return &proto.HasPermissionResponse{HasPermission: hasPermission}, nil
+}
+
+func (a Authorization) ListResourceTypes(ct context.Context, query *proto.ListResourceTypesQuery) (*proto.ListResourceTypesResponse, error) {
+	resourceTypeQuery := service.ResourceTypeQuery{
+		ResourceType:  query.ResourceType,
+		CreatorUserID: query.CreatorUserId,
+		Limit:         query.Limit,
+	}
+
+	if query.StartCreationTime != nil {
+		startCreationTime := query.StartCreationTime.AsTime()
+		resourceTypeQuery.StartCreationTime = &startCreationTime
+	}
+
+	if query.EndCreationTime != nil {
+		endCreationTime := query.EndCreationTime.AsTime()
+		resourceTypeQuery.EndCreationTime = &endCreationTime
+	}
+
+	resourceTypeEntities, err := a.authorizationService.ListResourceTypes(resourceTypeQuery)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var resourceTypes []*proto.ResourceType
+	resourceTypes = collect.Map(resourceTypeEntities, func(resourceTypeEntity entity.ResourceType, _ int) *proto.ResourceType {
+		return &proto.ResourceType{
+			ResourceType:  resourceTypeEntity.ResourceType,
+			CreatedAt:     timestamppb.New(resourceTypeEntity.CreatedAt),
+			CreatorUserId: resourceTypeEntity.CreatorUserID,
+		}
+	})
+	return &proto.ListResourceTypesResponse{ResourceTypes: resourceTypes}, nil
+}
+
+func (a Authorization) RegisterResourceType(ct context.Context, request *proto.RegisterResourceTypeRequest) (*emptypb.Empty, error) {
+	userID, err := ctx.UserIDFromContext(ct)
+	if err != nil {
+		return nil, err
+	}
+
+	resourceTypeEntity := entity.ResourceType{
+		ResourceType:  request.ResourceType,
+		CreatedAt:     time.Now().UTC(),
+		CreatorUserID: userID,
+	}
+
+	err = a.authorizationService.RegisterResourceType(resourceTypeEntity)
+	if err != nil {
+		return &emptypb.Empty{}, err
+	}
+
+	return &emptypb.Empty{}, nil
+}
+
+func (a Authorization) UnregisterResourceType(ct context.Context, request *proto.UnregisterResourceTypeRequest) (*emptypb.Empty, error) {
+	err := a.authorizationService.UnregisterResourceType(request.ResourceType)
+	if err != nil {
+		return &emptypb.Empty{}, err
+	}
+
+	return &emptypb.Empty{}, nil
+}
+
+func (a Authorization) ListResources(ct context.Context, query *proto.ListResourcesQuery) (*proto.ListResourcesResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) RegisterResource(ct context.Context, request *proto.RegisterResourceRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) UnregisterResource(ct context.Context, request *proto.UnregisterResourceRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) ListResourceRelations(ct context.Context, query *proto.ListResourceRelationsQuery) (*proto.ListResourceRelationsResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) AssignParentResource(ct context.Context, request *proto.AssignParentResourceRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) UnassignParentResource(ct context.Context, request *proto.UnassignParentResourceRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) ListOperations(ct context.Context, query *proto.ListOperationsQuery) (*proto.ListOperationsResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) RegisterOperation(ct context.Context, request *proto.RegisterOperationRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) UnregisterOperation(ct context.Context, request *proto.UnregisterOperationRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) ListOperationRelations(ct context.Context, query *proto.ListOperationRelationsQuery) (*proto.ListOperationRelationsResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) AssignParentOperation(ctx context.Context, request *proto.AssignParentOperationRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) UnassignParentOperation(ctx context.Context, request *proto.UnassignParentOperationRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) ListUserGroups(ctx context.Context, query *proto.ListUserGroupsQuery) (*proto.ListUserGroupsResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) CreateUserGroup(ctx context.Context, request *proto.CreateUserGroupRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) UpdateUserGroup(ctx context.Context, request *proto.UpdateUserGroupRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) DeleteUserGroup(ctx context.Context, request *proto.DeleteUserGroupRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) ListUserGroupMembers(ctx context.Context, query *proto.ListUserGroupMembersQuery) (*proto.ListUserGroupMembersResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) AddUserGroupMember(ctx context.Context, request *proto.AddUserGroupMemberRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) RemoveUserGroupMember(ctx context.Context, request *proto.RemoveUserGroupMemberRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) ListPermissions(ctx context.Context, query *proto.ListPermissionsQuery) (*proto.ListPermissionsResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) AddPermission(ctx context.Context, request *proto.AddPermissionRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a Authorization) RemovePermission(ctx context.Context, request *proto.RemovePermissionRequest) (*emptypb.Empty, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (a Authorization) Start(rn *runner.ServiceRunner) error {

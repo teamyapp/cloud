@@ -13,6 +13,7 @@ type Authorization struct {
 	userGroupMemberDao   dao.UserGroupMember
 	permissionDao        dao.Permission
 	operationRelationDao dao.OperationRelation
+	resourceTypeDao      dao.ResourceType
 }
 
 func (a Authorization) HasPermission(resourceType string, resourceID uint64, operation string, userID uint64) (bool, error) {
@@ -42,6 +43,24 @@ func (a Authorization) HasPermission(resourceType string, resourceID uint64, ope
 	}
 
 	return false, err
+}
+
+func (a Authorization) ListResourceTypes(resourceTypeQuery ResourceTypeQuery) ([]entity.ResourceType, error) {
+	allResourceTypeEntities, err := a.resourceTypeDao.FindAllResourceTypes()
+	if err != nil {
+		return nil, err
+	}
+
+	resourceTypeEntities := queryResourceTypes(allResourceTypeEntities, resourceTypeQuery)
+	return resourceTypeEntities, nil
+}
+
+func (a Authorization) RegisterResourceType(resourceTypeEntity entity.ResourceType) error {
+	return a.resourceTypeDao.CreateResourceType(resourceTypeEntity)
+}
+
+func (a Authorization) UnregisterResourceType(resourceType string) error {
+	return a.resourceTypeDao.DeleteResourceType(resourceType)
 }
 
 func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery) (bool, error) {
@@ -145,11 +164,13 @@ func NewAuthorization(
 	userGroupMemberDao dao.UserGroupMember,
 	permissionDao dao.Permission,
 	operationRelationDao dao.OperationRelation,
+	resourceTypeDao dao.ResourceType,
 ) Authorization {
 	return Authorization{
 		resourceRelationDao:  resourceRelationDao,
 		userGroupMemberDao:   userGroupMemberDao,
 		permissionDao:        permissionDao,
 		operationRelationDao: operationRelationDao,
+		resourceTypeDao:      resourceTypeDao,
 	}
 }
