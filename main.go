@@ -1,35 +1,101 @@
 package main
 
 import (
-	"fmt"
+	"database/sql"
 	"log"
-	"math/rand"
-	"net/http"
-	"strings"
-	"time"
 
-	"github.com/teamyapp/cloud/app"
+	"github.com/teamyapp/cloud/app/config"
+	"github.com/teamyapp/cloud/app/dao/sqldb"
+	"github.com/teamyapp/cloud/app/dep"
+	"github.com/teamyapp/cloud/app/oauth"
+	"github.com/teamyapp/cloud/libs/runner"
 )
 
-const version = 1
+func init() {
+	log.SetFlags(log.LstdFlags | log.Llongfile)
+}
 
 func main() {
-	rand.Seed(time.Now().Unix())
+	cfg, err := config.AppFromEnv()
+	if err != nil {
+		log.Println(err)
+		panic(err)
+	}
+	log.Printf(
+		"Git Commit: https://github.com/%s/%s/commit/%s\n",
+		cfg.GitRepoOwner,
+		cfg.GitRepoName,
+		cfg.GitLongCommitHash)
 
-	http.HandleFunc("/random", func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(http.StatusOK)
+	err = sqldb.Use(cfg.Config, func(sqlDB *sql.DB) error {
+		err = sqldb.MigrateUp(sqlDB, sqldb.DefaultMigrationRoot, sqldb.MigrateAll)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
 
-		randIntA := rand.Int()
-		randIntB := rand.Int()
+		runnerConfig, err := runner.ServiceRunnerConfigFromEnv()
+		if err != nil {
+			log.Println(err)
+			return err
+		}
 
-		sum := app.Add(randIntA, randIntB)
-		writer.Write([]byte(fmt.Sprintf(
-			strings.TrimPrefix(`
-Version = %d
-Random Int A = %d
-Random Int B = %d
-Sum = %d`, "\n"), version, randIntA, randIntB, sum)))
+		webAPIBaseURL := dep.WebAPIBaseURL(cfg.WebAPIBaseURL)
+		oauthProviders := []oauth.Provider{
+			dep.InitGoogleOAuthProvider(
+				webAPIBaseURL,
+				dep.JWTSigningKey(cfg.JWTSigningKey),
+				dep.ClientID(cfg.GoogleClientID),
+				dep.ClientSecret(cfg.GoogleClientSecret)),
+			dep.InitGitHubOAuthProvider(
+				webAPIBaseURL,
+				dep.ClientID(cfg.GitHubClientID),
+				dep.ClientSecret(cfg.GitHubClientSecret)),
+		}
+		identityAPI, err := dep.InitIdentityAPI(
+			sqlDB,
+			oauthProviders,
+			dep.AccessTokenTTL(cfg.AccessTokenTTL),
+			dep.JWTSigningKey(cfg.JWTSigningKey),
+			dep.GenRangeSize(cfg.GenRangeSize))
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
+		generatorAPI, err := dep.InitGeneratorAPI(sqlDB, dep.GenRangeSize(cfg.GenRangeSize))
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
+		authorizationAPI, err := dep.InitAuthorizationAPI(sqlDB)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
+		fileAPI, err := dep.InitFileAPI(
+			cfg.Environment,
+			sqlDB,
+			dep.GenRangeSize(cfg.GenRangeSize),
+			dep.S3Endpoint(cfg.S3Endpoint),
+			dep.S3AccessKeyID(cfg.S3AccessKeyID),
+			dep.S3AccessKey(cfg.S3AccessKey),
+			dep.S3BucketName(cfg.S3BucketName))
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
+		rn := runner.NewServiceRunner(runnerConfig, []runner.Service{
+			identityAPI,
+			generatorAPI,
+			authorizationAPI,
+			fileAPI,
+		})
+
+		rn.Start()
+		return nil
 	})
-	fmt.Println("Server started at port 8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
 }

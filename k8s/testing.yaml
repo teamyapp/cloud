@@ -1,3 +1,47 @@
+apiVersion: kubernetes-client.io/v1
+kind: ExternalSecret
+metadata:
+  namespace: testing
+  name: cloud
+spec:
+  backendType: vault
+  vaultMountPoint: kubernetes
+  vaultRole: secrets-read-role
+  data:
+    - name: db-user
+      key: kv/data/secrets/testing/cloud/db
+      property: user
+    - name: db-password
+      key: kv/data/secrets/testing/cloud/db
+      property: password
+    - name: db-name
+      key: kv/data/secrets/testing/cloud/db
+      property: name
+    - name: jwt-signing-key
+      key: kv/data/secrets/testing/cloud
+      property: jwt-signing-key
+    - name: google-client-id
+      key: kv/data/secrets/testing/cloud
+      property: google-client-id
+    - name: google-client-secret
+      key: kv/data/secrets/testing/cloud
+      property: google-client-secret
+    - name: github-client-id
+      key: kv/data/secrets/testing/cloud
+      property: github-client-id
+    - name: github-client-secret
+      key: kv/data/secrets/testing/cloud
+      property: github-client-secret
+    - name: s3-endpoint
+      key: kv/data/secrets/testing/cloud
+      property: s3-endpoint
+    - name: s3-access-key-id
+      key: kv/data/secrets/testing/cloud
+      property: s3-access-key-id
+    - name: s3-access-key
+      key: kv/data/secrets/testing/cloud
+      property: s3-access-key
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -28,6 +72,81 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
+            - containerPort: 8081
+          env:
+            - name: ENVIRONMENT
+              value: testing
+            - name: WEB_API_BASE_URL
+              value: https://cloud.testing.teamyapp.com
+            - name: SERVICE_RUNNER_WEB_SERVER_PORT
+              value: "8080"
+            - name: SERVICE_RUNNER_GRPC_SERVER_PORT
+              value: "8081"
+            - name: SERVICE_RUNNER_IDENTITY_API_ENDPOINT
+              value: "http://localhost:8080/identity"
+            - name: DB_HOST
+              value: postgres.db.svc.cluster.local
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: db-user
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: db-password
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: db-name
+            - name: JWT_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: jwt-signing-key
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: google-client-id
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: google-client-secret
+            - name: GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: github-client-id
+            - name: GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: github-client-secret
+            - name: ACCESS_TOKEN_TTL
+              value: 168h
+            - name: GEN_RANGE_SIZE
+              value: "100"
+            - name: S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: s3-endpoint
+            - name: S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: s3-access-key-id
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: s3-access-key
+            - name: S3_BUCKET_NAME
+              value: teamyapp
 ---
 apiVersion: v1
 kind: Service
@@ -41,6 +160,9 @@ spec:
     - name: http
       port: 80
       targetPort: 8080
+    - name: grpc
+      port: 81
+      targetPort: 8081
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
@@ -55,10 +177,18 @@ spec:
       match: Host(`cloud.testing.teamyapp.com`)
       services:
         - kind: Service
-          name: cloud
           namespace: testing
+          name: cloud
           port: 80
           passHostHeader: true
+    - kind: Rule
+      match: Host(`rpc-cloud.testing.teamyapp.com`)
+      services:
+        - kind: Service
+          namespace: testing
+          name: cloud
+          port: 81
+          scheme: h2c
   tls:
     secretName: teamy-cert
 
