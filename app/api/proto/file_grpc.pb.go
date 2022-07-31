@@ -23,6 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FileClient interface {
+	FindUploadSession(ctx context.Context, in *FindUploadSessionRequest, opts ...grpc.CallOption) (*UploadSession, error)
 	CreateUploadSession(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CreateUploadSessionResponse, error)
 }
 
@@ -32,6 +33,15 @@ type fileClient struct {
 
 func NewFileClient(cc grpc.ClientConnInterface) FileClient {
 	return &fileClient{cc}
+}
+
+func (c *fileClient) FindUploadSession(ctx context.Context, in *FindUploadSessionRequest, opts ...grpc.CallOption) (*UploadSession, error) {
+	out := new(UploadSession)
+	err := c.cc.Invoke(ctx, "/File/FindUploadSession", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *fileClient) CreateUploadSession(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CreateUploadSessionResponse, error) {
@@ -47,6 +57,7 @@ func (c *fileClient) CreateUploadSession(ctx context.Context, in *emptypb.Empty,
 // All implementations must embed UnimplementedFileServer
 // for forward compatibility
 type FileServer interface {
+	FindUploadSession(context.Context, *FindUploadSessionRequest) (*UploadSession, error)
 	CreateUploadSession(context.Context, *emptypb.Empty) (*CreateUploadSessionResponse, error)
 	mustEmbedUnimplementedFileServer()
 }
@@ -55,6 +66,9 @@ type FileServer interface {
 type UnimplementedFileServer struct {
 }
 
+func (UnimplementedFileServer) FindUploadSession(context.Context, *FindUploadSessionRequest) (*UploadSession, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FindUploadSession not implemented")
+}
 func (UnimplementedFileServer) CreateUploadSession(context.Context, *emptypb.Empty) (*CreateUploadSessionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateUploadSession not implemented")
 }
@@ -69,6 +83,24 @@ type UnsafeFileServer interface {
 
 func RegisterFileServer(s grpc.ServiceRegistrar, srv FileServer) {
 	s.RegisterService(&File_ServiceDesc, srv)
+}
+
+func _File_FindUploadSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FindUploadSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServer).FindUploadSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/File/FindUploadSession",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServer).FindUploadSession(ctx, req.(*FindUploadSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _File_CreateUploadSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -96,6 +128,10 @@ var File_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "File",
 	HandlerType: (*FileServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "FindUploadSession",
+			Handler:    _File_FindUploadSession_Handler,
+		},
 		{
 			MethodName: "CreateUploadSession",
 			Handler:    _File_CreateUploadSession_Handler,
