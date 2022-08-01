@@ -2,13 +2,10 @@ package api
 
 import (
 	"context"
-	"time"
-
 	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/libs/collect"
-	"github.com/teamyapp/cloud/libs/ctx"
 	"github.com/teamyapp/cloud/libs/runner"
 
 	"google.golang.org/grpc"
@@ -51,7 +48,6 @@ func (a Authorization) ListResourceTypes(ct context.Context, query *proto.ListRe
 	}
 
 	resourceTypeEntities, err := a.authorizationService.ListResourceTypes(resourceTypeQuery)
-
 	if err != nil {
 		return nil, err
 	}
@@ -68,32 +64,13 @@ func (a Authorization) ListResourceTypes(ct context.Context, query *proto.ListRe
 }
 
 func (a Authorization) RegisterResourceType(ct context.Context, request *proto.RegisterResourceTypeRequest) (*emptypb.Empty, error) {
-	userID, err := ctx.UserIDFromContext(ct)
-	if err != nil {
-		return nil, err
-	}
-
-	resourceTypeEntity := entity.ResourceType{
-		ResourceType:  request.ResourceType,
-		CreatedAt:     time.Now().UTC(),
-		CreatorUserID: userID,
-	}
-
-	err = a.authorizationService.RegisterResourceType(resourceTypeEntity)
-	if err != nil {
-		return &emptypb.Empty{}, err
-	}
-
-	return &emptypb.Empty{}, nil
+	err := a.authorizationService.RegisterResourceType(ct, request.ResourceType)
+	return &emptypb.Empty{}, err
 }
 
 func (a Authorization) UnregisterResourceType(ct context.Context, request *proto.UnregisterResourceTypeRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnregisterResourceType(request.ResourceType)
-	if err != nil {
-		return &emptypb.Empty{}, err
-	}
-
-	return &emptypb.Empty{}, nil
+	return &emptypb.Empty{}, err
 }
 
 func (a Authorization) ListResources(ct context.Context, query *proto.ListResourcesQuery) (*proto.ListResourcesResponse, error) {

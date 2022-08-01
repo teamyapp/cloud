@@ -1,8 +1,11 @@
 package service
 
 import (
+	"context"
 	"errors"
+	"github.com/teamyapp/cloud/libs/ctx"
 	"log"
+	"time"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
@@ -48,14 +51,25 @@ func (a Authorization) HasPermission(resourceType string, resourceID uint64, ope
 func (a Authorization) ListResourceTypes(resourceTypeQuery ResourceTypeQuery) ([]entity.ResourceType, error) {
 	allResourceTypeEntities, err := a.resourceTypeDao.FindAllResourceTypes()
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 
-	resourceTypeEntities := queryResourceTypes(allResourceTypeEntities, resourceTypeQuery)
-	return resourceTypeEntities, nil
+	return queryResourceTypes(allResourceTypeEntities, resourceTypeQuery), nil
 }
 
-func (a Authorization) RegisterResourceType(resourceTypeEntity entity.ResourceType) error {
+func (a Authorization) RegisterResourceType(ct context.Context, resourceType string) error {
+	userID, err := ctx.UserIDFromContext(ct)
+	if err != nil {
+		return err
+	}
+
+	resourceTypeEntity := entity.ResourceType{
+		ResourceType:  resourceType,
+		CreatedAt:     time.Now().UTC(),
+		CreatorUserID: userID,
+	}
+
 	return a.resourceTypeDao.CreateResourceType(resourceTypeEntity)
 }
 
