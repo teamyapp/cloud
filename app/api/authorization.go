@@ -47,7 +47,7 @@ func (a Authorization) ListResourceTypes(ct context.Context, query *proto.ListRe
 		resourceTypeQuery.EndCreationTime = &endCreationTime
 	}
 
-	resourceTypeEntities, err := a.authorizationService.ListResourceTypes(resourceTypeQuery)
+	resourceTypeEntities, err := a.authorizationService.ListResourceTypes(ct, resourceTypeQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (a Authorization) RegisterResourceType(ct context.Context, request *proto.R
 }
 
 func (a Authorization) UnregisterResourceType(ct context.Context, request *proto.UnregisterResourceTypeRequest) (*emptypb.Empty, error) {
-	err := a.authorizationService.UnregisterResourceType(request.ResourceType)
+	err := a.authorizationService.UnregisterResourceType(ct, request.ResourceType)
 	return &emptypb.Empty{}, err
 }
 

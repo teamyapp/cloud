@@ -48,7 +48,7 @@ func (a Authorization) HasPermission(resourceType string, resourceID uint64, ope
 	return false, err
 }
 
-func (a Authorization) ListResourceTypes(resourceTypeQuery ResourceTypeQuery) ([]entity.ResourceType, error) {
+func (a Authorization) ListResourceTypes(ct context.Context, resourceTypeQuery ResourceTypeQuery) ([]entity.ResourceType, error) {
 	allResourceTypeEntities, err := a.resourceTypeDao.FindAllResourceTypes()
 	if err != nil {
 		log.Println(err)
@@ -61,6 +61,7 @@ func (a Authorization) ListResourceTypes(resourceTypeQuery ResourceTypeQuery) ([
 func (a Authorization) RegisterResourceType(ct context.Context, resourceType string) error {
 	userID, err := ctx.UserIDFromContext(ct)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
@@ -73,7 +74,7 @@ func (a Authorization) RegisterResourceType(ct context.Context, resourceType str
 	return a.resourceTypeDao.CreateResourceType(resourceTypeEntity)
 }
 
-func (a Authorization) UnregisterResourceType(resourceType string) error {
+func (a Authorization) UnregisterResourceType(ct context.Context, resourceType string) error {
 	return a.resourceTypeDao.DeleteResourceType(resourceType)
 }
 
