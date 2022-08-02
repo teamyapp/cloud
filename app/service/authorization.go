@@ -1,8 +1,11 @@
 package service
 
 import (
+	"context"
 	"errors"
+	"github.com/teamyapp/cloud/libs/ctx"
 	"log"
+	"time"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
@@ -13,6 +16,7 @@ type Authorization struct {
 	userGroupMemberDao   dao.UserGroupMember
 	permissionDao        dao.Permission
 	operationRelationDao dao.OperationRelation
+	resourceTypeDao      dao.ResourceType
 }
 
 func (a Authorization) HasPermission(resourceType string, resourceID uint64, operation string, userID uint64) (bool, error) {
@@ -42,6 +46,36 @@ func (a Authorization) HasPermission(resourceType string, resourceID uint64, ope
 	}
 
 	return false, err
+}
+
+func (a Authorization) ListResourceTypes(ct context.Context, resourceTypeQuery ResourceTypeQuery) ([]entity.ResourceType, error) {
+	allResourceTypeEntities, err := a.resourceTypeDao.FindAllResourceTypes()
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	return queryResourceTypes(allResourceTypeEntities, resourceTypeQuery), nil
+}
+
+func (a Authorization) RegisterResourceType(ct context.Context, resourceType string) error {
+	userID, err := ctx.UserIDFromContext(ct)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	resourceTypeEntity := entity.ResourceType{
+		ResourceType:  resourceType,
+		CreatedAt:     time.Now().UTC(),
+		CreatorUserID: userID,
+	}
+
+	return a.resourceTypeDao.CreateResourceType(resourceTypeEntity)
+}
+
+func (a Authorization) UnregisterResourceType(ct context.Context, resourceType string) error {
+	return a.resourceTypeDao.DeleteResourceType(resourceType)
 }
 
 func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery) (bool, error) {
@@ -145,11 +179,13 @@ func NewAuthorization(
 	userGroupMemberDao dao.UserGroupMember,
 	permissionDao dao.Permission,
 	operationRelationDao dao.OperationRelation,
+	resourceTypeDao dao.ResourceType,
 ) Authorization {
 	return Authorization{
 		resourceRelationDao:  resourceRelationDao,
 		userGroupMemberDao:   userGroupMemberDao,
 		permissionDao:        permissionDao,
 		operationRelationDao: operationRelationDao,
+		resourceTypeDao:      resourceTypeDao,
 	}
 }
