@@ -81,7 +81,6 @@ func (a Authorization) ListResources(ct context.Context, query *proto.ListResour
 		CreatorUserID: query.CreatorUserId,
 		Limit:         query.Limit,
 	}
-
 	if query.StartCreationTime != nil {
 		startCreationTime := query.StartCreationTime.AsTime()
 		resourceQuery.StartCreationTime = &startCreationTime
@@ -97,8 +96,7 @@ func (a Authorization) ListResources(ct context.Context, query *proto.ListResour
 		return nil, err
 	}
 
-	var resources []*proto.Resource
-	resources = collect.Map(resourceEntities, func(resource entity.Resource, _ int) *proto.Resource {
+	resources := collect.Map(resourceEntities, func(resource entity.Resource, _ int) *proto.Resource {
 		return &proto.Resource{
 			ResourceType:  resource.ResourceType,
 			ResourceId:    resource.ResourceID,

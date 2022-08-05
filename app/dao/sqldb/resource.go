@@ -18,7 +18,8 @@ var _ dao.Resource = (*Resource)(nil)
 
 func (r Resource) FindResource(resourceType string, resourceID uint64) (entity.Resource, error) {
 	resource := entity.Resource{}
-	err := r.db.QueryRow(`SELECT
+	err := r.db.QueryRow(`
+		SELECT
 			resource_type,
 			resource_id,
 			created_at,

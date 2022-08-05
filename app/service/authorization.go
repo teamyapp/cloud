@@ -6,10 +6,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/teamyapp/cloud/libs/ctx"
-
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/ctx"
 )
 
 type Authorization struct {
@@ -103,7 +102,6 @@ func (a Authorization) RegisterResource(ct context.Context, resourceType string,
 		CreatedAt:     time.Now().UTC(),
 		CreatorUserID: userID,
 	}
-
 	return a.resourceDao.CreateResource(resource)
 }
 
