@@ -48,11 +48,11 @@ var daoSet = wire.NewSet(
 	wire.Bind(new(dao.SignInSession), new(sqldb.SignInSession)),
 	wire.Bind(new(dao.ServiceAccount), new(sqldb.ServiceAccount)),
 	wire.Bind(new(dao.OperationRelation), new(dao_test.OperationRelation)),
-	wire.Bind(new(dao.ResourceRelation), new(dao_test.ResourceRelation)),
 	wire.Bind(new(dao.UserGroupMember), new(dao_test.UserGroupMember)),
 	wire.Bind(new(dao.Permission), new(dao_test.Permission)),
 	wire.Bind(new(dao.ResourceType), new(sqldb.ResourceType)),
 	wire.Bind(new(dao.Resource), new(sqldb.Resource)),
+	wire.Bind(new(dao.ResourceRelation), new(sqldb.ResourceRelation)),
 	wire.Bind(new(dao.UploadSession), new(sqldb.UploadSession)),
 	wire.Bind(new(dao.FileMetadata), new(sqldb.FileMetadata)),
 	wire.Bind(new(dao.ChunkMetadata), new(sqldb.ChunkMetadata)),
@@ -61,11 +61,11 @@ var daoSet = wire.NewSet(
 	sqldb.NewSignInSession,
 	sqldb.NewServiceAccount,
 	newOperationRelation,
-	newResourceRelation,
 	newUserGroupMember,
 	newPermission,
 	sqldb.NewResourceType,
 	sqldb.NewResource,
+	sqldb.NewResourceRelation,
 	sqldb.NewUploadSession,
 	sqldb.NewFileMetadata,
 	sqldb.NewChunkMetadata,
@@ -198,10 +198,6 @@ func newOperationRelation() dao_test.OperationRelation {
 	return dao_test.NewOperationRelation(fakeOperationRelationDao)
 }
 
-func newResourceRelation() dao_test.ResourceRelation {
-	return dao_test.NewResourceRelation(fakeResourceRelationDao)
-}
-
 func newUserGroupMember() dao_test.UserGroupMember {
 	return dao_test.NewUserGroupMember(fakeUserGroupMemberDao)
 }
@@ -212,8 +208,6 @@ func newPermission() dao_test.Permission {
 
 // TODO: replace with sqldb
 var fakeOperationRelationDao = []entity.OperationRelation{}
-
-var fakeResourceRelationDao = []entity.ResourceRelation{}
 
 var fakeUserGroupMemberDao = []entity.UserGroupMember{}
 
