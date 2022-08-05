@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+
 	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/service"
@@ -74,18 +75,47 @@ func (a Authorization) UnregisterResourceType(ct context.Context, request *proto
 }
 
 func (a Authorization) ListResources(ct context.Context, query *proto.ListResourcesQuery) (*proto.ListResourcesResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	resourceQuery := service.ResourceQuery{
+		ResourceType:  query.ResourceType,
+		ResourceID:    query.ResourceId,
+		CreatorUserID: query.CreatorUserId,
+		Limit:         query.Limit,
+	}
+	if query.StartCreationTime != nil {
+		startCreationTime := query.StartCreationTime.AsTime()
+		resourceQuery.StartCreationTime = &startCreationTime
+	}
+
+	if query.EndCreationTime != nil {
+		endCreationTime := query.EndCreationTime.AsTime()
+		resourceQuery.EndCreationTime = &endCreationTime
+	}
+
+	resourceEntities, err := a.authorizationService.ListResources(ct, resourceQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	resources := collect.Map(resourceEntities, func(resource entity.Resource, _ int) *proto.Resource {
+		return &proto.Resource{
+			ResourceType:  resource.ResourceType,
+			ResourceId:    resource.ResourceID,
+			CreatedAt:     timestamppb.New(resource.CreatedAt),
+			CreatorUserId: resource.CreatorUserID,
+		}
+	})
+
+	return &proto.ListResourcesResponse{Resources: resources}, nil
 }
 
 func (a Authorization) RegisterResource(ct context.Context, request *proto.RegisterResourceRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
+	err := a.authorizationService.RegisterResource(ct, request.ResourceType, request.ResourceId)
+	return &emptypb.Empty{}, err
 }
 
 func (a Authorization) UnregisterResource(ct context.Context, request *proto.UnregisterResourceRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
+	err := a.authorizationService.UnregisterResource(ct, request.ResourceType, request.ResourceId)
+	return &emptypb.Empty{}, err
 }
 
 func (a Authorization) ListResourceRelations(ct context.Context, query *proto.ListResourceRelationsQuery) (*proto.ListResourceRelationsResponse, error) {

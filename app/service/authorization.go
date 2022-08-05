@@ -3,12 +3,12 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/teamyapp/cloud/libs/ctx"
 	"log"
 	"time"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/ctx"
 )
 
 type Authorization struct {
@@ -17,6 +17,7 @@ type Authorization struct {
 	permissionDao        dao.Permission
 	operationRelationDao dao.OperationRelation
 	resourceTypeDao      dao.ResourceType
+	resourceDao          dao.Resource
 }
 
 func (a Authorization) HasPermission(resourceType string, resourceID uint64, operation string, userID uint64) (bool, error) {
@@ -76,6 +77,36 @@ func (a Authorization) RegisterResourceType(ct context.Context, resourceType str
 
 func (a Authorization) UnregisterResourceType(ct context.Context, resourceType string) error {
 	return a.resourceTypeDao.DeleteResourceType(resourceType)
+}
+
+func (a Authorization) ListResources(ct context.Context, resourceQuery ResourceQuery) ([]entity.Resource, error) {
+	allResources, err := a.resourceDao.FindAllResources()
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	return queryResources(allResources, resourceQuery), nil
+}
+
+func (a Authorization) RegisterResource(ct context.Context, resourceType string, resourceID uint64) error {
+	userID, err := ctx.UserIDFromContext(ct)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	resource := entity.Resource{
+		ResourceType:  resourceType,
+		ResourceID:    resourceID,
+		CreatedAt:     time.Now().UTC(),
+		CreatorUserID: userID,
+	}
+	return a.resourceDao.CreateResource(resource)
+}
+
+func (a Authorization) UnregisterResource(ct context.Context, resourceType string, resourceID uint64) error {
+	return a.resourceDao.DeleteResource(resourceType, resourceID)
 }
 
 func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery) (bool, error) {
@@ -180,6 +211,7 @@ func NewAuthorization(
 	permissionDao dao.Permission,
 	operationRelationDao dao.OperationRelation,
 	resourceTypeDao dao.ResourceType,
+	resourceDao dao.Resource,
 ) Authorization {
 	return Authorization{
 		resourceRelationDao:  resourceRelationDao,
@@ -187,5 +219,6 @@ func NewAuthorization(
 		permissionDao:        permissionDao,
 		operationRelationDao: operationRelationDao,
 		resourceTypeDao:      resourceTypeDao,
+		resourceDao:          resourceDao,
 	}
 }
