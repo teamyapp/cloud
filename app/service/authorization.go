@@ -109,6 +109,55 @@ func (a Authorization) UnregisterResource(ct context.Context, resourceType strin
 	return a.resourceDao.DeleteResource(resourceType, resourceID)
 }
 
+func (a Authorization) ListResourceRelations(ct context.Context, resourceRelationQuery ResourceRelationQuery) ([]entity.ResourceRelation, error) {
+	allResourceRelationEntities, err := a.resourceRelationDao.FindAllResourceRelations()
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	return queryResourceRelations(allResourceRelationEntities, resourceRelationQuery), nil
+}
+
+func (a Authorization) AssignParentResource(
+	ct context.Context,
+	childResourceType string,
+	childResourceID uint64,
+	parentResourceType string,
+	parentResourceID uint64,
+) error {
+	userID, err := ctx.UserIDFromContext(ct)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	resourceRelation := entity.ResourceRelation{
+		ChildResourceType:  childResourceType,
+		ChildResourceID:    childResourceID,
+		ParentResourceType: parentResourceType,
+		ParentResourceID:   parentResourceID,
+		CreatedAt:          time.Now().UTC(),
+		CreatorUserID:      userID,
+	}
+	return a.resourceRelationDao.CreateResourceRelation(resourceRelation)
+}
+
+func (a Authorization) UnassignParentResource(
+	ct context.Context,
+	childResourceType string,
+	childResourceID uint64,
+	parentResourceType string,
+	parentResourceID uint64,
+) error {
+	return a.resourceRelationDao.DeleteResourceRelation(
+		childResourceType,
+		childResourceID,
+		parentResourceType,
+		parentResourceID,
+	)
+}
+
 func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery) (bool, error) {
 	visited := make(map[entity.PermissionQuery]bool)
 	visited[permissionQuery] = true
@@ -147,7 +196,7 @@ func (a Authorization) getParentPermissionQueries(currQuery entity.PermissionQue
 		return nil, err
 	}
 
-	resourceRelations, err := a.resourceRelationDao.FindResourceRelations(currQuery.ResourceID, currQuery.ResourceType)
+	resourceRelations, err := a.resourceRelationDao.FindResourceRelations(currQuery.ResourceType, currQuery.ResourceID)
 	if err != nil {
 		log.Println(err)
 		return nil, err

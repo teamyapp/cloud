@@ -119,18 +119,63 @@ func (a Authorization) UnregisterResource(ct context.Context, request *proto.Unr
 }
 
 func (a Authorization) ListResourceRelations(ct context.Context, query *proto.ListResourceRelationsQuery) (*proto.ListResourceRelationsResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	resourceRelationQuery := service.ResourceRelationQuery{
+		ChildResourceType:  query.ChildResourceType,
+		ChildResourceID:    query.ChildResourceId,
+		ParentResourceType: query.ParentResourceType,
+		ParentResourceID:   query.ParentResourceId,
+		CreatorUserID:      query.CreatorUserId,
+		Limit:              query.Limit,
+	}
+	if query.StartCreationTime != nil {
+		startCreationTime := query.StartCreationTime.AsTime()
+		resourceRelationQuery.StartCreationTime = &startCreationTime
+	}
+
+	if query.EndCreationTime != nil {
+		endCreationTime := query.EndCreationTime.AsTime()
+		resourceRelationQuery.EndCreationTime = &endCreationTime
+	}
+
+	resourceRelationEntities, err := a.authorizationService.ListResourceRelations(ct, resourceRelationQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	resourceRelations := collect.Map(resourceRelationEntities, func(resourceRelation entity.ResourceRelation, _ int) *proto.ResourceRelation {
+		return &proto.ResourceRelation{
+			ChildResourceType:  resourceRelation.ChildResourceType,
+			ChildResourceId:    resourceRelation.ChildResourceID,
+			ParentResourceType: resourceRelation.ParentResourceType,
+			ParentResourceId:   resourceRelation.ParentResourceID,
+			CreatedAt:          timestamppb.New(resourceRelation.CreatedAt),
+			CreatorUserId:      resourceRelation.CreatorUserID,
+		}
+	})
+
+	return &proto.ListResourceRelationsResponse{ResourceRelations: resourceRelations}, nil
 }
 
 func (a Authorization) AssignParentResource(ct context.Context, request *proto.AssignParentResourceRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
+	err := a.authorizationService.AssignParentResource(
+		ct,
+		request.ChildResourceType,
+		request.ChildResourceId,
+		request.ParentResourceType,
+		request.ParentResourceId,
+	)
+	return &emptypb.Empty{}, err
 }
 
 func (a Authorization) UnassignParentResource(ct context.Context, request *proto.UnassignParentResourceRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
+	err := a.authorizationService.UnassignParentResource(
+		ct,
+		request.ChildResourceType,
+		request.ChildResourceId,
+		request.ParentResourceType,
+		request.ParentResourceId,
+	)
+	return &emptypb.Empty{}, err
 }
 
 func (a Authorization) ListOperations(ct context.Context, query *proto.ListOperationsQuery) (*proto.ListOperationsResponse, error) {

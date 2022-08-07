@@ -12,12 +12,37 @@ type ResourceRelation struct {
 
 var _ dao.ResourceRelation = (*ResourceRelation)(nil)
 
-func (r ResourceRelation) FindResourceRelations(childResourceID uint64, childResourceType string) ([]entity.ResourceRelation, error) {
+func (r ResourceRelation) FindResourceRelation(
+	childResourceType string,
+	childResourceID uint64,
+	parentResourceType string,
+	parentResourceID uint64,
+) (entity.ResourceRelation, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r ResourceRelation) FindResourceRelations(childResourceType string, childResourceID uint64) ([]entity.ResourceRelation, error) {
 	resourceRelations := collect.Filter(r.resourceRelations, func(resourceRelation entity.ResourceRelation) bool {
-		return childResourceID == resourceRelation.ChileResourceID && childResourceType == resourceRelation.ChildResourceType
+		return childResourceID == resourceRelation.ChildResourceID && childResourceType == resourceRelation.ChildResourceType
 	})
 
 	return resourceRelations, nil
+}
+
+func (r ResourceRelation) FindAllResourceRelations() ([]entity.ResourceRelation, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r ResourceRelation) CreateResourceRelation(resourceRelation entity.ResourceRelation) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r ResourceRelation) DeleteResourceRelation(childResourceType string, childResourceID uint64, parentResourceType string, parentResourceID uint64) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func NewResourceRelation(resourceRelations []entity.ResourceRelation) ResourceRelation {

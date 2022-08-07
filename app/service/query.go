@@ -24,6 +24,17 @@ type ResourceQuery struct {
 	Limit             *uint64
 }
 
+type ResourceRelationQuery struct {
+	ChildResourceType  *string
+	ChildResourceID    *uint64
+	ParentResourceType *string
+	ParentResourceID   *uint64
+	CreatorUserID      *uint64
+	StartCreationTime  *time.Time
+	EndCreationTime    *time.Time
+	Limit              *uint64
+}
+
 func queryResourceTypes(resourceTypeEntities []entity.ResourceType, resourceTypeQuery ResourceTypeQuery) []entity.ResourceType {
 	return collect.Filter(resourceTypeEntities, func(resourceTypeEntity entity.ResourceType) bool {
 		if resourceTypeQuery.ResourceType != nil && *resourceTypeQuery.ResourceType != resourceTypeEntity.ResourceType {
@@ -65,6 +76,40 @@ func queryResources(resources []entity.Resource, resourceQuery ResourceQuery) []
 		}
 
 		if resourceQuery.EndCreationTime != nil && (*resourceQuery.EndCreationTime).Before(resource.CreatedAt) {
+			return false
+		}
+
+		return true
+	})
+}
+
+func queryResourceRelations(resourceRelations []entity.ResourceRelation, resourceRelationQuery ResourceRelationQuery) []entity.ResourceRelation {
+	return collect.Filter(resourceRelations, func(resourceRelation entity.ResourceRelation) bool {
+		if resourceRelationQuery.ChildResourceID != nil && *resourceRelationQuery.ChildResourceID != resourceRelation.ChildResourceID {
+			return false
+		}
+
+		if resourceRelationQuery.ChildResourceType != nil && *resourceRelationQuery.ChildResourceType != resourceRelation.ChildResourceType {
+			return false
+		}
+
+		if resourceRelationQuery.ParentResourceID != nil && *resourceRelationQuery.ParentResourceID != resourceRelation.ParentResourceID {
+			return false
+		}
+
+		if resourceRelationQuery.ParentResourceType != nil && *resourceRelationQuery.ParentResourceType != resourceRelation.ParentResourceType {
+			return false
+		}
+
+		if resourceRelationQuery.CreatorUserID != nil && *resourceRelationQuery.CreatorUserID != resourceRelation.CreatorUserID {
+			return false
+		}
+
+		if resourceRelationQuery.StartCreationTime != nil && (*resourceRelationQuery.StartCreationTime).After(resourceRelation.CreatedAt) {
+			return false
+		}
+
+		if resourceRelationQuery.EndCreationTime != nil && (*resourceRelationQuery.EndCreationTime).Before(resourceRelation.CreatedAt) {
 			return false
 		}
 
