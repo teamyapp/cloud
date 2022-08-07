@@ -179,18 +179,47 @@ func (a Authorization) UnassignParentResource(ct context.Context, request *proto
 }
 
 func (a Authorization) ListOperations(ct context.Context, query *proto.ListOperationsQuery) (*proto.ListOperationsResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	operationQuery := service.OperationQuery{
+		ResourceTypeName: query.ResourceType,
+		OperationName:    query.Operation,
+		CreatorUserID:    query.CreatorUserId,
+		Limit:            query.Limit,
+	}
+	if query.StartCreationTime != nil {
+		startCreationTime := query.StartCreationTime.AsTime()
+		operationQuery.StartCreationTime = &startCreationTime
+	}
+
+	if query.EndCreationTime != nil {
+		endCreationTime := query.EndCreationTime.AsTime()
+		operationQuery.EndCreationTime = &endCreationTime
+	}
+
+	operationEntities, err := a.authorizationService.ListOperations(ct, operationQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	operations := collect.Map(operationEntities, func(operation entity.Operation, _ int) *proto.Operation {
+		return &proto.Operation{
+			ResourceType:  operation.ResourceTypeName,
+			Operation:     operation.OperationName,
+			CreatedAt:     timestamppb.New(operation.CreatedAt),
+			CreatorUserId: operation.CreatorUserID,
+		}
+	})
+
+	return &proto.ListOperationsResponse{Operations: operations}, nil
 }
 
 func (a Authorization) RegisterOperation(ct context.Context, request *proto.RegisterOperationRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
+	err := a.authorizationService.RegisterOperation(ct, request.ResourceType, request.Operation)
+	return &emptypb.Empty{}, err
 }
 
 func (a Authorization) UnregisterOperation(ct context.Context, request *proto.UnregisterOperationRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
+	err := a.authorizationService.UnregisterOperation(ct, request.ResourceType, request.Operation)
+	return &emptypb.Empty{}, err
 }
 
 func (a Authorization) ListOperationRelations(ct context.Context, query *proto.ListOperationRelationsQuery) (*proto.ListOperationRelationsResponse, error) {
