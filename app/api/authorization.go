@@ -33,9 +33,9 @@ func (a Authorization) HasPermission(ctx context.Context, req *proto.HasPermissi
 
 func (a Authorization) ListResourceTypes(ct context.Context, query *proto.ListResourceTypesQuery) (*proto.ListResourceTypesResponse, error) {
 	resourceTypeQuery := service.ResourceTypeQuery{
-		ResourceType:  query.ResourceType,
-		CreatorUserID: query.CreatorUserId,
-		Limit:         query.Limit,
+		ResourceTypeName: query.ResourceType,
+		CreatorUserID:    query.CreatorUserId,
+		Limit:            query.Limit,
 	}
 
 	if query.StartCreationTime != nil {
@@ -56,7 +56,7 @@ func (a Authorization) ListResourceTypes(ct context.Context, query *proto.ListRe
 	var resourceTypes []*proto.ResourceType
 	resourceTypes = collect.Map(resourceTypeEntities, func(resourceTypeEntity entity.ResourceType, _ int) *proto.ResourceType {
 		return &proto.ResourceType{
-			ResourceType:  resourceTypeEntity.ResourceType,
+			ResourceType:  resourceTypeEntity.ResourceTypeName,
 			CreatedAt:     timestamppb.New(resourceTypeEntity.CreatedAt),
 			CreatorUserId: resourceTypeEntity.CreatorUserID,
 		}
@@ -76,10 +76,10 @@ func (a Authorization) UnregisterResourceType(ct context.Context, request *proto
 
 func (a Authorization) ListResources(ct context.Context, query *proto.ListResourcesQuery) (*proto.ListResourcesResponse, error) {
 	resourceQuery := service.ResourceQuery{
-		ResourceType:  query.ResourceType,
-		ResourceID:    query.ResourceId,
-		CreatorUserID: query.CreatorUserId,
-		Limit:         query.Limit,
+		ResourceTypeName: query.ResourceType,
+		ResourceID:       query.ResourceId,
+		CreatorUserID:    query.CreatorUserId,
+		Limit:            query.Limit,
 	}
 	if query.StartCreationTime != nil {
 		startCreationTime := query.StartCreationTime.AsTime()
@@ -98,7 +98,7 @@ func (a Authorization) ListResources(ct context.Context, query *proto.ListResour
 
 	resources := collect.Map(resourceEntities, func(resource entity.Resource, _ int) *proto.Resource {
 		return &proto.Resource{
-			ResourceType:  resource.ResourceType,
+			ResourceType:  resource.ResourceTypeName,
 			ResourceId:    resource.ResourceID,
 			CreatedAt:     timestamppb.New(resource.CreatedAt),
 			CreatorUserId: resource.CreatorUserID,

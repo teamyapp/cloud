@@ -16,7 +16,7 @@ type Resource struct {
 
 var _ dao.Resource = (*Resource)(nil)
 
-func (r Resource) FindResource(resourceType string, resourceID uint64) (entity.Resource, error) {
+func (r Resource) FindResource(resourceTypeName string, resourceID uint64) (entity.Resource, error) {
 	resource := entity.Resource{}
 	err := r.db.QueryRow(`
 		SELECT
@@ -26,9 +26,9 @@ func (r Resource) FindResource(resourceType string, resourceID uint64) (entity.R
 			creator_user_id
 		FROM resource
 		WHERE resource_type = $1 AND resource_id = $2;`,
-		resourceType, resourceID).
+		resourceTypeName, resourceID).
 		Scan(
-			&resource.ResourceType,
+			&resource.ResourceTypeName,
 			&resource.ResourceID,
 			&resource.CreatedAt,
 			&resource.CreatorUserID,
@@ -37,7 +37,7 @@ func (r Resource) FindResource(resourceType string, resourceID uint64) (entity.R
 	if errors.Is(err, sql.ErrNoRows) {
 		return entity.Resource{}, dao.ErrNotFound(fmt.Sprintf(
 			"resource not found: resource_type=%v, resource_id=%d",
-			resourceType, resourceID))
+			resourceTypeName, resourceID))
 	}
 
 	return resource, err
@@ -62,7 +62,7 @@ func (r Resource) FindAllResources() ([]entity.Resource, error) {
 	for rows.Next() {
 		resource := entity.Resource{}
 		err = rows.Scan(
-			&resource.ResourceType,
+			&resource.ResourceTypeName,
 			&resource.ResourceID,
 			&resource.CreatedAt,
 			&resource.CreatorUserID,
@@ -88,7 +88,7 @@ func (r Resource) CreateResource(resource entity.Resource) error {
 			creator_user_id
 		)
 		VALUES ($1, $2, $3, $4);`,
-		resource.ResourceType,
+		resource.ResourceTypeName,
 		resource.ResourceID,
 		resource.CreatedAt,
 		resource.CreatorUserID,
@@ -96,12 +96,12 @@ func (r Resource) CreateResource(resource entity.Resource) error {
 	return err
 }
 
-func (r Resource) DeleteResource(resourceType string, resourceID uint64) error {
+func (r Resource) DeleteResource(resourceTypeName string, resourceID uint64) error {
 	_, err := r.db.Exec(`
 		DELETE FROM resource
 		WHERE resource_type = $1 AND resource_id = $2;
 		`,
-		resourceType, resourceID)
+		resourceTypeName, resourceID)
 	return err
 }
 

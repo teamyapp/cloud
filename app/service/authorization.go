@@ -59,7 +59,7 @@ func (a Authorization) ListResourceTypes(ct context.Context, resourceTypeQuery R
 	return queryResourceTypes(allResourceTypeEntities, resourceTypeQuery), nil
 }
 
-func (a Authorization) RegisterResourceType(ct context.Context, resourceType string) error {
+func (a Authorization) RegisterResourceType(ct context.Context, resourceTypeName string) error {
 	userID, err := ctx.UserIDFromContext(ct)
 	if err != nil {
 		log.Println(err)
@@ -67,16 +67,16 @@ func (a Authorization) RegisterResourceType(ct context.Context, resourceType str
 	}
 
 	resourceTypeEntity := entity.ResourceType{
-		ResourceType:  resourceType,
-		CreatedAt:     time.Now().UTC(),
-		CreatorUserID: userID,
+		ResourceTypeName: resourceTypeName,
+		CreatedAt:        time.Now().UTC(),
+		CreatorUserID:    userID,
 	}
 
 	return a.resourceTypeDao.CreateResourceType(resourceTypeEntity)
 }
 
-func (a Authorization) UnregisterResourceType(ct context.Context, resourceType string) error {
-	return a.resourceTypeDao.DeleteResourceType(resourceType)
+func (a Authorization) UnregisterResourceType(ct context.Context, resourceTypeName string) error {
+	return a.resourceTypeDao.DeleteResourceType(resourceTypeName)
 }
 
 func (a Authorization) ListResources(ct context.Context, resourceQuery ResourceQuery) ([]entity.Resource, error) {
@@ -89,7 +89,7 @@ func (a Authorization) ListResources(ct context.Context, resourceQuery ResourceQ
 	return queryResources(allResources, resourceQuery), nil
 }
 
-func (a Authorization) RegisterResource(ct context.Context, resourceType string, resourceID uint64) error {
+func (a Authorization) RegisterResource(ct context.Context, resourceTypeName string, resourceID uint64) error {
 	userID, err := ctx.UserIDFromContext(ct)
 	if err != nil {
 		log.Println(err)
@@ -97,16 +97,16 @@ func (a Authorization) RegisterResource(ct context.Context, resourceType string,
 	}
 
 	resource := entity.Resource{
-		ResourceType:  resourceType,
-		ResourceID:    resourceID,
-		CreatedAt:     time.Now().UTC(),
-		CreatorUserID: userID,
+		ResourceTypeName: resourceTypeName,
+		ResourceID:       resourceID,
+		CreatedAt:        time.Now().UTC(),
+		CreatorUserID:    userID,
 	}
 	return a.resourceDao.CreateResource(resource)
 }
 
-func (a Authorization) UnregisterResource(ct context.Context, resourceType string, resourceID uint64) error {
-	return a.resourceDao.DeleteResource(resourceType, resourceID)
+func (a Authorization) UnregisterResource(ct context.Context, resourceTypeName string, resourceID uint64) error {
+	return a.resourceDao.DeleteResource(resourceTypeName, resourceID)
 }
 
 func (a Authorization) ListResourceRelations(ct context.Context, resourceRelationQuery ResourceRelationQuery) ([]entity.ResourceRelation, error) {

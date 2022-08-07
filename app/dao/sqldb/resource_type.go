@@ -16,7 +16,7 @@ type ResourceType struct {
 
 var _ dao.ResourceType = (*ResourceType)(nil)
 
-func (r ResourceType) FindResourceType(resourceType string) (entity.ResourceType, error) {
+func (r ResourceType) FindResourceType(resourceTypeName string) (entity.ResourceType, error) {
 	resourceTypeEntity := entity.ResourceType{}
 	err := r.db.QueryRow(`
 		SELECT
@@ -25,9 +25,9 @@ func (r ResourceType) FindResourceType(resourceType string) (entity.ResourceType
 			creator_user_id
 		FROM resource_type
 		WHERE resource_type = $1;`,
-		resourceType).
+		resourceTypeName).
 		Scan(
-			&resourceTypeEntity.ResourceType,
+			&resourceTypeEntity.ResourceTypeName,
 			&resourceTypeEntity.CreatedAt,
 			&resourceTypeEntity.CreatorUserID,
 		)
@@ -35,7 +35,7 @@ func (r ResourceType) FindResourceType(resourceType string) (entity.ResourceType
 	if errors.Is(err, sql.ErrNoRows) {
 		return entity.ResourceType{}, dao.ErrNotFound(fmt.Sprintf(
 			"resource type not found: resource_type=%v",
-			resourceType))
+			resourceTypeName))
 	}
 
 	return resourceTypeEntity, err
@@ -59,7 +59,7 @@ func (r ResourceType) FindAllResourceTypes() ([]entity.ResourceType, error) {
 	for rows.Next() {
 		resourceTypeEntity := entity.ResourceType{}
 		err = rows.Scan(
-			&resourceTypeEntity.ResourceType,
+			&resourceTypeEntity.ResourceTypeName,
 			&resourceTypeEntity.CreatedAt,
 			&resourceTypeEntity.CreatorUserID,
 		)
@@ -83,19 +83,19 @@ func (r ResourceType) CreateResourceType(resourceTypeEntity entity.ResourceType)
 			creator_user_id
 		)
 		VALUES ($1, $2, $3);`,
-		resourceTypeEntity.ResourceType,
+		resourceTypeEntity.ResourceTypeName,
 		resourceTypeEntity.CreatedAt,
 		resourceTypeEntity.CreatorUserID,
 	)
 	return err
 }
 
-func (r ResourceType) DeleteResourceType(resourceType string) error {
+func (r ResourceType) DeleteResourceType(resourceTypeName string) error {
 	_, err := r.db.Exec(`
 		DELETE FROM resource_type
 		WHERE resource_type = $1;
 		`,
-		resourceType)
+		resourceTypeName)
 	return err
 }
 
