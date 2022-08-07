@@ -189,6 +189,55 @@ func (a Authorization) UnregisterOperation(ct context.Context, resourceTypeName 
 	return a.operationDao.DeleteOperation(resourceTypeName, operationName)
 }
 
+func (a Authorization) ListOperationRelations(ct context.Context, operationRelationQuery OperationRelationQuery) ([]entity.OperationRelation, error) {
+	allOperationRelations, err := a.operationRelationDao.FindAllOperationRelations()
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	return queryOperationRelations(allOperationRelations, operationRelationQuery), nil
+}
+
+func (a Authorization) AssignParentOperation(
+	ct context.Context,
+	childResourceType string,
+	childOperation string,
+	parentResourceType string,
+	parentOperation string,
+) error {
+	userID, err := ctx.UserIDFromContext(ct)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	operationRelation := entity.OperationRelation{
+		ChildResourceType:  childResourceType,
+		ChildOperation:     childOperation,
+		ParentResourceType: parentResourceType,
+		ParentOperation:    parentOperation,
+		CreatedAt:          time.Now().UTC(),
+		CreatorUserID:      userID,
+	}
+	return a.operationRelationDao.CreateOperationRelation(operationRelation)
+}
+
+func (a Authorization) UnassignParentOperation(
+	ct context.Context,
+	childResourceType string,
+	childOperation string,
+	parentResourceType string,
+	parentOperation string,
+) error {
+	return a.operationRelationDao.DeleteOperationRelation(
+		childResourceType,
+		childOperation,
+		parentResourceType,
+		parentOperation,
+	)
+}
+
 func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery) (bool, error) {
 	visited := make(map[entity.PermissionQuery]bool)
 	visited[permissionQuery] = true

@@ -47,7 +47,7 @@ var daoSet = wire.NewSet(
 	wire.Bind(new(dao.AllocatedRange), new(sqldb.AllocatedRange)),
 	wire.Bind(new(dao.SignInSession), new(sqldb.SignInSession)),
 	wire.Bind(new(dao.ServiceAccount), new(sqldb.ServiceAccount)),
-	wire.Bind(new(dao.OperationRelation), new(dao_test.OperationRelation)),
+	wire.Bind(new(dao.OperationRelation), new(sqldb.OperationRelation)),
 	wire.Bind(new(dao.Operation), new(sqldb.Operation)),
 	wire.Bind(new(dao.UserGroupMember), new(dao_test.UserGroupMember)),
 	wire.Bind(new(dao.Permission), new(dao_test.Permission)),
@@ -61,7 +61,7 @@ var daoSet = wire.NewSet(
 	sqldb.NewUserLink,
 	sqldb.NewSignInSession,
 	sqldb.NewServiceAccount,
-	newOperationRelation,
+	sqldb.NewOperationRelation,
 	sqldb.NewOperation,
 	newUserGroupMember,
 	newPermission,
@@ -196,10 +196,6 @@ func newIdentityService(
 		time.Duration(accessTokenTLL))
 }
 
-func newOperationRelation() dao_test.OperationRelation {
-	return dao_test.NewOperationRelation(fakeOperationRelationDao)
-}
-
 func newUserGroupMember() dao_test.UserGroupMember {
 	return dao_test.NewUserGroupMember(fakeUserGroupMemberDao)
 }
@@ -209,8 +205,6 @@ func newPermission() dao_test.Permission {
 }
 
 // TODO: replace with sqldb
-var fakeOperationRelationDao = []entity.OperationRelation{}
-
 var fakeUserGroupMemberDao = []entity.UserGroupMember{}
 
 var fakePermissionDao = []entity.Permission{}

@@ -223,18 +223,63 @@ func (a Authorization) UnregisterOperation(ct context.Context, request *proto.Un
 }
 
 func (a Authorization) ListOperationRelations(ct context.Context, query *proto.ListOperationRelationsQuery) (*proto.ListOperationRelationsResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	operationRelationQuery := service.OperationRelationQuery{
+		ChildResourceType:  query.ChildResourceType,
+		ChildOperation:     query.ChildOperation,
+		ParentResourceType: query.ParentResourceType,
+		ParentOperation:    query.ParentOperation,
+		CreatorUserID:      query.CreatorUserId,
+		Limit:              query.Limit,
+	}
+	if query.StartCreationTime != nil {
+		startCreationTime := query.StartCreationTime.AsTime()
+		operationRelationQuery.StartCreationTime = &startCreationTime
+	}
+
+	if query.EndCreationTime != nil {
+		endCreationTime := query.EndCreationTime.AsTime()
+		operationRelationQuery.EndCreationTime = &endCreationTime
+	}
+
+	operationRelationEntities, err := a.authorizationService.ListOperationRelations(ct, operationRelationQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	operationRelations := collect.Map(operationRelationEntities, func(operationRelation entity.OperationRelation, _ int) *proto.OperationRelation {
+		return &proto.OperationRelation{
+			ChildResourceType:  operationRelation.ChildResourceType,
+			ChildOperation:     operationRelation.ChildOperation,
+			ParentResourceType: operationRelation.ParentResourceType,
+			ParentOperation:    operationRelation.ParentOperation,
+			CreatedAt:          timestamppb.New(operationRelation.CreatedAt),
+			CreatorUserId:      operationRelation.CreatorUserID,
+		}
+	})
+
+	return &proto.ListOperationRelationsResponse{OperationRelations: operationRelations}, nil
 }
 
-func (a Authorization) AssignParentOperation(ctx context.Context, request *proto.AssignParentOperationRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
+func (a Authorization) AssignParentOperation(ct context.Context, request *proto.AssignParentOperationRequest) (*emptypb.Empty, error) {
+	err := a.authorizationService.AssignParentOperation(
+		ct,
+		request.ChildResourceType,
+		request.ChildOperation,
+		request.ParentResourceType,
+		request.ParentOperation,
+	)
+	return &emptypb.Empty{}, err
 }
 
-func (a Authorization) UnassignParentOperation(ctx context.Context, request *proto.UnassignParentOperationRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
+func (a Authorization) UnassignParentOperation(ct context.Context, request *proto.UnassignParentOperationRequest) (*emptypb.Empty, error) {
+	err := a.authorizationService.UnassignParentOperation(
+		ct,
+		request.ChildResourceType,
+		request.ChildOperation,
+		request.ParentResourceType,
+		request.ParentOperation,
+	)
+	return &emptypb.Empty{}, err
 }
 
 func (a Authorization) ListUserGroups(ctx context.Context, query *proto.ListUserGroupsQuery) (*proto.ListUserGroupsResponse, error) {
