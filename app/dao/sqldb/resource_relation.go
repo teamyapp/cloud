@@ -16,7 +16,12 @@ type ResourceRelation struct {
 
 var _ dao.ResourceRelation = (*ResourceRelation)(nil)
 
-func (r ResourceRelation) FindResourceRelation(childResourceType string, childResourceID uint64, parentResourceType string, parentResourceID uint64) (entity.ResourceRelation, error) {
+func (r ResourceRelation) FindResourceRelation(
+	childResourceType string,
+	childResourceID uint64,
+	parentResourceType string,
+	parentResourceID uint64,
+) (entity.ResourceRelation, error) {
 	resourceRelation := entity.ResourceRelation{}
 	err := r.db.QueryRow(`
 		SELECT
@@ -89,15 +94,15 @@ func (r ResourceRelation) FindResourceRelations(childResourceType string, childR
 
 func (r ResourceRelation) FindAllResourceRelations() ([]entity.ResourceRelation, error) {
 	rows, err := r.db.Query(`
-	SELECT
-		child_resource_type,
-		child_resource_id,
-		parent_resource_type,
-		parent_resource_id,
-		created_at,
-		creator_user_id
-	FROM resource_relation;
-`)
+		SELECT
+			child_resource_type,
+			child_resource_id,
+			parent_resource_type,
+			parent_resource_id,
+			created_at,
+			creator_user_id
+		FROM resource_relation;
+	`)
 	if err != nil {
 		log.Println(err)
 		return nil, err

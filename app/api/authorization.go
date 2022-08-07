@@ -157,12 +157,24 @@ func (a Authorization) ListResourceRelations(ct context.Context, query *proto.Li
 }
 
 func (a Authorization) AssignParentResource(ct context.Context, request *proto.AssignParentResourceRequest) (*emptypb.Empty, error) {
-	err := a.authorizationService.AssignParentResource(ct, request.ChildResourceType, request.ChildResourceId, request.ParentResourceType, request.ParentResourceId)
+	err := a.authorizationService.AssignParentResource(
+		ct,
+		request.ChildResourceType,
+		request.ChildResourceId,
+		request.ParentResourceType,
+		request.ParentResourceId,
+	)
 	return &emptypb.Empty{}, err
 }
 
 func (a Authorization) UnassignParentResource(ct context.Context, request *proto.UnassignParentResourceRequest) (*emptypb.Empty, error) {
-	err := a.authorizationService.UnassignParentResource(ct, request.ChildResourceType, request.ChildResourceId, request.ParentResourceType, request.ParentResourceId)
+	err := a.authorizationService.UnassignParentResource(
+		ct,
+		request.ChildResourceType,
+		request.ChildResourceId,
+		request.ParentResourceType,
+		request.ParentResourceId,
+	)
 	return &emptypb.Empty{}, err
 }
 

@@ -119,7 +119,13 @@ func (a Authorization) ListResourceRelations(ct context.Context, resourceRelatio
 	return queryResourceRelations(allResourceRelationEntities, resourceRelationQuery), nil
 }
 
-func (a Authorization) AssignParentResource(ct context.Context, childResourceType string, childResourceID uint64, parentResourceType string, parentResourceID uint64) error {
+func (a Authorization) AssignParentResource(
+	ct context.Context,
+	childResourceType string,
+	childResourceID uint64,
+	parentResourceType string,
+	parentResourceID uint64,
+) error {
 	userID, err := ctx.UserIDFromContext(ct)
 	if err != nil {
 		log.Println(err)
@@ -137,8 +143,19 @@ func (a Authorization) AssignParentResource(ct context.Context, childResourceTyp
 	return a.resourceRelationDao.CreateResourceRelation(resourceRelation)
 }
 
-func (a Authorization) UnassignParentResource(ct context.Context, childResourceType string, childResourceID uint64, parentResourceType string, parentResourceID uint64) error {
-	return a.resourceRelationDao.DeleteResourceRelation(childResourceType, childResourceID, parentResourceType, parentResourceID)
+func (a Authorization) UnassignParentResource(
+	ct context.Context,
+	childResourceType string,
+	childResourceID uint64,
+	parentResourceType string,
+	parentResourceID uint64,
+) error {
+	return a.resourceRelationDao.DeleteResourceRelation(
+		childResourceType,
+		childResourceID,
+		parentResourceType,
+		parentResourceID,
+	)
 }
 
 func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery) (bool, error) {

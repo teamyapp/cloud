@@ -12,7 +12,12 @@ type ResourceRelation struct {
 
 var _ dao.ResourceRelation = (*ResourceRelation)(nil)
 
-func (r ResourceRelation) FindResourceRelation(childResourceType string, childResourceID uint64, parentResourceType string, parentResourceID uint64) (entity.ResourceRelation, error) {
+func (r ResourceRelation) FindResourceRelation(
+	childResourceType string,
+	childResourceID uint64,
+	parentResourceType string,
+	parentResourceID uint64,
+) (entity.ResourceRelation, error) {
 	//TODO implement me
 	panic("implement me")
 }
