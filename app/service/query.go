@@ -8,7 +8,7 @@ import (
 )
 
 type ResourceTypeQuery struct {
-	ResourceType      *string
+	ResourceTypeName  *string
 	CreatorUserID     *uint64
 	StartCreationTime *time.Time
 	EndCreationTime   *time.Time
@@ -16,7 +16,7 @@ type ResourceTypeQuery struct {
 }
 
 type ResourceQuery struct {
-	ResourceType      *string
+	ResourceTypeName  *string
 	ResourceID        *uint64
 	CreatorUserID     *uint64
 	StartCreationTime *time.Time
@@ -37,7 +37,7 @@ type ResourceRelationQuery struct {
 
 func queryResourceTypes(resourceTypeEntities []entity.ResourceType, resourceTypeQuery ResourceTypeQuery) []entity.ResourceType {
 	return collect.Filter(resourceTypeEntities, func(resourceTypeEntity entity.ResourceType) bool {
-		if resourceTypeQuery.ResourceType != nil && *resourceTypeQuery.ResourceType != resourceTypeEntity.ResourceType {
+		if resourceTypeQuery.ResourceTypeName != nil && *resourceTypeQuery.ResourceTypeName != resourceTypeEntity.ResourceTypeName {
 			return false
 		}
 
@@ -59,7 +59,7 @@ func queryResourceTypes(resourceTypeEntities []entity.ResourceType, resourceType
 
 func queryResources(resources []entity.Resource, resourceQuery ResourceQuery) []entity.Resource {
 	return collect.Filter(resources, func(resource entity.Resource) bool {
-		if resourceQuery.ResourceType != nil && *resourceQuery.ResourceType != resource.ResourceType {
+		if resourceQuery.ResourceTypeName != nil && *resourceQuery.ResourceTypeName != resource.ResourceTypeName {
 			return false
 		}
 
