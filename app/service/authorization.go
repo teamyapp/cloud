@@ -16,6 +16,7 @@ type Authorization struct {
 	userGroupMemberDao   dao.UserGroupMember
 	permissionDao        dao.Permission
 	operationRelationDao dao.OperationRelation
+	operationDao         dao.Operation
 	resourceTypeDao      dao.ResourceType
 	resourceDao          dao.Resource
 }
@@ -158,6 +159,36 @@ func (a Authorization) UnassignParentResource(
 	)
 }
 
+func (a Authorization) ListOperations(ct context.Context, operationQuery OperationQuery) ([]entity.Operation, error) {
+	allOperations, err := a.operationDao.FindAllOperations()
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	return queryOperations(allOperations, operationQuery), nil
+}
+
+func (a Authorization) RegisterOperation(ct context.Context, resourceTypeName string, operationName string) error {
+	userID, err := ctx.UserIDFromContext(ct)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	operation := entity.Operation{
+		ResourceTypeName: resourceTypeName,
+		OperationName:    operationName,
+		CreatedAt:        time.Now().UTC(),
+		CreatorUserID:    userID,
+	}
+	return a.operationDao.CreateOperation(operation)
+}
+
+func (a Authorization) UnregisterOperation(ct context.Context, resourceTypeName string, operationName string) error {
+	return a.operationDao.DeleteOperation(resourceTypeName, operationName)
+}
+
 func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery) (bool, error) {
 	visited := make(map[entity.PermissionQuery]bool)
 	visited[permissionQuery] = true
@@ -259,6 +290,7 @@ func NewAuthorization(
 	userGroupMemberDao dao.UserGroupMember,
 	permissionDao dao.Permission,
 	operationRelationDao dao.OperationRelation,
+	operationDao dao.Operation,
 	resourceTypeDao dao.ResourceType,
 	resourceDao dao.Resource,
 ) Authorization {
@@ -267,6 +299,7 @@ func NewAuthorization(
 		userGroupMemberDao:   userGroupMemberDao,
 		permissionDao:        permissionDao,
 		operationRelationDao: operationRelationDao,
+		operationDao:         operationDao,
 		resourceTypeDao:      resourceTypeDao,
 		resourceDao:          resourceDao,
 	}

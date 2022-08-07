@@ -35,6 +35,15 @@ type ResourceRelationQuery struct {
 	Limit              *uint64
 }
 
+type OperationQuery struct {
+	ResourceTypeName  *string
+	OperationName     *string
+	CreatorUserID     *uint64
+	StartCreationTime *time.Time
+	EndCreationTime   *time.Time
+	Limit             *uint64
+}
+
 func queryResourceTypes(resourceTypeEntities []entity.ResourceType, resourceTypeQuery ResourceTypeQuery) []entity.ResourceType {
 	return collect.Filter(resourceTypeEntities, func(resourceTypeEntity entity.ResourceType) bool {
 		if resourceTypeQuery.ResourceType != nil && *resourceTypeQuery.ResourceType != resourceTypeEntity.ResourceType {
@@ -110,6 +119,32 @@ func queryResourceRelations(resourceRelations []entity.ResourceRelation, resourc
 		}
 
 		if resourceRelationQuery.EndCreationTime != nil && (*resourceRelationQuery.EndCreationTime).Before(resourceRelation.CreatedAt) {
+			return false
+		}
+
+		return true
+	})
+}
+
+func queryOperations(operations []entity.Operation, operationQuery OperationQuery) []entity.Operation {
+	return collect.Filter(operations, func(operation entity.Operation) bool {
+		if operationQuery.ResourceTypeName != nil && *operationQuery.ResourceTypeName != operation.ResourceTypeName {
+			return false
+		}
+
+		if operationQuery.OperationName != nil && *operationQuery.OperationName != operation.OperationName {
+			return false
+		}
+
+		if operationQuery.CreatorUserID != nil && *operationQuery.CreatorUserID != operation.CreatorUserID {
+			return false
+		}
+
+		if operationQuery.StartCreationTime != nil && (*operationQuery.StartCreationTime).After(operation.CreatedAt) {
+			return false
+		}
+
+		if operationQuery.EndCreationTime != nil && (*operationQuery.EndCreationTime).Before(operation.CreatedAt) {
 			return false
 		}
 
