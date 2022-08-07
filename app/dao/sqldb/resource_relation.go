@@ -153,7 +153,12 @@ func (r ResourceRelation) CreateResourceRelation(resourceRelation entity.Resourc
 	return err
 }
 
-func (r ResourceRelation) DeleteResourceRelation(childResourceType string, childResourceID uint64, parentResourceType string, parentResourceID uint64) error {
+func (r ResourceRelation) DeleteResourceRelation(
+	childResourceType string,
+	childResourceID uint64,
+	parentResourceType string,
+	parentResourceID uint64,
+) error {
 	_, err := r.db.Exec(`
 		DELETE FROM resource_relation
 		WHERE child_resource_type = $1 AND child_resource_id = $2 AND parent_resource_type = $3 AND parent_resource_id = $4;

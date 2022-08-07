@@ -12,5 +12,10 @@ type ResourceRelation interface {
 	FindResourceRelations(childResourceType string, childResourceID uint64) ([]entity.ResourceRelation, error)
 	FindAllResourceRelations() ([]entity.ResourceRelation, error)
 	CreateResourceRelation(resourceRelation entity.ResourceRelation) error
-	DeleteResourceRelation(childResourceType string, childResourceID uint64, parentResourceType string, parentResourceID uint64) error
+	DeleteResourceRelation(
+		childResourceType string,
+		childResourceID uint64,
+		parentResourceType string,
+		parentResourceID uint64,
+	) error
 }
