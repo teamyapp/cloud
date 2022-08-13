@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"time"
 
 	"github.com/teamyapp/cloud/app/entity"
@@ -53,6 +54,16 @@ type OperationRelationQuery struct {
 	StartCreationTime  *time.Time
 	EndCreationTime    *time.Time
 	Limit              *uint64
+}
+
+type UserGroupQuery struct {
+	ID                  *uint64
+	NameContains        *string
+	DescriptionContains *string
+	CreatorUserID       *uint64
+	StartCreationTime   *time.Time
+	EndCreationTime     *time.Time
+	Limit               *uint64
 }
 
 func queryResourceTypes(resourceTypeEntities []entity.ResourceType, resourceTypeQuery ResourceTypeQuery) []entity.ResourceType {
@@ -190,6 +201,37 @@ func queryOperationRelations(operationRelations []entity.OperationRelation, oper
 		}
 
 		if operationRelationQuery.EndCreationTime != nil && (*operationRelationQuery.EndCreationTime).Before(operationRelation.CreatedAt) {
+			return false
+		}
+
+		return true
+	})
+}
+
+func queryUserGroups(userGroups []entity.UserGroup, userGroupQuery UserGroupQuery) []entity.UserGroup {
+	return collect.Filter(userGroups, func(userGroup entity.UserGroup) bool {
+		if userGroupQuery.ID != nil && *userGroupQuery.ID != userGroup.ID {
+			return false
+		}
+
+		if userGroupQuery.NameContains != nil && !strings.Contains(userGroup.Name, *userGroupQuery.NameContains) {
+			return false
+		}
+
+		if userGroupQuery.DescriptionContains != nil &&
+			(userGroup.Description == nil || !strings.Contains(*userGroup.Description, *userGroupQuery.DescriptionContains)) {
+			return false
+		}
+
+		if userGroupQuery.CreatorUserID != nil && *userGroupQuery.CreatorUserID != userGroup.CreatorUserID {
+			return false
+		}
+
+		if userGroupQuery.StartCreationTime != nil && (*userGroupQuery.StartCreationTime).After(userGroup.CreatedAt) {
+			return false
+		}
+
+		if userGroupQuery.EndCreationTime != nil && (*userGroupQuery.EndCreationTime).Before(userGroup.CreatedAt) {
 			return false
 		}
 

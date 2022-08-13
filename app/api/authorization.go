@@ -282,24 +282,56 @@ func (a Authorization) UnassignParentOperation(ct context.Context, request *prot
 	return &emptypb.Empty{}, err
 }
 
-func (a Authorization) ListUserGroups(ctx context.Context, query *proto.ListUserGroupsQuery) (*proto.ListUserGroupsResponse, error) {
-	//TODO implement me
-	panic("implement me")
+func (a Authorization) ListUserGroups(ct context.Context, query *proto.ListUserGroupsQuery) (*proto.ListUserGroupsResponse, error) {
+	userGroupQuery := service.UserGroupQuery{
+		ID:                  query.Id,
+		NameContains:        query.NameContains,
+		DescriptionContains: query.DescriptionContains,
+		CreatorUserID:       query.CreatorUserId,
+		Limit:               query.Limit,
+	}
+	if query.StartCreationTime != nil {
+		startCreationTime := query.StartCreationTime.AsTime()
+		userGroupQuery.StartCreationTime = &startCreationTime
+	}
+
+	if query.EndCreationTime != nil {
+		endCreationTime := query.EndCreationTime.AsTime()
+		userGroupQuery.EndCreationTime = &endCreationTime
+	}
+
+	userGroupEntities, err := a.authorizationService.ListUserGroups(ct, userGroupQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	userGroups := collect.Map(userGroupEntities, func(userGroup entity.UserGroup, _ int) *proto.UserGroup {
+		return &proto.UserGroup{
+			GroupId:       userGroup.ID,
+			Name:          userGroup.Name,
+			Description:   userGroup.Description,
+			CreatedAt:     timestamppb.New(userGroup.CreatedAt),
+			CreatorUserId: userGroup.CreatorUserID,
+			UpdatedAt:     toProtoTimePtr(userGroup.UpdatedAt),
+		}
+	})
+
+	return &proto.ListUserGroupsResponse{UserGroups: userGroups}, nil
 }
 
-func (a Authorization) CreateUserGroup(ctx context.Context, request *proto.CreateUserGroupRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
+func (a Authorization) CreateUserGroup(ct context.Context, request *proto.CreateUserGroupRequest) (*emptypb.Empty, error) {
+	err := a.authorizationService.CreateUserGroup(ct, request.Name, request.Description)
+	return &emptypb.Empty{}, err
 }
 
-func (a Authorization) UpdateUserGroup(ctx context.Context, request *proto.UpdateUserGroupRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
+func (a Authorization) UpdateUserGroup(ct context.Context, request *proto.UpdateUserGroupRequest) (*emptypb.Empty, error) {
+	err := a.authorizationService.UpdateUserGroup(ct, request.GroupId, request.Name, request.Description)
+	return &emptypb.Empty{}, err
 }
 
-func (a Authorization) DeleteUserGroup(ctx context.Context, request *proto.DeleteUserGroupRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
+func (a Authorization) DeleteUserGroup(ct context.Context, request *proto.DeleteUserGroupRequest) (*emptypb.Empty, error) {
+	err := a.authorizationService.DeleteUserGroup(ct, request.GroupId)
+	return &emptypb.Empty{}, err
 }
 
 func (a Authorization) ListUserGroupMembers(ctx context.Context, query *proto.ListUserGroupMembersQuery) (*proto.ListUserGroupMembersResponse, error) {
