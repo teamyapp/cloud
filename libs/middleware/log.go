@@ -32,7 +32,7 @@ func LogWebRequest(handlerFunc http.HandlerFunc) http.HandlerFunc {
 				string(buf))
 			request.Body = ioutil.NopCloser(bytes.NewReader(buf))
 		} else {
-			log.Printf("[Web][Begin] host=%v method=%v path=%v contentSize=%v headers=%v\n",
+			log.Printf("[Web][Begin] host=%v method=%v path=%v headers=%v contentSize=%v\n",
 				request.URL.Host,
 				request.Method,
 				request.URL.Path,
