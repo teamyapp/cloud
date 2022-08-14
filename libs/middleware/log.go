@@ -42,7 +42,6 @@ func LogWebRequest(handlerFunc http.HandlerFunc) http.HandlerFunc {
 
 		loggableWriter := newLoggableResponseWriter(writer)
 		handlerFunc(loggableWriter, request)
-
 		if hasReadableBody(writer.Header()) {
 			log.Printf("[Web][End] headers=%v bodySize=%v body=%v\n",
 				writer.Header(),
