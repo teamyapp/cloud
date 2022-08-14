@@ -315,7 +315,6 @@ func (a Authorization) ListUserGroups(ct context.Context, query *proto.ListUserG
 			UpdatedAt:     toProtoTimePtr(userGroup.UpdatedAt),
 		}
 	})
-
 	return &proto.ListUserGroupsResponse{UserGroups: userGroups}, nil
 }
 

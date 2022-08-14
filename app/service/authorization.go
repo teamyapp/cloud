@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/teamyapp/cloud/app/gen"
 	"log"
 	"time"
+
+	"github.com/teamyapp/cloud/app/gen"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
@@ -21,7 +22,7 @@ type Authorization struct {
 	resourceTypeDao      dao.ResourceType
 	resourceDao          dao.Resource
 	userGroupDao         dao.UserGroup
-	idGenerator          *gen.UniqueNumber
+	userGroupIDGenerator *gen.UniqueNumber
 }
 
 func (a Authorization) HasPermission(resourceType string, resourceID uint64, operation string, userID uint64) (bool, error) {
@@ -258,7 +259,7 @@ func (a Authorization) CreateUserGroup(ct context.Context, name string, descript
 		return err
 	}
 
-	groupID, err := a.idGenerator.GenerateUniqueNumber()
+	groupID, err := a.userGroupIDGenerator.GenerateUniqueNumber()
 	if err != nil {
 		log.Println(err)
 		return err
@@ -405,7 +406,7 @@ func NewAuthorization(
 	userGroupDao dao.UserGroup,
 	uniqueNumberFactory gen.UniqueNumberFactory,
 ) (Authorization, error) {
-	idGenerator, err := uniqueNumberFactory.MakeUniqueNumber("groupID")
+	userGroupIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("userGroupID")
 	if err != nil {
 		return Authorization{}, err
 	}
@@ -419,6 +420,6 @@ func NewAuthorization(
 		resourceTypeDao:      resourceTypeDao,
 		resourceDao:          resourceDao,
 		userGroupDao:         userGroupDao,
-		idGenerator:          idGenerator,
+		userGroupIDGenerator: userGroupIDGenerator,
 	}, nil
 }
