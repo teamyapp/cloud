@@ -74,8 +74,7 @@ var LogGRPCRequest grpc.UnaryServerInterceptor = func(
 	}
 
 	res, err := handler(ct, req)
-	log.Printf("[GRPC][End] response=%v\n",
-		res)
+	log.Printf("[GRPC][End] response=%v\n", res)
 	return res, err
 }
 
