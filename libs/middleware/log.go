@@ -23,7 +23,7 @@ func LogWebRequest(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		}
 
 		if hasReadableBody(request.Header) {
-			log.Printf("[Web][Begin] host=%v method=%v path=%v headers=%v contentSize=%v body=%v\n",
+			log.Printf("[Web][Begin] host=%v method=%v path=%v headers=%v bodySize=%v body=%v\n",
 				request.URL.Host,
 				request.Method,
 				request.URL.Path,
@@ -32,7 +32,7 @@ func LogWebRequest(handlerFunc http.HandlerFunc) http.HandlerFunc {
 				string(buf))
 			request.Body = ioutil.NopCloser(bytes.NewReader(buf))
 		} else {
-			log.Printf("[Web][Begin] host=%v method=%v path=%v headers=%v contentSize=%v\n",
+			log.Printf("[Web][Begin] host=%v method=%v path=%v headers=%v bodySize=%v\n",
 				request.URL.Host,
 				request.Method,
 				request.URL.Path,
@@ -44,12 +44,12 @@ func LogWebRequest(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		handlerFunc(loggableWriter, request)
 
 		if hasReadableBody(writer.Header()) {
-			log.Printf("[Web][End] headers=%v contentSize=%v body=%v\n",
+			log.Printf("[Web][End] headers=%v bodySize=%v body=%v\n",
 				writer.Header(),
 				len(loggableWriter.responseBody),
 				string(loggableWriter.responseBody))
 		} else {
-			log.Printf("[Web][End] headers=%v contentSize=%v\n",
+			log.Printf("[Web][End] headers=%v bodySize=%v\n",
 				writer.Header(),
 				len(loggableWriter.responseBody))
 		}
