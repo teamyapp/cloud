@@ -249,10 +249,10 @@ message ListUserGroupsResponse {
 message UserGroup {
   uint64 groupId = 1;
   string name = 2;
-  string description = 3;
+  optional string description = 3;
   google.protobuf.Timestamp createdAt = 4;
   uint64 creatorUserId = 5;
-  uint64 updatedAt = 6;
+  optional google.protobuf.Timestamp updatedAt = 6;
 }
 
 // CreateUserGroup

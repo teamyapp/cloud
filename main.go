@@ -69,7 +69,7 @@ func main() {
 			return err
 		}
 
-		authorizationAPI, err := dep.InitAuthorizationAPI(sqlDB)
+		authorizationAPI, err := dep.InitAuthorizationAPI(sqlDB, dep.GenRangeSize(cfg.GenRangeSize))
 		if err != nil {
 			log.Println(err)
 			return err

@@ -49,6 +49,7 @@ var daoSet = wire.NewSet(
 	wire.Bind(new(dao.ServiceAccount), new(sqldb.ServiceAccount)),
 	wire.Bind(new(dao.OperationRelation), new(sqldb.OperationRelation)),
 	wire.Bind(new(dao.Operation), new(sqldb.Operation)),
+	wire.Bind(new(dao.UserGroup), new(sqldb.UserGroup)),
 	wire.Bind(new(dao.UserGroupMember), new(dao_test.UserGroupMember)),
 	wire.Bind(new(dao.Permission), new(dao_test.Permission)),
 	wire.Bind(new(dao.ResourceType), new(sqldb.ResourceType)),
@@ -63,6 +64,7 @@ var daoSet = wire.NewSet(
 	sqldb.NewServiceAccount,
 	sqldb.NewOperationRelation,
 	sqldb.NewOperation,
+	sqldb.NewUserGroup,
 	newUserGroupMember,
 	newPermission,
 	sqldb.NewResourceType,
@@ -109,9 +111,11 @@ func InitGeneratorAPI(
 
 func InitAuthorizationAPI(
 	sqlDB *sql.DB,
+	genRangeSize GenRangeSize,
 ) (api.Authorization, error) {
 	wire.Build(
 		daoSet,
+		newUniqueNumberGenFactory,
 		api.NewAuthorization,
 		service.NewAuthorization,
 	)

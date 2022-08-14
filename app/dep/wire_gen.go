@@ -54,7 +54,7 @@ func InitGeneratorAPI(sqlDB *sql.DB, genRangeSize GenRangeSize) (api.Generator, 
 	return generator, nil
 }
 
-func InitAuthorizationAPI(sqlDB *sql.DB) (api.Authorization, error) {
+func InitAuthorizationAPI(sqlDB *sql.DB, genRangeSize GenRangeSize) (api.Authorization, error) {
 	resourceRelation := sqldb.NewResourceRelation(sqlDB)
 	userGroupMember := newUserGroupMember()
 	permission := newPermission()
@@ -62,7 +62,13 @@ func InitAuthorizationAPI(sqlDB *sql.DB) (api.Authorization, error) {
 	operation := sqldb.NewOperation(sqlDB)
 	resourceType := sqldb.NewResourceType(sqlDB)
 	resource := sqldb.NewResource(sqlDB)
-	authorization := service.NewAuthorization(resourceRelation, userGroupMember, permission, operationRelation, operation, resourceType, resource)
+	userGroup := sqldb.NewUserGroup(sqlDB)
+	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
+	uniqueNumberFactory := newUniqueNumberGenFactory(allocatedRange, genRangeSize)
+	authorization, err := service.NewAuthorization(resourceRelation, userGroupMember, permission, operationRelation, operation, resourceType, resource, userGroup, uniqueNumberFactory)
+	if err != nil {
+		return api.Authorization{}, err
+	}
 	apiAuthorization := api.NewAuthorization(authorization)
 	return apiAuthorization, nil
 }
@@ -101,7 +107,7 @@ type ClientID string
 
 type ClientSecret string
 
-var daoSet = wire.NewSet(wire.Bind(new(dao.UserLink), new(sqldb.UserLink)), wire.Bind(new(dao.AllocatedRange), new(sqldb.AllocatedRange)), wire.Bind(new(dao.SignInSession), new(sqldb.SignInSession)), wire.Bind(new(dao.ServiceAccount), new(sqldb.ServiceAccount)), wire.Bind(new(dao.OperationRelation), new(sqldb.OperationRelation)), wire.Bind(new(dao.Operation), new(sqldb.Operation)), wire.Bind(new(dao.UserGroupMember), new(dao_test.UserGroupMember)), wire.Bind(new(dao.Permission), new(dao_test.Permission)), wire.Bind(new(dao.ResourceType), new(sqldb.ResourceType)), wire.Bind(new(dao.Resource), new(sqldb.Resource)), wire.Bind(new(dao.ResourceRelation), new(sqldb.ResourceRelation)), wire.Bind(new(dao.UploadSession), new(sqldb.UploadSession)), wire.Bind(new(dao.FileMetadata), new(sqldb.FileMetadata)), wire.Bind(new(dao.ChunkMetadata), new(sqldb.ChunkMetadata)), sqldb.NewAllocatedRange, sqldb.NewUserLink, sqldb.NewSignInSession, sqldb.NewServiceAccount, sqldb.NewOperationRelation, sqldb.NewOperation, newUserGroupMember,
+var daoSet = wire.NewSet(wire.Bind(new(dao.UserLink), new(sqldb.UserLink)), wire.Bind(new(dao.AllocatedRange), new(sqldb.AllocatedRange)), wire.Bind(new(dao.SignInSession), new(sqldb.SignInSession)), wire.Bind(new(dao.ServiceAccount), new(sqldb.ServiceAccount)), wire.Bind(new(dao.OperationRelation), new(sqldb.OperationRelation)), wire.Bind(new(dao.Operation), new(sqldb.Operation)), wire.Bind(new(dao.UserGroup), new(sqldb.UserGroup)), wire.Bind(new(dao.UserGroupMember), new(dao_test.UserGroupMember)), wire.Bind(new(dao.Permission), new(dao_test.Permission)), wire.Bind(new(dao.ResourceType), new(sqldb.ResourceType)), wire.Bind(new(dao.Resource), new(sqldb.Resource)), wire.Bind(new(dao.ResourceRelation), new(sqldb.ResourceRelation)), wire.Bind(new(dao.UploadSession), new(sqldb.UploadSession)), wire.Bind(new(dao.FileMetadata), new(sqldb.FileMetadata)), wire.Bind(new(dao.ChunkMetadata), new(sqldb.ChunkMetadata)), sqldb.NewAllocatedRange, sqldb.NewUserLink, sqldb.NewSignInSession, sqldb.NewServiceAccount, sqldb.NewOperationRelation, sqldb.NewOperation, sqldb.NewUserGroup, newUserGroupMember,
 	newPermission, sqldb.NewResourceType, sqldb.NewResource, sqldb.NewResourceRelation, sqldb.NewUploadSession, sqldb.NewFileMetadata, sqldb.NewChunkMetadata,
 )
 

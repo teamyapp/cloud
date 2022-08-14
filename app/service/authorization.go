@@ -6,6 +6,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/teamyapp/cloud/app/gen"
+
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/ctx"
@@ -19,6 +21,8 @@ type Authorization struct {
 	operationDao         dao.Operation
 	resourceTypeDao      dao.ResourceType
 	resourceDao          dao.Resource
+	userGroupDao         dao.UserGroup
+	userGroupIDGenerator *gen.UniqueNumber
 }
 
 func (a Authorization) HasPermission(resourceType string, resourceID uint64, operation string, userID uint64) (bool, error) {
@@ -238,6 +242,63 @@ func (a Authorization) UnassignParentOperation(
 	)
 }
 
+func (a Authorization) ListUserGroups(ct context.Context, query UserGroupQuery) ([]entity.UserGroup, error) {
+	allGroups, err := a.userGroupDao.FindAllGroups()
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	return queryUserGroups(allGroups, query), nil
+}
+
+func (a Authorization) CreateUserGroup(ct context.Context, name string, description *string) error {
+	userID, err := ctx.UserIDFromContext(ct)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	groupID, err := a.userGroupIDGenerator.GenerateUniqueNumber()
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	userGroup := entity.UserGroup{
+		ID:            groupID,
+		Name:          name,
+		Description:   description,
+		CreatedAt:     time.Now().UTC(),
+		CreatorUserID: userID,
+	}
+	return a.userGroupDao.CreateGroup(userGroup)
+}
+
+func (a Authorization) UpdateUserGroup(ct context.Context, groupID uint64, name *string, description *string) error {
+	userGroup, err := a.userGroupDao.FindGroupByID(groupID)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	if name != nil {
+		userGroup.Name = *name
+	}
+
+	if description != nil {
+		userGroup.Description = description
+	}
+
+	nowTime := time.Now().UTC()
+	userGroup.UpdatedAt = &nowTime
+	return a.userGroupDao.UpdateGroup(userGroup)
+}
+
+func (a Authorization) DeleteUserGroup(ct context.Context, groupID uint64) error {
+	return a.userGroupDao.DeleteGroup(groupID)
+}
+
 func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery) (bool, error) {
 	visited := make(map[entity.PermissionQuery]bool)
 	visited[permissionQuery] = true
@@ -342,7 +403,14 @@ func NewAuthorization(
 	operationDao dao.Operation,
 	resourceTypeDao dao.ResourceType,
 	resourceDao dao.Resource,
-) Authorization {
+	userGroupDao dao.UserGroup,
+	uniqueNumberFactory gen.UniqueNumberFactory,
+) (Authorization, error) {
+	userGroupIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("userGroupID")
+	if err != nil {
+		return Authorization{}, err
+	}
+
 	return Authorization{
 		resourceRelationDao:  resourceRelationDao,
 		userGroupMemberDao:   userGroupMemberDao,
@@ -351,5 +419,7 @@ func NewAuthorization(
 		operationDao:         operationDao,
 		resourceTypeDao:      resourceTypeDao,
 		resourceDao:          resourceDao,
-	}
+		userGroupDao:         userGroupDao,
+		userGroupIDGenerator: userGroupIDGenerator,
+	}, nil
 }
