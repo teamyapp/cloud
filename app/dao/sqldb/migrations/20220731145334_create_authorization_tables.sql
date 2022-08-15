@@ -28,7 +28,7 @@ CREATE TABLE resource_relation
 
 CREATE TABLE user_group
 (
-    id              BIGINT PRIMARY KEY,
+    id              BIGINT NOT NULL PRIMARY KEY,
     name            VARCHAR(50) NOT NULL,
     description     VARCHAR(240),
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
