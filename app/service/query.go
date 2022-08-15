@@ -66,6 +66,15 @@ type UserGroupQuery struct {
 	Limit               *uint64
 }
 
+type UserGroupMemberQuery struct {
+	GroupID           *uint64
+	UserID            *uint64
+	CreatorUserID     *uint64
+	StartCreationTime *time.Time
+	EndCreationTime   *time.Time
+	Limit             *uint64
+}
+
 func queryResourceTypes(resourceTypeEntities []entity.ResourceType, resourceTypeQuery ResourceTypeQuery) []entity.ResourceType {
 	return collect.Filter(resourceTypeEntities, func(resourceTypeEntity entity.ResourceType) bool {
 		if resourceTypeQuery.ResourceTypeName != nil && *resourceTypeQuery.ResourceTypeName != resourceTypeEntity.ResourceTypeName {
@@ -232,6 +241,32 @@ func queryUserGroups(userGroups []entity.UserGroup, userGroupQuery UserGroupQuer
 		}
 
 		if userGroupQuery.EndCreationTime != nil && (*userGroupQuery.EndCreationTime).Before(userGroup.CreatedAt) {
+			return false
+		}
+
+		return true
+	})
+}
+
+func queryUserGroupMembers(userGroupMembers []entity.UserGroupMember, userGroupMemberQuery UserGroupMemberQuery) []entity.UserGroupMember {
+	return collect.Filter(userGroupMembers, func(userGroupMember entity.UserGroupMember) bool {
+		if userGroupMemberQuery.GroupID != nil && *userGroupMemberQuery.GroupID != userGroupMember.GroupID {
+			return false
+		}
+
+		if userGroupMemberQuery.UserID != nil && *userGroupMemberQuery.UserID != userGroupMember.UserID {
+			return false
+		}
+
+		if userGroupMemberQuery.CreatorUserID != nil && *userGroupMemberQuery.CreatorUserID != userGroupMember.CreatorUserID {
+			return false
+		}
+
+		if userGroupMemberQuery.StartCreationTime != nil && (*userGroupMemberQuery.StartCreationTime).After(userGroupMember.CreatedAt) {
+			return false
+		}
+
+		if userGroupMemberQuery.EndCreationTime != nil && (*userGroupMemberQuery.EndCreationTime).Before(userGroupMember.CreatedAt) {
 			return false
 		}
 
