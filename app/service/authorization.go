@@ -330,6 +330,39 @@ func (a Authorization) RemoveUserGroupMember(ct context.Context, groupID uint64,
 	return a.userGroupMemberDao.DeleteUserGroupMember(groupID, userID)
 }
 
+func (a Authorization) ListPermissions(ct context.Context, query PermissionQuery) ([]entity.Permission, error) {
+	allPermissions, err := a.permissionDao.FindAllPermissions()
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	permissions := queryPermission(allPermissions, query)
+	return permissions, nil
+}
+
+func (a Authorization) AddPermission(ct context.Context, resourceType string, resourceID uint64, operation string, groupID uint64) error {
+	creatorUserID, err := ctx.UserIDFromContext(ct)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	permission := entity.Permission{
+		ResourceType:  resourceType,
+		ResourceID:    resourceID,
+		Operation:     operation,
+		GroupID:       groupID,
+		CreatedAt:     time.Now().UTC(),
+		CreatorUserID: creatorUserID,
+	}
+	return a.permissionDao.CreatePermission(permission)
+}
+
+func (a Authorization) RemovePermission(ct context.Context, resourceType string, resourceID uint64, operation string, groupID uint64) error {
+	return a.permissionDao.DeletePermission(resourceType, resourceID, operation, groupID)
+}
+
 func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery) (bool, error) {
 	visited := make(map[entity.PermissionQuery]bool)
 	visited[permissionQuery] = true

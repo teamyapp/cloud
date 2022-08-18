@@ -337,7 +337,6 @@ message AddPermissionRequest {
   uint64 resourceId = 2;
   string operation = 3;
   uint64 groupId = 4;
-  uint64 creatorUserId = 5;
 }
 
 // RemovePermission

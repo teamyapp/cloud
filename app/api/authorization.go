@@ -376,19 +376,51 @@ func (a Authorization) RemoveUserGroupMember(ct context.Context, request *proto.
 	return &emptypb.Empty{}, err
 }
 
-func (a Authorization) ListPermissions(ctx context.Context, query *proto.ListPermissionsQuery) (*proto.ListPermissionsResponse, error) {
-	//TODO implement me
-	panic("implement me")
+func (a Authorization) ListPermissions(ct context.Context, query *proto.ListPermissionsQuery) (*proto.ListPermissionsResponse, error) {
+	permissionQuery := service.PermissionQuery{
+		ResourceType:  query.ResourceType,
+		ResourceID:    query.ResourceId,
+		Operation:     query.Operation,
+		GroupID:       query.GroupId,
+		CreatorUserID: query.CreatorUserId,
+		Limit:         query.Limit,
+	}
+	if query.StartCreationTime != nil {
+		startCreationTime := query.StartCreationTime.AsTime()
+		permissionQuery.StartCreationTime = &startCreationTime
+	}
+
+	if query.EndCreationTime != nil {
+		endCreationTime := query.EndCreationTime.AsTime()
+		permissionQuery.EndCreationTime = &endCreationTime
+	}
+
+	permissionEntities, err := a.authorizationService.ListPermissions(ct, permissionQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	permissions := collect.Map(permissionEntities, func(permission entity.Permission, _ int) *proto.Permission {
+		return &proto.Permission{
+			ResourceType:  permission.ResourceType,
+			ResourceId:    permission.ResourceID,
+			Operation:     permission.Operation,
+			GroupId:       permission.GroupID,
+			CreatedAt:     timestamppb.New(permission.CreatedAt),
+			CreatorUserId: permission.CreatorUserID,
+		}
+	})
+	return &proto.ListPermissionsResponse{Permissions: permissions}, nil
 }
 
-func (a Authorization) AddPermission(ctx context.Context, request *proto.AddPermissionRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
+func (a Authorization) AddPermission(ct context.Context, request *proto.AddPermissionRequest) (*emptypb.Empty, error) {
+	err := a.authorizationService.AddPermission(ct, request.ResourceType, request.ResourceId, request.Operation, request.GroupId)
+	return &emptypb.Empty{}, err
 }
 
-func (a Authorization) RemovePermission(ctx context.Context, request *proto.RemovePermissionRequest) (*emptypb.Empty, error) {
-	//TODO implement me
-	panic("implement me")
+func (a Authorization) RemovePermission(ct context.Context, request *proto.RemovePermissionRequest) (*emptypb.Empty, error) {
+	err := a.authorizationService.RemovePermission(ct, request.ResourceType, request.ResourceId, request.Operation, request.GroupId)
+	return &emptypb.Empty{}, err
 }
 
 func (a Authorization) Start(rn *runner.ServiceRunner) error {
