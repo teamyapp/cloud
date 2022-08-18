@@ -59,9 +59,9 @@ func LogWebRequest(handlerFunc http.HandlerFunc) http.HandlerFunc {
 
 		if hasReadableBody(request.Header) {
 			requestLogFields["body"] = string(buf)
-			request.Body = ioutil.NopCloser(bytes.NewReader(buf))
 		}
 
+		request.Body = ioutil.NopCloser(bytes.NewReader(buf))
 		log.Printf("[Web][Begin] %v\n", mapToString(requestLogFields, webRequestLogFieldOrder))
 		loggableWriter := newLoggableResponseWriter(writer)
 
