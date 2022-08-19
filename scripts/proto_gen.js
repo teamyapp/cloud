@@ -3,7 +3,7 @@
 const fs = require('fs');
 const {join} = require('path');
 const {execSync} = require("child_process");
-const paths = ['app'];
+const paths = ['core', 'apps'];
 
 for (let path of paths) {
 	findFilesRec(path, (file) => {
@@ -11,9 +11,9 @@ for (let path of paths) {
 			return;
 		}
 
-		execSync(`
-		protoc --go_out=. --go_opt=paths=source_relative \\
-		--go-grpc_out=. --go-grpc_opt=paths=source_relative ${file}`,
+		console.log(`Found ${file}`);
+		execSync(
+			`protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ${file}`,
 			{stdio: 'inherit'});
 	});
 }
