@@ -97,7 +97,6 @@ steps:
         from_secret: DOCKER_PASSWORD
       repo: registry.digitalocean.com/teamyapp/cloud-testing
       registry: registry.digitalocean.com
-      cache_from: registry.digitalocean.com/teamyapp/cloud-testing
   - name: notify image update
     image: plugins/webhook
     settings:
@@ -178,7 +177,6 @@ steps:
         from_secret: DOCKER_PASSWORD
       repo: registry.digitalocean.com/teamyapp/cloud-staging
       registry: registry.digitalocean.com
-      cache_from: registry.digitalocean.com/teamyapp/cloud-staging
   - name: notify image update
     image: plugins/webhook
     settings:
@@ -259,7 +257,6 @@ steps:
         from_secret: DOCKER_PASSWORD
       repo: registry.digitalocean.com/teamyapp/cloud
       registry: registry.digitalocean.com
-      cache_from: registry.digitalocean.com/teamyapp/cloud
   - name: notify image update
     image: plugins/webhook
     settings:
