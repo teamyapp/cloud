@@ -28,6 +28,21 @@ func (p Permission) FindPermission(permissionQuery entity.PermissionQuery) (enti
 	return permissions[0], nil
 }
 
+func (p Permission) FindAllPermissions() ([]entity.Permission, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p Permission) CreatePermission(permission entity.Permission) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p Permission) DeletePermission(resourceType string, resourceID uint64, operation string, groupID uint64) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func NewPermission(permissions []entity.Permission) Permission {
 	return Permission{
 		permissions: permissions,

@@ -10,9 +10,7 @@ import (
 	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao"
-	"github.com/teamyapp/cloud/app/dao/dao_test"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
-	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
@@ -51,7 +49,7 @@ var daoSet = wire.NewSet(
 	wire.Bind(new(dao.Operation), new(sqldb.Operation)),
 	wire.Bind(new(dao.UserGroup), new(sqldb.UserGroup)),
 	wire.Bind(new(dao.UserGroupMember), new(sqldb.UserGroupMember)),
-	wire.Bind(new(dao.Permission), new(dao_test.Permission)),
+	wire.Bind(new(dao.Permission), new(sqldb.Permission)),
 	wire.Bind(new(dao.ResourceType), new(sqldb.ResourceType)),
 	wire.Bind(new(dao.Resource), new(sqldb.Resource)),
 	wire.Bind(new(dao.ResourceRelation), new(sqldb.ResourceRelation)),
@@ -66,7 +64,7 @@ var daoSet = wire.NewSet(
 	sqldb.NewOperation,
 	sqldb.NewUserGroup,
 	sqldb.NewUserGroupMember,
-	newPermission,
+	sqldb.NewPermission,
 	sqldb.NewResourceType,
 	sqldb.NewResource,
 	sqldb.NewResourceRelation,
@@ -199,10 +197,3 @@ func newIdentityService(
 		oauthProviders,
 		time.Duration(accessTokenTLL))
 }
-
-func newPermission() dao_test.Permission {
-	return dao_test.NewPermission(fakePermissionDao)
-}
-
-// TODO: replace with sqldb
-var fakePermissionDao = []entity.Permission{}

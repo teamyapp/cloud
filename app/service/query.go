@@ -75,6 +75,17 @@ type UserGroupMemberQuery struct {
 	Limit             *uint64
 }
 
+type PermissionQuery struct {
+	ResourceType      *string
+	ResourceID        *uint64
+	Operation         *string
+	GroupID           *uint64
+	CreatorUserID     *uint64
+	StartCreationTime *time.Time
+	EndCreationTime   *time.Time
+	Limit             *uint64
+}
+
 func queryResourceTypes(resourceTypeEntities []entity.ResourceType, resourceTypeQuery ResourceTypeQuery) []entity.ResourceType {
 	return collect.Filter(resourceTypeEntities, func(resourceTypeEntity entity.ResourceType) bool {
 		if resourceTypeQuery.ResourceTypeName != nil && *resourceTypeQuery.ResourceTypeName != resourceTypeEntity.ResourceTypeName {
@@ -267,6 +278,40 @@ func queryUserGroupMembers(userGroupMembers []entity.UserGroupMember, userGroupM
 		}
 
 		if userGroupMemberQuery.EndCreationTime != nil && (*userGroupMemberQuery.EndCreationTime).Before(userGroupMember.CreatedAt) {
+			return false
+		}
+
+		return true
+	})
+}
+
+func queryPermission(permissions []entity.Permission, permissionQuery PermissionQuery) []entity.Permission {
+	return collect.Filter(permissions, func(permission entity.Permission) bool {
+		if permissionQuery.ResourceType != nil && *permissionQuery.ResourceType != permission.ResourceType {
+			return false
+		}
+
+		if permissionQuery.ResourceID != nil && *permissionQuery.ResourceID != permission.ResourceID {
+			return false
+		}
+
+		if permissionQuery.Operation != nil && *permissionQuery.Operation != permission.Operation {
+			return false
+		}
+
+		if permissionQuery.GroupID != nil && *permissionQuery.GroupID != permission.GroupID {
+			return false
+		}
+
+		if permissionQuery.CreatorUserID != nil && *permissionQuery.CreatorUserID != permission.CreatorUserID {
+			return false
+		}
+
+		if permissionQuery.StartCreationTime != nil && (*permissionQuery.StartCreationTime).After(permission.CreatedAt) {
+			return false
+		}
+
+		if permissionQuery.EndCreationTime != nil && (*permissionQuery.EndCreationTime).Before(permission.CreatedAt) {
 			return false
 		}
 

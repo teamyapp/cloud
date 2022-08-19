@@ -14,9 +14,7 @@ import (
 	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao"
-	"github.com/teamyapp/cloud/app/dao/dao_test"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
-	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
@@ -57,7 +55,7 @@ func InitGeneratorAPI(sqlDB *sql.DB, genRangeSize GenRangeSize) (api.Generator, 
 func InitAuthorizationAPI(sqlDB *sql.DB, genRangeSize GenRangeSize) (api.Authorization, error) {
 	resourceRelation := sqldb.NewResourceRelation(sqlDB)
 	userGroupMember := sqldb.NewUserGroupMember(sqlDB)
-	permission := newPermission()
+	permission := sqldb.NewPermission(sqlDB)
 	operationRelation := sqldb.NewOperationRelation(sqlDB)
 	operation := sqldb.NewOperation(sqlDB)
 	resourceType := sqldb.NewResourceType(sqlDB)
@@ -107,7 +105,7 @@ type ClientID string
 
 type ClientSecret string
 
-var daoSet = wire.NewSet(wire.Bind(new(dao.UserLink), new(sqldb.UserLink)), wire.Bind(new(dao.AllocatedRange), new(sqldb.AllocatedRange)), wire.Bind(new(dao.SignInSession), new(sqldb.SignInSession)), wire.Bind(new(dao.ServiceAccount), new(sqldb.ServiceAccount)), wire.Bind(new(dao.OperationRelation), new(sqldb.OperationRelation)), wire.Bind(new(dao.Operation), new(sqldb.Operation)), wire.Bind(new(dao.UserGroup), new(sqldb.UserGroup)), wire.Bind(new(dao.UserGroupMember), new(sqldb.UserGroupMember)), wire.Bind(new(dao.Permission), new(dao_test.Permission)), wire.Bind(new(dao.ResourceType), new(sqldb.ResourceType)), wire.Bind(new(dao.Resource), new(sqldb.Resource)), wire.Bind(new(dao.ResourceRelation), new(sqldb.ResourceRelation)), wire.Bind(new(dao.UploadSession), new(sqldb.UploadSession)), wire.Bind(new(dao.FileMetadata), new(sqldb.FileMetadata)), wire.Bind(new(dao.ChunkMetadata), new(sqldb.ChunkMetadata)), sqldb.NewAllocatedRange, sqldb.NewUserLink, sqldb.NewSignInSession, sqldb.NewServiceAccount, sqldb.NewOperationRelation, sqldb.NewOperation, sqldb.NewUserGroup, sqldb.NewUserGroupMember, newPermission, sqldb.NewResourceType, sqldb.NewResource, sqldb.NewResourceRelation, sqldb.NewUploadSession, sqldb.NewFileMetadata, sqldb.NewChunkMetadata)
+var daoSet = wire.NewSet(wire.Bind(new(dao.UserLink), new(sqldb.UserLink)), wire.Bind(new(dao.AllocatedRange), new(sqldb.AllocatedRange)), wire.Bind(new(dao.SignInSession), new(sqldb.SignInSession)), wire.Bind(new(dao.ServiceAccount), new(sqldb.ServiceAccount)), wire.Bind(new(dao.OperationRelation), new(sqldb.OperationRelation)), wire.Bind(new(dao.Operation), new(sqldb.Operation)), wire.Bind(new(dao.UserGroup), new(sqldb.UserGroup)), wire.Bind(new(dao.UserGroupMember), new(sqldb.UserGroupMember)), wire.Bind(new(dao.Permission), new(sqldb.Permission)), wire.Bind(new(dao.ResourceType), new(sqldb.ResourceType)), wire.Bind(new(dao.Resource), new(sqldb.Resource)), wire.Bind(new(dao.ResourceRelation), new(sqldb.ResourceRelation)), wire.Bind(new(dao.UploadSession), new(sqldb.UploadSession)), wire.Bind(new(dao.FileMetadata), new(sqldb.FileMetadata)), wire.Bind(new(dao.ChunkMetadata), new(sqldb.ChunkMetadata)), sqldb.NewAllocatedRange, sqldb.NewUserLink, sqldb.NewSignInSession, sqldb.NewServiceAccount, sqldb.NewOperationRelation, sqldb.NewOperation, sqldb.NewUserGroup, sqldb.NewUserGroupMember, sqldb.NewPermission, sqldb.NewResourceType, sqldb.NewResource, sqldb.NewResourceRelation, sqldb.NewUploadSession, sqldb.NewFileMetadata, sqldb.NewChunkMetadata)
 
 var storageSet = wire.NewSet(wire.Bind(new(storage.MapBackend), new(storage.S3Bucket)), newS3Bucket)
 
@@ -171,10 +169,3 @@ func newIdentityService(
 		jwtAuthority,
 		oauthProviders, time.Duration(accessTokenTLL))
 }
-
-func newPermission() dao_test.Permission {
-	return dao_test.NewPermission(fakePermissionDao)
-}
-
-// TODO: replace with sqldb
-var fakePermissionDao = []entity.Permission{}
