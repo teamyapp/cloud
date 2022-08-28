@@ -8,7 +8,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// not used, not sure if we need to use
 func WithWebTimeout(
 	duration time.Duration,
 	handlerFunc http.HandlerFunc,
@@ -38,20 +37,22 @@ func WithWebTimeout(
 
 func ServerWithGRPCTimeout(duration time.Duration) grpc.UnaryServerInterceptor {
 	return func(ct context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-		if _, deadlineSet := ct.Deadline(); !deadlineSet {
-			ct, _ = context.WithTimeout(ct, duration)
-		}
-
+		ct = setDeadlineIfNot(ct, duration)
 		return handler(ct, req)
 	}
 }
 
 func ClientWithGRPCTimout(duration time.Duration) grpc.UnaryClientInterceptor {
 	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		if _, deadlineSet := ct.Deadline(); !deadlineSet {
-			ct, _ = context.WithTimeout(ct, duration)
-		}
-
+		ct = setDeadlineIfNot(ct, duration)
 		return invoker(ct, method, req, reply, cc, opts...)
 	}
+}
+
+func setDeadlineIfNot(ct context.Context, duration time.Duration) context.Context {
+	if _, deadlineSet := ct.Deadline(); !deadlineSet {
+		ct, _ = context.WithTimeout(ct, duration)
+	}
+
+	return ct
 }

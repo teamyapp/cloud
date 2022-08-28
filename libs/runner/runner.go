@@ -71,13 +71,13 @@ func (s *ServiceRunner) Start() {
 func (s *ServiceRunner) startWebServer() {
 	log.Printf("Service runner Web server started at port %d\n", s.config.WebServerPort)
 	serveMux := http.NewServeMux()
-	handlerFunc := middleware.EnableCORS(
+	handlerFunc := middleware.WithWebTimeout(s.config.RequestTimeout, middleware.EnableCORS(
 		middleware.WebWithRequestID(
 			middleware.LogWebRequest(
 				middleware.ServerWithWebIdentity(
 					s.config.IdentityAPIEndpoint,
 					middleware.ServerWithWebSocketIdentity(s.config.IdentityAPIEndpoint,
-						s.webRouter.ServeHTTP)))))
+						s.webRouter.ServeHTTP))))))
 	serveMux.HandleFunc("/", handlerFunc)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.WebServerPort), serveMux); err != nil {
 		panic(err)
