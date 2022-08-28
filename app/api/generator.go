@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/gen"
@@ -48,6 +49,8 @@ func (g Generator) GenerateUniqueNumber(
 		log.Println(err)
 		return nil, err
 	}
+
+	time.Sleep(10 * time.Second)
 
 	return &proto.GenerateUniqueNumberResponse{UniqueNumber: uniqueNum}, nil
 }

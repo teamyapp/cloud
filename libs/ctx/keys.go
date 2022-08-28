@@ -1,8 +1,8 @@
 package ctx
 
-type key int
+type key string
 
 const (
-	userIDKey    key = 0
-	requestIDKey key = 1
+	userIDKey    key = "T-User-Id"
+	requestIDKey key = "T-Request-Id"
 )

@@ -8,14 +8,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/teamyapp/cloud/libs/ctx"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 )
-
-const requestIDMetadataKey = "T-Request-Id"
 
 func WebWithRequestID(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		requestID := request.Header.Get(requestIDMetadataKey)
+		ct := request.Context()
+		requestID := ctx.GetRequestIdHttp(ct, request)
+
 		if len(requestID) == 0 {
 			// it's okay to have conflicts for request ID
 			randomID := uuid.New()
@@ -23,7 +22,6 @@ func WebWithRequestID(handlerFunc http.HandlerFunc) http.HandlerFunc {
 			log.Printf("[Web] Generate request ID: requestID=%v\n", requestID)
 		}
 
-		ct := request.Context()
 		ct = ctx.NewContextWithRequestID(ct, requestID)
 		request = request.WithContext(ct)
 		handlerFunc(writer, request)
@@ -36,21 +34,22 @@ var GRPCWithRequestID grpc.UnaryServerInterceptor = func(
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler,
 ) (resp interface{}, err error) {
-	md, ok := metadata.FromIncomingContext(ct)
-	if !ok {
-		md = metadata.New(map[string]string{})
-	}
+	requestID := ctx.GetRequestIdGRPC(ct)
 
-	requestIDs := md.Get(requestIDMetadataKey)
-	if len(requestIDs) == 0 {
+	if len(requestID) == 0 {
 		// it's okay to have conflicts for request ID
 		randomID := uuid.New()
 		requestID := randomID.String()
 		log.Printf("[GRPC] Generate request ID: requestID=%v\n", requestID)
-		md.Set(requestIDMetadataKey, requestID)
+		ct = ctx.MetadataWithRequestID(ct, requestID)
 	}
 
-	ct = metadata.NewIncomingContext(ct, md)
 	res, err := handler(ct, req)
 	return res, err
+}
+
+var ClientWithGRPCRequestID grpc.UnaryClientInterceptor = func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	ct = ctx.MetadataWithRequestID(ct, ctx.GetRequestIdGRPC(ct))
+
+	return invoker(ct, method, req, reply, cc, opts...)
 }

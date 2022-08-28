@@ -2,21 +2,25 @@ package ctx
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"net/http"
+
+	"google.golang.org/grpc/metadata"
 )
 
-func RequestIDFromContext(ctx context.Context) (string, error) {
-	requestID, ok := ctx.Value(requestIDKey).(string)
-	if !ok {
-		err := fmt.Errorf("requestID not found")
-		log.Println(err)
-		return "", err
-	}
+func GetRequestIdGRPC(ctx context.Context) string {
+	return getValueGRPC(ctx, requestIDKey)
+}
 
-	return requestID, nil
+func GetRequestIdHttp(ctx context.Context, request *http.Request) string {
+	return getValueHttp(ctx, request, requestIDKey)
 }
 
 func NewContextWithRequestID(ctx context.Context, requestID string) context.Context {
 	return context.WithValue(ctx, requestIDKey, requestID)
+}
+
+func MetadataWithRequestID(ctx context.Context, requestID string) context.Context {
+	ctx = metadata.AppendToOutgoingContext(ctx, string(requestIDKey), requestID)
+
+	return ctx
 }

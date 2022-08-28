@@ -51,8 +51,8 @@ func LogWebRequest(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		}
 		responseLogFields := map[string]string{}
 
-		requestID, err := ctx.RequestIDFromContext(request.Context())
-		if err == nil {
+		requestID := ctx.GetRequestIdHttp(request.Context(), request)
+		if len(requestID) != 0 {
 			requestLogFields["requestId"] = requestID
 			responseLogFields["requestId"] = requestID
 		}
@@ -93,10 +93,10 @@ var LogGRPCRequest grpc.UnaryServerInterceptor = func(
 	md, ok := metadata.FromIncomingContext(ct)
 	if ok {
 		requestLogFields["metadata"] = fmt.Sprintf("%v", md)
-		requestIDs := md.Get(requestIDMetadataKey)
-		if len(requestIDs) > 0 {
-			requestLogFields["requestId"] = requestIDs[0]
-			responseLogFields["requestId"] = requestIDs[0]
+		requestID := ctx.GetRequestIdGRPC(ct)
+		if len(requestID) > 0 {
+			requestLogFields["requestId"] = requestID
+			responseLogFields["requestId"] = requestID
 		}
 	}
 
