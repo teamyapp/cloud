@@ -29,5 +29,5 @@ func NewClientConnection(cfg ConnectionConfig) (*grpc.ClientConn, error) {
 	return grpc.Dial(
 		fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		grpc.WithTransportCredentials(cred),
-		grpc.WithChainUnaryInterceptor(middleware.ClientWithGRPCTimout(cfg.RequestTimeout), middleware.ClientWithGRPCRequestID, middleware.ClientWithGRPCIdentity(cfg.GetAccessToken)))
+		grpc.WithChainUnaryInterceptor(middleware.ClientWithGRPCRequestID, middleware.ClientWithGRPCTimout(cfg.RequestTimeout), middleware.ClientWithGRPCIdentity(cfg.GetAccessToken)))
 }

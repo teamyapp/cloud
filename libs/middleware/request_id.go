@@ -14,12 +14,7 @@ func WebWithRequestID(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		ct := request.Context()
 		requestID := ctx.GetRequestIdHttp(ct, request)
-		if len(requestID) == 0 {
-			// it's okay to have conflicts for request ID
-			randomID := uuid.New()
-			requestID = randomID.String()
-			log.Printf("[Web] Generate request ID: requestID=%v\n", requestID)
-		}
+		requestID, _ = generateRequestIdIfNot(ct, requestID)
 
 		ct = ctx.NewContextWithRequestID(ct, requestID)
 		request = request.WithContext(ct)
@@ -34,12 +29,9 @@ var GRPCWithRequestID grpc.UnaryServerInterceptor = func(
 	handler grpc.UnaryHandler,
 ) (resp interface{}, err error) {
 	requestID := ctx.GetRequestIdGRPC(ct)
+	requestID, isGenerated := generateRequestIdIfNot(ct, requestID)
 
-	if len(requestID) == 0 {
-		// it's okay to have conflicts for request ID
-		randomID := uuid.New()
-		requestID := randomID.String()
-		log.Printf("[GRPC] Generate request ID: requestID=%v\n", requestID)
+	if isGenerated {
 		ct = ctx.MetadataWithRequestID(ct, requestID)
 	}
 
@@ -48,6 +40,21 @@ var GRPCWithRequestID grpc.UnaryServerInterceptor = func(
 }
 
 var ClientWithGRPCRequestID grpc.UnaryClientInterceptor = func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-	ct = ctx.MetadataWithRequestID(ct, ctx.GetRequestIdGRPC(ct))
+	requestID := ctx.GetRequestIdGRPC(ct)
+	requestID, _ = generateRequestIdIfNot(ct, requestID)
+	ct = ctx.MetadataWithRequestID(ct, requestID)
+
 	return invoker(ct, method, req, reply, cc, opts...)
+}
+
+func generateRequestIdIfNot(ct context.Context, requestID string) (string, bool) {
+	if len(requestID) == 0 {
+		// it's okay to have conflicts for request ID
+		randomID := uuid.New()
+		requestID := randomID.String()
+		log.Printf("[GRPC] Generate request ID: requestID=%v\n", requestID)
+		return requestID, true
+	}
+
+	return requestID, false
 }
