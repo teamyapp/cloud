@@ -18,7 +18,6 @@ func WithWebTimeout(
 		request = request.WithContext(ct)
 
 		done := make(chan bool)
-
 		go func() {
 			defer func() {
 				done <- true

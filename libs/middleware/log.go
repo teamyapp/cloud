@@ -52,7 +52,7 @@ func LogWebRequest(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		responseLogFields := map[string]string{}
 
 		requestID := ctx.GetRequestIdHttp(request.Context(), request)
-		if len(requestID) != 0 {
+		if len(requestID) > 0 {
 			requestLogFields["requestId"] = requestID
 			responseLogFields["requestId"] = requestID
 		}

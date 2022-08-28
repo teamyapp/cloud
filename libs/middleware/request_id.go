@@ -14,7 +14,6 @@ func WebWithRequestID(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		ct := request.Context()
 		requestID := ctx.GetRequestIdHttp(ct, request)
-
 		if len(requestID) == 0 {
 			// it's okay to have conflicts for request ID
 			randomID := uuid.New()
@@ -50,6 +49,5 @@ var GRPCWithRequestID grpc.UnaryServerInterceptor = func(
 
 var ClientWithGRPCRequestID grpc.UnaryClientInterceptor = func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 	ct = ctx.MetadataWithRequestID(ct, ctx.GetRequestIdGRPC(ct))
-
 	return invoker(ct, method, req, reply, cc, opts...)
 }

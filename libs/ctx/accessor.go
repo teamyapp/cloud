@@ -14,13 +14,11 @@ func getValueGRPC(ctx context.Context, key key) string {
 	}
 
 	md, ok := metadata.FromIncomingContext(ctx)
-
 	if !ok {
 		return ""
 	}
 
 	values := md.Get(string(key))
-
 	if len(values) == 0 {
 		return ""
 	}
@@ -30,13 +28,11 @@ func getValueGRPC(ctx context.Context, key key) string {
 
 func getValueHttp(ctx context.Context, request *http.Request, key key) string {
 	value := request.Header.Get(string(key))
-
 	if len(value) != 0 {
 		return value
 	}
 
 	value, ok := ctx.Value(key).(string)
-
 	if !ok {
 		return ""
 	}
