@@ -9,7 +9,6 @@ import (
 
 func getValueGRPC(ctx context.Context, key key) string {
 	value, ok := ctx.Value(key).(string)
-
 	if ok && len(value) != 0 {
 		return value
 	}
