@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/teamyapp/cloud/app/config"
@@ -20,9 +21,10 @@ type WebRoute struct {
 }
 
 type ServiceRunnerConfig struct {
-	WebServerPort       int    `envconfig:"SERVICE_RUNNER_WEB_SERVER_PORT" default:"9011"`
-	GRPCServerPort      int    `envconfig:"SERVICE_RUNNER_GRPC_SERVER_PORT" default:"9012"`
-	IdentityAPIEndpoint string `envconfig:"SERVICE_RUNNER_IDENTITY_API_ENDPOINT" default:"http://localhost:9500/identity"`
+	WebServerPort       int           `envconfig:"SERVICE_RUNNER_WEB_SERVER_PORT" default:"9011"`
+	GRPCServerPort      int           `envconfig:"SERVICE_RUNNER_GRPC_SERVER_PORT" default:"9012"`
+	IdentityAPIEndpoint string        `envconfig:"SERVICE_RUNNER_IDENTITY_API_ENDPOINT" default:"http://localhost:9500/identity"`
+	RequestTimeout      time.Duration `envconfig:"REQUEST_TIMEOUT" default:"10s"`
 }
 
 func ServiceRunnerConfigFromEnv() (ServiceRunnerConfig, error) {
@@ -69,13 +71,13 @@ func (s *ServiceRunner) Start() {
 func (s *ServiceRunner) startWebServer() {
 	log.Printf("Service runner Web server started at port %d\n", s.config.WebServerPort)
 	serveMux := http.NewServeMux()
-	handlerFunc := middleware.EnableCORS(
+	handlerFunc := middleware.WithWebTimeout(s.config.RequestTimeout, middleware.EnableCORS(
 		middleware.WebWithRequestID(
 			middleware.LogWebRequest(
 				middleware.ServerWithWebIdentity(
 					s.config.IdentityAPIEndpoint,
 					middleware.ServerWithWebSocketIdentity(s.config.IdentityAPIEndpoint,
-						s.webRouter.ServeHTTP)))))
+						s.webRouter.ServeHTTP))))))
 	serveMux.HandleFunc("/", handlerFunc)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.WebServerPort), serveMux); err != nil {
 		panic(err)
@@ -111,6 +113,7 @@ func NewServiceRunner(config ServiceRunnerConfig, services []Service) ServiceRun
 		webRouter: mux.NewRouter(),
 		gRPCServer: grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
+				middleware.ServerWithGRPCTimeout(config.RequestTimeout),
 				middleware.GRPCWithRequestID,
 				middleware.LogGRPCRequest,
 				middleware.ServerWithGRPCIdentity(config.IdentityAPIEndpoint),

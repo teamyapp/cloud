@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/teamyapp/cloud/libs/middleware"
 	"google.golang.org/grpc"
@@ -14,6 +15,7 @@ type ConnectionConfig struct {
 	Port           int
 	ShouldEncrypt  bool
 	GetAccessToken func() string
+	RequestTimeout time.Duration
 }
 
 func NewClientConnection(cfg ConnectionConfig) (*grpc.ClientConn, error) {
@@ -27,5 +29,5 @@ func NewClientConnection(cfg ConnectionConfig) (*grpc.ClientConn, error) {
 	return grpc.Dial(
 		fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		grpc.WithTransportCredentials(cred),
-		grpc.WithUnaryInterceptor(middleware.ClientWithGRPCIdentity(cfg.GetAccessToken)))
+		grpc.WithChainUnaryInterceptor(middleware.ClientWithGRPCRequestID, middleware.ClientWithGRPCTimout(cfg.RequestTimeout), middleware.ClientWithGRPCIdentity(cfg.GetAccessToken)))
 }

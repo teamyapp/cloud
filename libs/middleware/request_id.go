@@ -8,22 +8,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/teamyapp/cloud/libs/ctx"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 )
-
-const requestIDMetadataKey = "T-Request-Id"
 
 func WebWithRequestID(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		requestID := request.Header.Get(requestIDMetadataKey)
-		if len(requestID) == 0 {
-			// it's okay to have conflicts for request ID
-			randomID := uuid.New()
-			requestID = randomID.String()
-			log.Printf("[Web] Generate request ID: requestID=%v\n", requestID)
-		}
-
 		ct := request.Context()
+		requestID := ctx.GetRequestIdHttp(ct, request)
+		requestID, _ = generateRequestIdIfNot(ct, requestID)
+
 		ct = ctx.NewContextWithRequestID(ct, requestID)
 		request = request.WithContext(ct)
 		handlerFunc(writer, request)
@@ -36,21 +28,33 @@ var GRPCWithRequestID grpc.UnaryServerInterceptor = func(
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler,
 ) (resp interface{}, err error) {
-	md, ok := metadata.FromIncomingContext(ct)
-	if !ok {
-		md = metadata.New(map[string]string{})
+	requestID := ctx.GetRequestIdGRPC(ct)
+	requestID, isGenerated := generateRequestIdIfNot(ct, requestID)
+
+	if isGenerated {
+		ct = ctx.MetadataWithRequestID(ct, requestID)
 	}
 
-	requestIDs := md.Get(requestIDMetadataKey)
-	if len(requestIDs) == 0 {
+	res, err := handler(ct, req)
+	return res, err
+}
+
+var ClientWithGRPCRequestID grpc.UnaryClientInterceptor = func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	requestID := ctx.GetRequestIdGRPC(ct)
+	requestID, _ = generateRequestIdIfNot(ct, requestID)
+	ct = ctx.MetadataWithRequestID(ct, requestID)
+
+	return invoker(ct, method, req, reply, cc, opts...)
+}
+
+func generateRequestIdIfNot(ct context.Context, requestID string) (string, bool) {
+	if len(requestID) == 0 {
 		// it's okay to have conflicts for request ID
 		randomID := uuid.New()
 		requestID := randomID.String()
 		log.Printf("[GRPC] Generate request ID: requestID=%v\n", requestID)
-		md.Set(requestIDMetadataKey, requestID)
+		return requestID, true
 	}
 
-	ct = metadata.NewIncomingContext(ct, md)
-	res, err := handler(ct, req)
-	return res, err
+	return requestID, false
 }
