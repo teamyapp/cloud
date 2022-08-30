@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type Resource struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.Resource = (*Resource)(nil)
@@ -40,6 +41,10 @@ func (r Resource) FindResource(resourceTypeName string, resourceID uint64) (enti
 			resourceTypeName, resourceID))
 	}
 
+	if err != nil {
+		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return resource, err
 }
 
@@ -53,7 +58,7 @@ func (r Resource) FindAllResources() ([]entity.Resource, error) {
 	FROM resource;
 `)
 	if err != nil {
-		log.Println(err)
+		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -68,14 +73,14 @@ func (r Resource) FindAllResources() ([]entity.Resource, error) {
 			&resource.CreatorUserID,
 		)
 		if err != nil {
-			log.Println(err)
+			r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		resources = append(resources, resource)
 	}
 
-	return resources, err
+	return resources, nil
 }
 
 func (r Resource) CreateResource(resource entity.Resource) error {
@@ -93,6 +98,11 @@ func (r Resource) CreateResource(resource entity.Resource) error {
 		resource.CreatedAt,
 		resource.CreatorUserID,
 	)
+
+	if err != nil {
+		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
@@ -102,9 +112,13 @@ func (r Resource) DeleteResource(resourceTypeName string, resourceID uint64) err
 		WHERE resource_type = $1 AND resource_id = $2;
 		`,
 		resourceTypeName, resourceID)
+	if err != nil {
+		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewResource(sqlDB *sql.DB) Resource {
-	return Resource{db: sqlDB}
+func NewResource(dataCollector obs.DataCollector, sqlDB *sql.DB) Resource {
+	return Resource{dataCollector: dataCollector, db: sqlDB}
 }

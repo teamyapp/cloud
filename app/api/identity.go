@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"path"
 	"strconv"
@@ -15,12 +14,14 @@ import (
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/libs/collect"
 	"github.com/teamyapp/cloud/libs/ctx"
+	"github.com/teamyapp/cloud/libs/obs"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/web"
 	"google.golang.org/grpc"
 )
 
 type Identity struct {
+	dataCollector   obs.DataCollector
 	identityService service.Identity
 	proto.UnimplementedIdentityServer
 }
@@ -90,7 +91,7 @@ func (i Identity) Start(rn *runner.ServiceRunner) error {
 func (i Identity) webVerifyToken(w http.ResponseWriter, r *http.Request) {
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -115,7 +116,7 @@ func (i Identity) webOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 
 	url, err := i.identityService.GenerateUnknownUserSignInURL(authProviderName, redirectURL)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -127,14 +128,14 @@ func (i Identity) webFinishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	providerName := mux.Vars(r)["provider"]
 	provider, err := i.identityService.GetOAuthProvider(providerName)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	stateID, err := provider.GetStateID(r)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -142,7 +143,7 @@ func (i Identity) webFinishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	authorizationCode := provider.GetAuthorizationCode(r)
 	url, err := i.identityService.FinishOAuthSignIn(providerName, authorizationCode, stateID)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -151,27 +152,27 @@ func (i Identity) webFinishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 }
 
 func (i Identity) webListUserLinks(writer http.ResponseWriter, request *http.Request) {
-	userID, err := ctx.UserIDFromContext(request.Context())
+	userID, err := ctx.UserIDFromContext(i.dataCollector, request.Context())
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	userLinks, err := i.identityService.ListUserLinks(userID)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	web.WriteJSON(writer, userLinks)
+	web.WriteJSON(i.dataCollector, writer, userLinks)
 }
 
 func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Request) {
-	userID, err := ctx.UserIDFromContext(request.Context())
+	userID, err := ctx.UserIDFromContext(i.dataCollector, request.Context())
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -186,7 +187,7 @@ func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Re
 
 	url, err := i.identityService.GenerateLinkUsersSignInURL(authProviderName, userID, redirectURL)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -196,16 +197,16 @@ func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Re
 
 func (i Identity) webDeleteUserLink(writer http.ResponseWriter, request *http.Request) {
 	authProviderName := mux.Vars(request)["provider"]
-	userID, err := ctx.UserIDFromContext(request.Context())
+	userID, err := ctx.UserIDFromContext(i.dataCollector, request.Context())
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	err = i.identityService.DeleteUserLink(userID, authProviderName)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -214,34 +215,34 @@ func (i Identity) webDeleteUserLink(writer http.ResponseWriter, request *http.Re
 }
 
 func (i Identity) webListServiceAccounts(writer http.ResponseWriter, request *http.Request) {
-	userID, err := ctx.UserIDFromContext(request.Context())
+	userID, err := ctx.UserIDFromContext(i.dataCollector, request.Context())
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	serviceAccounts, err := i.identityService.ListServiceAccounts(userID)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	web.WriteJSON(writer, serviceAccounts)
+	web.WriteJSON(i.dataCollector, writer, serviceAccounts)
 }
 
 func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *http.Request) {
-	userID, err := ctx.UserIDFromContext(request.Context())
+	userID, err := ctx.UserIDFromContext(i.dataCollector, request.Context())
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	buf, err := ioutil.ReadAll(request.Body)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -251,14 +252,14 @@ func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *h
 	}
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	err = i.identityService.CreateServiceAccount(userID, body.Name)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -267,9 +268,9 @@ func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *h
 }
 
 func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *http.Request) {
-	userID, err := ctx.UserIDFromContext(request.Context())
+	userID, err := ctx.UserIDFromContext(i.dataCollector, request.Context())
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -277,14 +278,14 @@ func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *h
 	serviceAccountIDParam := mux.Vars(request)["serviceAccountId"]
 	serviceAccountID, err := strconv.ParseUint(serviceAccountIDParam, 10, 64)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	serviceToken, err := i.identityService.GenerateServiceToken(userID, serviceAccountID)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -293,9 +294,9 @@ func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *h
 }
 
 func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *http.Request) {
-	userID, err := ctx.UserIDFromContext(request.Context())
+	userID, err := ctx.UserIDFromContext(i.dataCollector, request.Context())
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -303,14 +304,14 @@ func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *h
 	serviceAccountIDParam := mux.Vars(request)["serviceAccountId"]
 	serviceAccountID, err := strconv.ParseUint(serviceAccountIDParam, 10, 64)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	err = i.identityService.DeleteServiceAccount(userID, serviceAccountID)
 	if err != nil {
-		log.Println(err)
+		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -344,8 +345,9 @@ func (i Identity) ListUserLinks(ct context.Context, req *proto.ListUserLinksRequ
 	return &proto.ListUserLinksResponse{UserLinks: protoUserLinks}, nil
 }
 
-func NewIdentity(identityService service.Identity) Identity {
+func NewIdentity(dataCollector obs.DataCollector, identityService service.Identity) Identity {
 	return Identity{
+		dataCollector:   dataCollector,
 		identityService: identityService,
 	}
 }

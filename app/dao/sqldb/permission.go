@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type Permission struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.Permission = (*Permission)(nil)
@@ -44,6 +45,10 @@ func (p Permission) FindPermission(query entity.PermissionQuery) (entity.Permiss
 			query.ResourceType, query.ResourceID, query.Operation, query.GroupID))
 	}
 
+	if err != nil {
+		p.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return permission, err
 }
 
@@ -59,7 +64,7 @@ func (p Permission) FindAllPermissions() ([]entity.Permission, error) {
 		FROM permission;
 	`)
 	if err != nil {
-		log.Println(err)
+		p.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -76,14 +81,14 @@ func (p Permission) FindAllPermissions() ([]entity.Permission, error) {
 			&permission.CreatorUserID,
 		)
 		if err != nil {
-			log.Println(err)
+			p.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		permissions = append(permissions, permission)
 	}
 
-	return permissions, err
+	return permissions, nil
 }
 
 func (p Permission) CreatePermission(permission entity.Permission) error {
@@ -105,6 +110,11 @@ func (p Permission) CreatePermission(permission entity.Permission) error {
 		permission.CreatedAt,
 		permission.CreatorUserID,
 	)
+
+	if err != nil {
+		p.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
@@ -114,9 +124,13 @@ func (p Permission) DeletePermission(resourceType string, resourceID uint64, ope
 		WHERE resource_type = $1 AND resource_id = $2 AND operation = $3 AND group_id = $4;
 		`,
 		resourceType, resourceID, operation, groupID)
+	if err != nil {
+		p.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewPermission(sqlDB *sql.DB) Permission {
-	return Permission{db: sqlDB}
+func NewPermission(dataCollector obs.DataCollector, sqlDB *sql.DB) Permission {
+	return Permission{dataCollector: dataCollector, db: sqlDB}
 }

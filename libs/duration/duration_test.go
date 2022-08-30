@@ -5,7 +5,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/teamyapp/cloud/libs/obs"
 )
+
+var testLogger = obs.NewDataCollector(obs.NewRawLogger(obs.Info))
 
 func TestParse(t *testing.T) {
 	testCases := []struct {
@@ -105,7 +108,7 @@ func TestParse(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			duration, err := Parse(testCase.input)
+			duration, err := Parse(testLogger, testCase.input)
 			if testCase.expectedHasErr {
 				assert.NotNil(t, err)
 				return
@@ -204,7 +207,7 @@ func TestFormat(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.input, func(t *testing.T) {
 			t.Parallel()
-			duration, err := Parse(testCase.input)
+			duration, err := Parse(testLogger, testCase.input)
 			assert.Nil(t, err)
 			if err != nil {
 				return

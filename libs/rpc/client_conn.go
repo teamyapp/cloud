@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/teamyapp/cloud/libs/middleware"
+	"github.com/teamyapp/cloud/libs/obs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -18,7 +19,7 @@ type ConnectionConfig struct {
 	RequestTimeout time.Duration
 }
 
-func NewClientConnection(cfg ConnectionConfig) (*grpc.ClientConn, error) {
+func NewClientConnection(dataCollector obs.DataCollector, cfg ConnectionConfig) (*grpc.ClientConn, error) {
 	var cred credentials.TransportCredentials
 	if cfg.ShouldEncrypt {
 		cred = credentials.NewTLS(nil)
@@ -29,5 +30,8 @@ func NewClientConnection(cfg ConnectionConfig) (*grpc.ClientConn, error) {
 	return grpc.Dial(
 		fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		grpc.WithTransportCredentials(cred),
-		grpc.WithChainUnaryInterceptor(middleware.ClientWithGRPCRequestID, middleware.ClientWithGRPCTimout(cfg.RequestTimeout), middleware.ClientWithGRPCIdentity(cfg.GetAccessToken)))
+		grpc.WithChainUnaryInterceptor(
+			middleware.ClientWithGRPCRequestID(dataCollector),
+			middleware.ClientWithGRPCTimout(cfg.RequestTimeout),
+			middleware.ClientWithGRPCIdentity(cfg.GetAccessToken)))
 }

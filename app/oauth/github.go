@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 const GitHubName = "github"
@@ -20,10 +21,13 @@ var githubAccessTokenURL = "https://github.com/login/oauth/access_token"
 var githubUserURL = "https://api.github.com/user"
 
 type GitHub struct {
-	clientID     string
-	clientSecret string
-	redirectURI  string
+	dataCollector obs.DataCollector
+	clientID      string
+	clientSecret  string
+	redirectURI   string
 }
+
+var _ Provider = (*GitHub)(nil)
 
 func (g GitHub) GetName() string {
 	return GitHubName
@@ -34,12 +38,14 @@ func (g GitHub) GetUser(authorizationCode string) (entity.ExternalUser, error) {
 	// oauth-apps#2-users-are-redirected-back-to-your-site-by-github
 	accessToken, err := g.getAccessToken(authorizationCode)
 	if err != nil {
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.ExternalUser{}, err
 	}
 
 	// https://docs.github.com/en/rest/users/emails#list-email-addresses-for-the-authenticated-user
 	req, err := http.NewRequest("GET", githubUserURL, nil)
 	if err != nil {
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.ExternalUser{}, err
 	}
 
@@ -47,15 +53,23 @@ func (g GitHub) GetUser(authorizationCode string) (entity.ExternalUser, error) {
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.ExternalUser{}, err
 	}
 
 	if res.StatusCode > 300 || res.StatusCode < 200 {
-		return entity.ExternalUser{}, fmt.Errorf("fail to obtain %s user ID: HTTPStatusCode=%v", g.GetName(), res.StatusCode)
+		err = fmt.Errorf("fail to obtain %s user ID", g.GetName())
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{
+			obs.CauseProp:       err,
+			"oauthProviderName": g.GetName(),
+			"httpStatusCode":    res.StatusCode,
+		})
+		return entity.ExternalUser{}, err
 	}
 
 	buf, err := ioutil.ReadAll(res.Body)
 	if err != nil {
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.ExternalUser{}, err
 	}
 
@@ -65,13 +79,14 @@ func (g GitHub) GetUser(authorizationCode string) (entity.ExternalUser, error) {
 	}
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.ExternalUser{}, err
 	}
 
 	return entity.ExternalUser{
 		ID:    strconv.FormatUint(body.UserID, 10),
 		Label: body.Login,
-	}, err
+	}, nil
 }
 
 func (g GitHub) GetStateID(request *http.Request) (uint64, error) {
@@ -85,6 +100,7 @@ func (g GitHub) GetAuthorizationCode(request *http.Request) string {
 func (g GitHub) GetSignInURL(stateID uint64) (string, error) {
 	baseURL, err := url.Parse(githubAuthorizationURL)
 	if err != nil {
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
@@ -110,11 +126,13 @@ func (g GitHub) getAccessToken(authorizationCode string) (string, error) {
 
 	buf, err := json.Marshal(tokenBody)
 	if err != nil {
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
 	req, err := http.NewRequest("POST", githubAccessTokenURL, bytes.NewReader(buf))
 	if err != nil {
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
@@ -122,15 +140,23 @@ func (g GitHub) getAccessToken(authorizationCode string) (string, error) {
 	req.Header.Set("Content-Type", "application/json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
 	if res.StatusCode > 300 || res.StatusCode < 200 {
-		return "", fmt.Errorf("fail to obtain %s access token: HTTPStatusCode=%v", g.GetName(), res.StatusCode)
+		err = fmt.Errorf("fail to obtain %s access token", g.GetName())
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{
+			obs.CauseProp:       err,
+			"oauthProviderName": g.GetName(),
+			"httpStatusCode":    res.StatusCode,
+		})
+		return "", err
 	}
 
 	buf, err = ioutil.ReadAll(res.Body)
 	if err != nil {
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
@@ -140,13 +166,18 @@ func (g GitHub) getAccessToken(authorizationCode string) (string, error) {
 		TokenType   string `json:"token_type"`
 	}{}
 	err = json.Unmarshal(buf, &body)
+	if err != nil {
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return body.AccessToken, err
 }
 
-func NewGitHub(webAPIBaseURL string, clientID string, clientSecret string) GitHub {
+func NewGitHub(dataCollector obs.DataCollector, webAPIBaseURL string, clientID string, clientSecret string) GitHub {
 	return GitHub{
-		clientID:     clientID,
-		clientSecret: clientSecret,
-		redirectURI:  fmt.Sprintf("%s/identity/sign-in/oauth/%s/finish", webAPIBaseURL, GitHubName),
+		dataCollector: dataCollector,
+		clientID:      clientID,
+		clientSecret:  clientSecret,
+		redirectURI:   fmt.Sprintf("%s/identity/sign-in/oauth/%s/finish", webAPIBaseURL, GitHubName),
 	}
 }

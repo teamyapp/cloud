@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type ServiceAccount struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.ServiceAccount = (*ServiceAccount)(nil)
@@ -28,7 +29,7 @@ func (s ServiceAccount) FindAllServiceAccounts(accountOwnerID uint64) ([]entity.
 	WHERE owner_user_id = $1;`,
 		accountOwnerID)
 	if err != nil {
-		log.Println(err)
+		s.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 	defer rows.Close()
@@ -44,14 +45,14 @@ func (s ServiceAccount) FindAllServiceAccounts(accountOwnerID uint64) ([]entity.
 			&serviceAccount.CreatedAt,
 		)
 		if err != nil {
-			log.Println(err)
+			s.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		serviceAccounts = append(serviceAccounts, serviceAccount)
 	}
 
-	return serviceAccounts, err
+	return serviceAccounts, nil
 }
 
 func (s ServiceAccount) FindServiceAccountByID(serviceAccountID uint64) (entity.ServiceAccount, error) {
@@ -79,6 +80,10 @@ func (s ServiceAccount) FindServiceAccountByID(serviceAccountID uint64) (entity.
 			"service account not found: id=%v", serviceAccountID))
 	}
 
+	if err != nil {
+		s.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return serviceAccount, err
 }
 
@@ -100,7 +105,7 @@ func (s ServiceAccount) CreateServiceAccount(serviceAccount entity.ServiceAccoun
 		serviceAccount.CreatedAt,
 	)
 	if err != nil {
-		log.Println(err)
+		s.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
@@ -123,6 +128,11 @@ func (s ServiceAccount) UpdateServiceAccount(serviceAccount entity.ServiceAccoun
 		serviceAccount.CreatedAt,
 		serviceAccount.ID,
 	)
+
+	if err != nil {
+		s.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
@@ -132,9 +142,14 @@ func (s ServiceAccount) DeleteServiceAccount(serviceAccountID uint64) error {
 		FROM identity_service_account
 		WHERE id = $1;`,
 		serviceAccountID)
+
+	if err != nil {
+		s.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewServiceAccount(sqlDB *sql.DB) ServiceAccount {
-	return ServiceAccount{db: sqlDB}
+func NewServiceAccount(dataCollector obs.DataCollector, sqlDB *sql.DB) ServiceAccount {
+	return ServiceAccount{dataCollector: dataCollector, db: sqlDB}
 }

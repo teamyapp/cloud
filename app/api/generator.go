@@ -2,15 +2,16 @@ package api
 
 import (
 	"context"
-	"log"
 
 	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/gen"
+	"github.com/teamyapp/cloud/libs/obs"
 	"github.com/teamyapp/cloud/libs/runner"
 	"google.golang.org/grpc"
 )
 
 type Generator struct {
+	dataCollector obs.DataCollector
 	proto.UnimplementedGeneratorServer
 	uniqueNumberGeneratorFactory gen.UniqueNumberFactory
 	uniqueNumberGenerators       map[string]*gen.UniqueNumber
@@ -36,7 +37,7 @@ func (g Generator) GenerateUniqueNumber(
 		var err error
 		uniqueNumGen, err = g.uniqueNumberGeneratorFactory.MakeUniqueNumber(request.SequenceName)
 		if err != nil {
-			log.Println(err)
+			g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			return nil, err
 		}
 
@@ -45,7 +46,7 @@ func (g Generator) GenerateUniqueNumber(
 
 	uniqueNum, err := uniqueNumGen.GenerateUniqueNumber()
 	if err != nil {
-		log.Println(err)
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -58,9 +59,14 @@ func (g Generator) GenerateUniqueString(
 ) (*proto.GenerateUniqueStringResponse, error) {
 	uniqueStringGen, ok := g.uniqueStringGenerators[request.SequenceName]
 	if !ok {
-		strGen, err := gen.NewUniqueString(request.SequenceName, int(request.StringLength), request.Alphabet, g.uniqueNumberGeneratorFactory)
+		strGen, err := gen.NewUniqueString(
+			g.dataCollector,
+			request.SequenceName,
+			int(request.StringLength),
+			request.Alphabet,
+			g.uniqueNumberGeneratorFactory)
 		if err != nil {
-			log.Println(err)
+			g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			return nil, err
 		}
 		uniqueStringGen = &strGen
@@ -69,15 +75,19 @@ func (g Generator) GenerateUniqueString(
 
 	uniqueStr, err := uniqueStringGen.GenerateUniqueString()
 	if err != nil {
-		log.Println(err)
+		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
 	return &proto.GenerateUniqueStringResponse{UniqueString: uniqueStr}, nil
 }
 
-func NewGenerator(uniqueNumberGeneratorFactory gen.UniqueNumberFactory) Generator {
+func NewGenerator(
+	dataCollector obs.DataCollector,
+	uniqueNumberGeneratorFactory gen.UniqueNumberFactory,
+) Generator {
 	return Generator{
+		dataCollector:                dataCollector,
 		uniqueNumberGeneratorFactory: uniqueNumberGeneratorFactory,
 		uniqueNumberGenerators:       make(map[string]*gen.UniqueNumber),
 		uniqueStringGenerators:       make(map[string]*gen.UniqueString),

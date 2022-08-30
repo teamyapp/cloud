@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type UserGroup struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.UserGroup = (*UserGroup)(nil)
@@ -44,6 +45,10 @@ func (u UserGroup) FindGroupByID(groupID uint64) (entity.UserGroup, error) {
 			groupID))
 	}
 
+	if err != nil {
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return group, err
 }
 
@@ -59,7 +64,7 @@ func (u UserGroup) FindAllGroups() ([]entity.UserGroup, error) {
 		FROM user_group;
 	`)
 	if err != nil {
-		log.Println(err)
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -76,14 +81,14 @@ func (u UserGroup) FindAllGroups() ([]entity.UserGroup, error) {
 			&group.UpdatedAt,
 		)
 		if err != nil {
-			log.Println(err)
+			u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		groups = append(groups, group)
 	}
 
-	return groups, err
+	return groups, nil
 }
 
 func (u UserGroup) CreateGroup(group entity.UserGroup) error {
@@ -105,6 +110,11 @@ func (u UserGroup) CreateGroup(group entity.UserGroup) error {
 		group.CreatorUserID,
 		group.UpdatedAt,
 	)
+
+	if err != nil {
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
@@ -125,6 +135,11 @@ func (u UserGroup) UpdateGroup(group entity.UserGroup) error {
 		group.UpdatedAt,
 		group.ID,
 	)
+
+	if err != nil {
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
@@ -134,9 +149,14 @@ func (u UserGroup) DeleteGroup(groupID uint64) error {
 		WHERE id = $1;
 		`,
 		groupID)
+
+	if err != nil {
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewUserGroup(sqlDB *sql.DB) UserGroup {
-	return UserGroup{db: sqlDB}
+func NewUserGroup(dataCollector obs.DataCollector, sqlDB *sql.DB) UserGroup {
+	return UserGroup{dataCollector: dataCollector, db: sqlDB}
 }

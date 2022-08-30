@@ -7,10 +7,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type AllocatedRange struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.AllocatedRange = (*AllocatedRange)(nil)
@@ -31,6 +33,10 @@ func (a AllocatedRange) FindAllocatedRangeByKey(key string) (entity.AllocatedRan
 			key))
 	}
 
+	if err != nil {
+		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return allocatedRange, err
 }
 
@@ -41,6 +47,10 @@ func (a AllocatedRange) CreateAllocatedRange(allocatedRange entity.AllocatedRang
 	`,
 		allocatedRange.Key,
 		allocatedRange.RangeEnd)
+	if err != nil {
+		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
@@ -52,11 +62,16 @@ func (a AllocatedRange) UpdateAllocatedRange(allocatedRange entity.AllocatedRang
 	`,
 		allocatedRange.RangeEnd,
 		allocatedRange.Key)
+	if err != nil {
+		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewAllocatedRange(sqlDB *sql.DB) AllocatedRange {
+func NewAllocatedRange(dataCollector obs.DataCollector, sqlDB *sql.DB) AllocatedRange {
 	return AllocatedRange{
-		db: sqlDB,
+		dataCollector: dataCollector,
+		db:            sqlDB,
 	}
 }

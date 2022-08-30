@@ -1,10 +1,10 @@
 package connection
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 var WebSocketUpgrader = websocket.Upgrader{
@@ -45,7 +45,7 @@ func (w WebSocket) Close() error {
 	return w.conn.Close()
 }
 
-func NewWebSocket(conn *websocket.Conn) WebSocket {
+func NewWebSocket(dataCollector obs.DataCollector, conn *websocket.Conn) WebSocket {
 	receiveMessageCh := make(chan []byte)
 	sendMessageCh := make(chan []byte, 500)
 	errorCh := make(chan error)
@@ -79,7 +79,7 @@ func NewWebSocket(conn *websocket.Conn) WebSocket {
 		for message := range sendMessageCh {
 			err := conn.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
-				log.Println(err)
+				dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 				select {
 				case errorCh <- err:
 				default:

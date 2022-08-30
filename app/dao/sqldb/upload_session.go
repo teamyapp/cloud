@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type UploadSession struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.UploadSession = (*UploadSession)(nil)
@@ -62,16 +63,18 @@ func (u UploadSession) FindUploadSessionByID(uploadSessionID uint64) (entity.Upl
 	}
 
 	if err != nil {
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
-	chunkIDs, err := parseIDs(chunkIDsString)
+	chunkIDs, err := parseIDs(u.dataCollector, chunkIDsString)
 	if err != nil {
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
 	uploadSession.ChunkIDs = chunkIDs
-	return uploadSession, err
+	return uploadSession, nil
 }
 
 func (u UploadSession) CreateUploadSession(uploadSession entity.UploadSession) error {
@@ -112,7 +115,7 @@ func (u UploadSession) CreateUploadSession(uploadSession entity.UploadSession) e
 		uploadSession.UpdatedAt,
 	)
 	if err != nil {
-		log.Println(err)
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
@@ -156,11 +159,17 @@ func (u UploadSession) UpdateUploadSession(uploadSession entity.UploadSession) e
 		uploadSession.UpdatedAt,
 		uploadSession.ID,
 	)
+
+	if err != nil {
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewUploadSession(sqlDB *sql.DB) UploadSession {
+func NewUploadSession(dataCollector obs.DataCollector, sqlDB *sql.DB) UploadSession {
 	return UploadSession{
-		db: sqlDB,
+		dataCollector: dataCollector,
+		db:            sqlDB,
 	}
 }
