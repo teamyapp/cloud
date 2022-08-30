@@ -31,10 +31,10 @@ func addDefaultProps(severity Severity, props Props, skipCallers int) {
 		return
 	}
 
-	props["happenAt"] = time.Now().UTC()
-	props["severity"] = severity
-	props["fileName"] = fileName
-	props["lineNumber"] = int64(lineNum)
+	props[HappenAtProp] = time.Now().UTC()
+	props[SeverityProp] = severity
+	props[FileNameProp] = fileName
+	props[LineNumberProp] = int64(lineNum)
 }
 
 func NewRawLogger(visibleSeverity Severity) RawLogger {
