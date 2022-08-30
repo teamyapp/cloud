@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/teamyapp/cloud/app/api/proto"
+	"github.com/teamyapp/cloud/libs/obs"
 	"github.com/teamyapp/cloud/libs/rpc"
 	"google.golang.org/grpc"
 )
@@ -46,9 +47,10 @@ func (c *ClientRegistry) FileClient() proto.FileClient {
 	return c.fileClient
 }
 
-func NewClientRegistry(connCfg rpc.ConnectionConfig) (*ClientRegistry, error) {
-	conn, err := rpc.NewClientConnection(connCfg)
+func NewClientRegistry(dataCollector obs.DataCollector, connCfg rpc.ConnectionConfig) (*ClientRegistry, error) {
+	conn, err := rpc.NewClientConnection(dataCollector, connCfg)
 	if err != nil {
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 

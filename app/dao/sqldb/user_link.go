@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type UserLink struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.UserLink = (*UserLink)(nil)
@@ -42,6 +43,10 @@ func (u UserLink) FindUserLinkByExternalUserID(authProvider string, externalUser
 			externalUserID))
 	}
 
+	if err != nil {
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return userLink, err
 }
 
@@ -58,7 +63,7 @@ func (u UserLink) FindUserLinksByInternalUserID(internalUserID uint64) ([]entity
 `,
 		internalUserID)
 	if err != nil {
-		log.Println(err)
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 	defer rows.Close()
@@ -73,14 +78,14 @@ func (u UserLink) FindUserLinksByInternalUserID(internalUserID uint64) ([]entity
 			&userLink.InternalUserID,
 		)
 		if err != nil {
-			log.Println(err)
+			u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		userLinks = append(userLinks, userLink)
 	}
 
-	return userLinks, err
+	return userLinks, nil
 }
 
 func (u UserLink) CreateUserLink(userLink entity.UserLink) error {
@@ -98,6 +103,11 @@ func (u UserLink) CreateUserLink(userLink entity.UserLink) error {
 		userLink.ExternalUserID,
 		userLink.ExternalUserLabel,
 		userLink.InternalUserID)
+
+	if err != nil {
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
@@ -108,11 +118,17 @@ func (u UserLink) DeleteUserLink(authProvider string, internalUserID uint64) err
 		WHERE auth_provider = $1 AND internal_user_id = $2;`,
 		authProvider,
 		internalUserID)
+
+	if err != nil {
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewUserLink(sqlDB *sql.DB) UserLink {
+func NewUserLink(dataCollector obs.DataCollector, sqlDB *sql.DB) UserLink {
 	return UserLink{
-		db: sqlDB,
+		dataCollector: dataCollector,
+		db:            sqlDB,
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/app/storage"
+	"github.com/teamyapp/cloud/libs/obs"
 	"github.com/teamyapp/cloud/libs/security"
 )
 
@@ -27,7 +28,22 @@ type WebAPIBaseURL string
 type ClientID string
 type ClientSecret string
 
+type S3Endpoint string
+type S3AccessKeyID string
+type S3AccessKey string
+type S3BucketName string
+
+func InitDataCollector(logLevel obs.LogLevel) obs.DataCollector {
+	wire.Build(
+		wire.Bind(new(obs.Logger), new(obs.RawLogger)),
+		obs.NewRawLogger,
+		obs.NewDataCollector,
+	)
+	return obs.DataCollector{}
+}
+
 func InitGoogleOAuthProvider(
+	dataCollector obs.DataCollector,
 	webAPIBaseURL WebAPIBaseURL,
 	jwtSigningKey JWTSigningKey,
 	clientID ClientID,
@@ -79,6 +95,7 @@ var storageSet = wire.NewSet(
 )
 
 func InitIdentityAPI(
+	dataCollector obs.DataCollector,
 	sqlDB *sql.DB,
 	oauthProviders OAuthProviders,
 	accessTokenTTL AccessTokenTTL,
@@ -96,6 +113,7 @@ func InitIdentityAPI(
 }
 
 func InitGeneratorAPI(
+	dataCollector obs.DataCollector,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
 ) (api.Generator, error) {
@@ -108,6 +126,7 @@ func InitGeneratorAPI(
 }
 
 func InitAuthorizationAPI(
+	dataCollector obs.DataCollector,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
 ) (api.Authorization, error) {
@@ -121,6 +140,7 @@ func InitAuthorizationAPI(
 }
 
 func InitFileAPI(
+	dataCollector obs.DataCollector,
 	env config.Environment,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
@@ -139,47 +159,55 @@ func InitFileAPI(
 	return api.File{}, nil
 }
 
-type S3Endpoint string
-type S3AccessKeyID string
-type S3AccessKey string
-type S3BucketName string
-
 func newS3Bucket(
+	dataCollector obs.DataCollector,
 	s3Endpoint S3Endpoint,
 	s3AccessKeyID S3AccessKeyID,
 	s3AccessKey S3AccessKey,
 	s3BucketName S3BucketName,
 	env config.Environment,
 ) (storage.S3Bucket, error) {
-	return storage.NewS3Bucket(string(s3Endpoint), string(s3AccessKeyID), string(s3AccessKey), env, string(s3BucketName))
+	return storage.NewS3Bucket(
+		dataCollector,
+		string(s3Endpoint),
+		string(s3AccessKeyID),
+		string(s3AccessKey),
+		env,
+		string(s3BucketName))
 }
 
 func newGoogleOAuthProvider(
+	dataCollector obs.DataCollector,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.Google {
-	return oauth.NewGoogle(jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewGoogle(dataCollector, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func InitGitHubOAuthProvider(
+	dataCollector obs.DataCollector,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.GitHub {
-	return oauth.NewGitHub(string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewGitHub(dataCollector, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
-func newJWTAuthority(signingKey JWTSigningKey) security.JWTAuthority {
-	return security.NewJWTAuthority(string(signingKey))
+func newJWTAuthority(dataCollector obs.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {
+	return security.NewJWTAuthority(dataCollector, string(signingKey))
 }
 
-func newUniqueNumberGenFactory(allocatedRangeDao dao.AllocatedRange, genRangeSize GenRangeSize) gen.UniqueNumberFactory {
-	return gen.NewUniqueNumberFactory(allocatedRangeDao, uint64(genRangeSize))
+func newUniqueNumberGenFactory(
+	dataCollector obs.DataCollector,
+	allocatedRangeDao dao.AllocatedRange,
+	genRangeSize GenRangeSize) gen.UniqueNumberFactory {
+	return gen.NewUniqueNumberFactory(dataCollector, allocatedRangeDao, uint64(genRangeSize))
 }
 
 func newIdentityService(
+	dataCollector obs.DataCollector,
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
@@ -189,6 +217,7 @@ func newIdentityService(
 	accessTokenTLL AccessTokenTTL,
 ) (service.Identity, error) {
 	return service.NewIdentity(
+		dataCollector,
 		signInSessionDao,
 		userLinkDao,
 		serviceAccountDao,

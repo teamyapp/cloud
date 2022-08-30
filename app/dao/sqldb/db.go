@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -15,6 +14,7 @@ import (
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"
 	"github.com/teamyapp/cloud/libs/io"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 const dbType = "postgres"
@@ -38,26 +38,26 @@ type Config struct {
 	DBSSLMode  string `envconfig:"DB_SSL_MODE" default:"require"`
 }
 
-func Use(cfg Config, action func(sqlDB *sql.DB) error) error {
+func Use(dataCollector obs.DataCollector, cfg Config, action func(sqlDB *sql.DB) error) error {
 	sqlDB, err := connect(cfg)
 	if err != nil {
 		return err
 	}
 	defer sqlDB.Close()
 
-	waitUntilReady(sqlDB)
+	waitUntilReady(dataCollector, sqlDB)
 	return action(sqlDB)
 }
 
-func MigrateUp(sqlDB *sql.DB, migrationRoot string, steps int) error {
-	return migrateDB(sqlDB, migrationRoot, migrate.Up, steps)
+func MigrateUp(dataCollector obs.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) error {
+	return migrateDB(dataCollector, sqlDB, migrationRoot, migrate.Up, steps)
 }
 
-func MigrateDown(sqlDB *sql.DB, migrationRoot string, steps int) error {
-	return migrateDB(sqlDB, migrationRoot, migrate.Down, steps)
+func MigrateDown(dataCollector obs.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) error {
+	return migrateDB(dataCollector, sqlDB, migrationRoot, migrate.Down, steps)
 }
 
-func NewMigration(migrationDir string, fileName string) (string, error) {
+func NewMigration(dataCollector obs.DataCollector, migrationDir string, fileName string) (string, error) {
 	now := time.Now()
 	prefix := fmt.Sprintf(
 		"%04d%02d%02d%02d%02d%02d_%s",
@@ -71,6 +71,7 @@ func NewMigration(migrationDir string, fileName string) (string, error) {
 
 	err := os.MkdirAll(migrationDir, os.ModePerm)
 	if err != nil {
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
@@ -78,13 +79,14 @@ func NewMigration(migrationDir string, fileName string) (string, error) {
 	fullFilePath := filepath.Join(migrationDir, fileName)
 	err = io.CreateFileWithLog(fullFilePath)
 	if err != nil {
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
 	return fullFilePath, nil
 }
 
-func New(dbName string) {
+func New(dataCollector obs.DataCollector, dbName string) {
 	alphabet := concatenate([]string{
 		lowerCaseLetters,
 		upperCaseLetters,
@@ -95,8 +97,8 @@ func New(dbName string) {
 	dbNamePostfix := randString(dbNamePostfixAlphabet, 5)
 	fullDBName := fmt.Sprintf("%s-%s", dbName, dbNamePostfix)
 	password := randString(alphabet, dbPasswordLen)
-
-	fmt.Println(strings.TrimSpace(fmt.Sprintf(`
+	dataCollector.Logger.Log(obs.Info, obs.Props{
+		"message": strings.TrimSpace(fmt.Sprintf(`
 user: %s
 password: %s
 dbName: %s
@@ -107,51 +109,64 @@ CREATE USER "%s" WITH PASSWORD '%s';
 GRANT ALL PRIVILEGES ON DATABASE "%s" TO "%s";
 ================================================================================
 `,
-		fullDBName,
-		password,
-		fullDBName,
-		fullDBName,
-		fullDBName,
-		password,
-		fullDBName,
-		fullDBName,
-	)))
+			fullDBName,
+			password,
+			fullDBName,
+			fullDBName,
+			fullDBName,
+			password,
+			fullDBName,
+			fullDBName,
+		)),
+	})
 }
 
-func ExecSQL(sqlDB *sql.DB, sqlFileName string) error {
+func ExecSQL(dataCollector obs.DataCollector, sqlDB *sql.DB, sqlFileName string) error {
 	buf, err := ioutil.ReadFile(sqlFileName)
 	if err != nil {
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
 	tx, err := sqlDB.BeginTx(context.Background(), nil)
 	if err != nil {
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
 	_, err = tx.Exec(string(buf))
 	if err != nil {
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
 	err = tx.Commit()
 	if err == nil {
-		log.Println("successfully seeded DB")
+		dataCollector.Logger.Log(obs.Info, obs.Props{
+			"message": "successfully seeded DB",
+		})
 	}
+
 	return err
 }
 
-func waitUntilReady(sqlDB *sql.DB) {
+func waitUntilReady(dataCollector obs.DataCollector, sqlDB *sql.DB) {
 	for {
 		err := sqlDB.Ping()
 		if err == nil {
-			log.Println("successfully connected to the DB")
+			dataCollector.Logger.Log(obs.Info, obs.Props{
+				"message": "successfully connected to the DB",
+			})
 			break
 		}
 
-		log.Println(err)
-		log.Println("fail to connect to the DB")
-		log.Println("retry after 5 seconds")
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(obs.Info, obs.Props{
+			"message": "fail to connect to the DB",
+		})
+		dataCollector.Logger.Log(obs.Info, obs.Props{
+			"message": "retry after 5 seconds",
+		})
 		time.Sleep(5 * time.Second)
 	}
 }
@@ -169,6 +184,7 @@ func connect(cfg Config) (*sql.DB, error) {
 }
 
 func migrateDB(
+	dataCollector obs.DataCollector,
 	db *sql.DB,
 	migrationRoot string,
 	migrateDirection migrate.MigrationDirection,
@@ -178,10 +194,15 @@ func migrateDB(
 		Dir: migrationRoot,
 	}
 	_, err := migrate.ExecMax(db, dbType, migrations, migrateDirection, steps)
-	if err == nil {
-		log.Println("migration finished")
+	if err != nil {
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		return err
 	}
-	return err
+
+	dataCollector.Logger.Log(obs.Info, obs.Props{
+		"message": "migration finished",
+	})
+	return nil
 }
 
 func concatenate(src []string) []rune {

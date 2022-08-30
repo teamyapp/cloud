@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type ResourceType struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.ResourceType = (*ResourceType)(nil)
@@ -38,6 +39,10 @@ func (r ResourceType) FindResourceType(resourceTypeName string) (entity.Resource
 			resourceTypeName))
 	}
 
+	if err != nil {
+		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return resourceTypeEntity, err
 }
 
@@ -50,7 +55,7 @@ func (r ResourceType) FindAllResourceTypes() ([]entity.ResourceType, error) {
 	FROM resource_type;
 `)
 	if err != nil {
-		log.Println(err)
+		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -64,14 +69,14 @@ func (r ResourceType) FindAllResourceTypes() ([]entity.ResourceType, error) {
 			&resourceTypeEntity.CreatorUserID,
 		)
 		if err != nil {
-			log.Println(err)
+			r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		resourceTypeEntities = append(resourceTypeEntities, resourceTypeEntity)
 	}
 
-	return resourceTypeEntities, err
+	return resourceTypeEntities, nil
 }
 
 func (r ResourceType) CreateResourceType(resourceTypeEntity entity.ResourceType) error {
@@ -96,9 +101,13 @@ func (r ResourceType) DeleteResourceType(resourceTypeName string) error {
 		WHERE resource_type = $1;
 		`,
 		resourceTypeName)
+	if err != nil {
+		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewResourceType(sqlDB *sql.DB) ResourceType {
-	return ResourceType{db: sqlDB}
+func NewResourceType(dataCollector obs.DataCollector, sqlDB *sql.DB) ResourceType {
+	return ResourceType{dataCollector: dataCollector, db: sqlDB}
 }

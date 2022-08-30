@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type ResourceRelation struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.ResourceRelation = (*ResourceRelation)(nil)
@@ -49,6 +50,10 @@ func (r ResourceRelation) FindResourceRelation(
 			childResourceType, childResourceID, parentResourceType, parentResourceID))
 	}
 
+	if err != nil {
+		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return resourceRelation, err
 }
 
@@ -65,7 +70,7 @@ func (r ResourceRelation) FindResourceRelations(childResourceType string, childR
 		WHERE child_resource_type = $1 AND child_resource_id = $2;`,
 		childResourceType, childResourceID)
 	if err != nil {
-		log.Println(err)
+		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -82,14 +87,14 @@ func (r ResourceRelation) FindResourceRelations(childResourceType string, childR
 			&resourceRelation.CreatorUserID,
 		)
 		if err != nil {
-			log.Println(err)
+			r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		resourceRelations = append(resourceRelations, resourceRelation)
 	}
 
-	return resourceRelations, err
+	return resourceRelations, nil
 }
 
 func (r ResourceRelation) FindAllResourceRelations() ([]entity.ResourceRelation, error) {
@@ -104,7 +109,7 @@ func (r ResourceRelation) FindAllResourceRelations() ([]entity.ResourceRelation,
 		FROM resource_relation;
 	`)
 	if err != nil {
-		log.Println(err)
+		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -121,14 +126,14 @@ func (r ResourceRelation) FindAllResourceRelations() ([]entity.ResourceRelation,
 			&resourceRelation.CreatorUserID,
 		)
 		if err != nil {
-			log.Println(err)
+			r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		resourceRelations = append(resourceRelations, resourceRelation)
 	}
 
-	return resourceRelations, err
+	return resourceRelations, nil
 }
 
 func (r ResourceRelation) CreateResourceRelation(resourceRelation entity.ResourceRelation) error {
@@ -150,6 +155,11 @@ func (r ResourceRelation) CreateResourceRelation(resourceRelation entity.Resourc
 		resourceRelation.CreatedAt,
 		resourceRelation.CreatorUserID,
 	)
+
+	if err != nil {
+		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
@@ -161,12 +171,21 @@ func (r ResourceRelation) DeleteResourceRelation(
 ) error {
 	_, err := r.db.Exec(`
 		DELETE FROM resource_relation
-		WHERE child_resource_type = $1 AND child_resource_id = $2 AND parent_resource_type = $3 AND parent_resource_id = $4;
+		WHERE 
+		    child_resource_type = $1 AND 
+		    child_resource_id = $2 AND 
+		    parent_resource_type = $3 AND 
+		    parent_resource_id = $4;
 		`,
 		childResourceType, childResourceID, parentResourceType, parentResourceID)
+
+	if err != nil {
+		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewResourceRelation(sqlDB *sql.DB) ResourceRelation {
-	return ResourceRelation{db: sqlDB}
+func NewResourceRelation(dataCollector obs.DataCollector, sqlDB *sql.DB) ResourceRelation {
+	return ResourceRelation{dataCollector: dataCollector, db: sqlDB}
 }

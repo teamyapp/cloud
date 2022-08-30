@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type OperationRelation struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.OperationRelation = (*OperationRelation)(nil)
@@ -49,6 +50,10 @@ func (o OperationRelation) FindOperationRelation(
 			childResourceType, childOperation, parentResourceType, parentOperation))
 	}
 
+	if err != nil {
+		o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return operationRelation, err
 }
 
@@ -65,7 +70,7 @@ func (o OperationRelation) FindOperationRelations(childResourceType string, chil
 		WHERE child_resource_type = $1 AND child_operation = $2;`,
 		childResourceType, childOperation)
 	if err != nil {
-		log.Println(err)
+		o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -82,14 +87,14 @@ func (o OperationRelation) FindOperationRelations(childResourceType string, chil
 			&operationRelation.CreatorUserID,
 		)
 		if err != nil {
-			log.Println(err)
+			o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		operationRelations = append(operationRelations, operationRelation)
 	}
 
-	return operationRelations, err
+	return operationRelations, nil
 }
 
 func (o OperationRelation) FindAllOperationRelations() ([]entity.OperationRelation, error) {
@@ -104,7 +109,7 @@ func (o OperationRelation) FindAllOperationRelations() ([]entity.OperationRelati
 		FROM operation_relation;
 	`)
 	if err != nil {
-		log.Println(err)
+		o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -121,14 +126,14 @@ func (o OperationRelation) FindAllOperationRelations() ([]entity.OperationRelati
 			&operationRelation.CreatorUserID,
 		)
 		if err != nil {
-			log.Println(err)
+			o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		operationRelations = append(operationRelations, operationRelation)
 	}
 
-	return operationRelations, err
+	return operationRelations, nil
 }
 
 func (o OperationRelation) CreateOperationRelation(operationRelation entity.OperationRelation) error {
@@ -150,6 +155,11 @@ func (o OperationRelation) CreateOperationRelation(operationRelation entity.Oper
 		operationRelation.CreatedAt,
 		operationRelation.CreatorUserID,
 	)
+
+	if err != nil {
+		o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
@@ -164,9 +174,14 @@ func (o OperationRelation) DeleteOperationRelation(
 		WHERE child_resource_type = $1 AND child_operation = $2 AND parent_resource_type = $3 AND parent_operation = $4;
 		`,
 		childResourceType, childOperation, parentResourceType, parentOperation)
+
+	if err != nil {
+		o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewOperationRelation(sqlDB *sql.DB) OperationRelation {
-	return OperationRelation{db: sqlDB}
+func NewOperationRelation(dataCollector obs.DataCollector, sqlDB *sql.DB) OperationRelation {
+	return OperationRelation{dataCollector: dataCollector, db: sqlDB}
 }

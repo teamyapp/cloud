@@ -2,7 +2,6 @@ package runner
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"sync"
@@ -11,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/libs/middleware"
+	"github.com/teamyapp/cloud/libs/obs"
 	"google.golang.org/grpc"
 )
 
@@ -27,11 +27,11 @@ type ServiceRunnerConfig struct {
 	RequestTimeout      time.Duration `envconfig:"REQUEST_TIMEOUT" default:"10s"`
 }
 
-func ServiceRunnerConfigFromEnv() (ServiceRunnerConfig, error) {
+func ServiceRunnerConfigFromEnv(dataCollector obs.DataCollector) (ServiceRunnerConfig, error) {
 	cfg := ServiceRunnerConfig{}
-	err := config.FromEnv(&cfg)
+	err := config.FromEnv(dataCollector, &cfg)
 	if err != nil {
-		log.Println(err)
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return ServiceRunnerConfig{}, err
 	}
 
@@ -39,16 +39,18 @@ func ServiceRunnerConfigFromEnv() (ServiceRunnerConfig, error) {
 }
 
 type ServiceRunner struct {
-	config     ServiceRunnerConfig
-	webRouter  *mux.Router
-	gRPCServer *grpc.Server
-	services   []Service
+	dataCollector obs.DataCollector
+	config        ServiceRunnerConfig
+	webRouter     *mux.Router
+	gRPCServer    *grpc.Server
+	services      []Service
 }
 
 func (s *ServiceRunner) Start() {
 	for _, service := range s.services {
 		err := service.Start(s)
 		if err != nil {
+			s.dataCollector.Logger.Log(obs.Fatal, obs.Props{obs.CauseProp: err})
 			panic(err)
 		}
 	}
@@ -69,15 +71,19 @@ func (s *ServiceRunner) Start() {
 }
 
 func (s *ServiceRunner) startWebServer() {
-	log.Printf("Service runner Web server started at port %d\n", s.config.WebServerPort)
+	s.dataCollector.Logger.Log(obs.Info, obs.Props{
+		"message": "service runner Web server started",
+		"port":    s.config.WebServerPort,
+	})
 	serveMux := http.NewServeMux()
-	handlerFunc := middleware.WithWebTimeout(s.config.RequestTimeout, middleware.EnableCORS(
-		middleware.WebWithRequestID(
-			middleware.LogWebRequest(
-				middleware.ServerWithWebIdentity(
-					s.config.IdentityAPIEndpoint,
-					middleware.ServerWithWebSocketIdentity(s.config.IdentityAPIEndpoint,
-						s.webRouter.ServeHTTP))))))
+	handlerFunc :=
+		middleware.EnableCORS(
+			middleware.WebWithRequestID(s.dataCollector,
+				middleware.WithWebTimeout(s.config.RequestTimeout,
+					middleware.LogWebRequest(s.dataCollector,
+						middleware.ServerWithWebIdentity(s.dataCollector, s.config.IdentityAPIEndpoint,
+							middleware.ServerWithWebSocketIdentity(s.dataCollector, s.config.IdentityAPIEndpoint,
+								s.webRouter.ServeHTTP))))))
 	serveMux.HandleFunc("/", handlerFunc)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.WebServerPort), serveMux); err != nil {
 		panic(err)
@@ -85,14 +91,18 @@ func (s *ServiceRunner) startWebServer() {
 }
 
 func (s *ServiceRunner) startGRPCServer() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(fmt.Sprintf(":%d", s.config.GRPCServerPort)))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.config.GRPCServerPort))
 	if err != nil {
 		panic(err)
 	}
 
-	log.Printf("Service runner gRPC server started at port %d\n", s.config.GRPCServerPort)
+	s.dataCollector.Logger.Log(obs.Info, obs.Props{
+		"message": "service runner gRPC server started",
+		"port":    s.config.WebServerPort,
+	})
 	err = s.gRPCServer.Serve(lis)
 	if err != nil {
+		s.dataCollector.Logger.Log(obs.Fatal, obs.Props{obs.CauseProp: err})
 		panic(err)
 	}
 }
@@ -107,16 +117,17 @@ func (s *ServiceRunner) WithGRPCServer(withGRPCServer func(server *grpc.Server))
 	withGRPCServer(s.gRPCServer)
 }
 
-func NewServiceRunner(config ServiceRunnerConfig, services []Service) ServiceRunner {
+func NewServiceRunner(dataCollector obs.DataCollector, config ServiceRunnerConfig, services []Service) ServiceRunner {
 	return ServiceRunner{
-		config:    config,
-		webRouter: mux.NewRouter(),
+		dataCollector: dataCollector,
+		config:        config,
+		webRouter:     mux.NewRouter(),
 		gRPCServer: grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
 				middleware.ServerWithGRPCTimeout(config.RequestTimeout),
-				middleware.GRPCWithRequestID,
-				middleware.LogGRPCRequest,
-				middleware.ServerWithGRPCIdentity(config.IdentityAPIEndpoint),
+				middleware.GRPCWithRequestID(dataCollector),
+				middleware.LogGRPCRequest(dataCollector),
+				middleware.ServerWithGRPCIdentity(dataCollector, config.IdentityAPIEndpoint),
 			)),
 		services: services,
 	}

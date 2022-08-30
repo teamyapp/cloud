@@ -1,13 +1,13 @@
 package config
 
 import (
-	"log"
 	"os"
 	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type Repo struct {
@@ -34,32 +34,32 @@ type App struct {
 	S3BucketName       string        `envconfig:"S3_BUCKET_NAME" default:"teamyapp"`
 }
 
-func AppFromEnv() (App, error) {
+func AppFromEnv(dataCollector obs.DataCollector) (App, error) {
 	cfg := App{}
-	err := FromEnv(&cfg)
+	err := FromEnv(dataCollector, &cfg)
 	if err != nil {
-		log.Println(err)
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return App{}, err
 	}
 	return cfg, nil
 }
 
-func FromEnv(config interface{}) error {
+func FromEnv(dataCollector obs.DataCollector, config interface{}) error {
 	err := autoLoadEnv(".env")
 	if err != nil {
-		log.Println(err)
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
 	err = autoLoadEnv(".repo.env")
 	if err != nil {
-		log.Println(err)
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
 	err = envconfig.Process("", config)
 	if err != nil {
-		log.Println(err)
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 

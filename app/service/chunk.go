@@ -1,18 +1,19 @@
 package service
 
 import (
-	"fmt"
-	"log"
+	"errors"
 	"path"
 	"strconv"
 
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/storage"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 const chunkKeyPrefix = "chunks"
 
 type ChunksIterator struct {
+	dataCollector  obs.DataCollector
 	mapBackend     storage.MapBackend
 	chunkIDs       []uint64
 	nextChunkIndex int
@@ -27,19 +28,25 @@ func (c ChunksIterator) HasNext() (bool, error) {
 func (c *ChunksIterator) Next() ([]byte, error) {
 	hasNext, err := c.HasNext()
 	if err != nil {
-		log.Println(err)
+		c.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
 	if !hasNext {
-		return nil, fmt.Errorf("no next chunk: nextChunkIndex=%v. numOfChunks=%v", c.nextChunkIndex, c.chunkIDs)
+		err = errors.New("no next chunk")
+		c.dataCollector.Logger.Log(obs.Error, obs.Props{
+			obs.CauseProp:    err,
+			"nextChunkIndex": c.nextChunkIndex,
+			"numOfChunks":    c.chunkIDs,
+		})
+		return nil, err
 	}
 
 	chunkIDPath := strconv.FormatUint(c.chunkIDs[c.nextChunkIndex], 10)
 	fullPath := path.Join(chunkKeyPrefix, chunkIDPath)
 	data, err := c.mapBackend.Get(fullPath)
 	if err != nil {
-		log.Println(err)
+		c.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -47,8 +54,13 @@ func (c *ChunksIterator) Next() ([]byte, error) {
 	return data, nil
 }
 
-func newChunksIterator(mapBackend storage.MapBackend, chunkIDs []uint64) *ChunksIterator {
+func newChunksIterator(
+	dataCollector obs.DataCollector,
+	mapBackend storage.MapBackend,
+	chunkIDs []uint64,
+) *ChunksIterator {
 	return &ChunksIterator{
+		dataCollector:  dataCollector,
 		mapBackend:     mapBackend,
 		chunkIDs:       chunkIDs,
 		nextChunkIndex: 0,

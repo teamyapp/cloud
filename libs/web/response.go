@@ -2,17 +2,18 @@ package web
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
+
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
-func WriteJSON(writer http.ResponseWriter, body interface{}) {
+func WriteJSON(dataCollector obs.DataCollector, writer http.ResponseWriter, body interface{}) {
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusAccepted)
 
 	buf, err := json.MarshalIndent(body, "", "  ")
 	if err != nil {
-		log.Println(err)
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}

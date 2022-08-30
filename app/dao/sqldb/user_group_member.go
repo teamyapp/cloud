@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type UserGroupMember struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.UserGroupMember = (*UserGroupMember)(nil)
@@ -24,7 +25,7 @@ func (u UserGroupMember) FindGroupIDsByUserID(userID uint64) ([]uint64, error) {
 		WHERE user_id = $1;`,
 		userID)
 	if err != nil {
-		log.Println(err)
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -36,14 +37,14 @@ func (u UserGroupMember) FindGroupIDsByUserID(userID uint64) ([]uint64, error) {
 			&groupID,
 		)
 		if err != nil {
-			log.Println(err)
+			u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		groupIDs = append(groupIDs, groupID)
 	}
 
-	return groupIDs, err
+	return groupIDs, nil
 }
 
 func (u UserGroupMember) FindUserGroupMembersByUserID(userID uint64) ([]entity.UserGroupMember, error) {
@@ -57,7 +58,7 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(userID uint64) ([]entity.U
 		WHERE user_id = $1;`,
 		userID)
 	if err != nil {
-		log.Println(err)
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -72,14 +73,14 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(userID uint64) ([]entity.U
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			log.Println(err)
+			u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		userGroupMembers = append(userGroupMembers, userGroupMember)
 	}
 
-	return userGroupMembers, err
+	return userGroupMembers, nil
 }
 
 func (u UserGroupMember) FindUserGroupMembersByGroupID(groupID uint64) ([]entity.UserGroupMember, error) {
@@ -93,7 +94,7 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(groupID uint64) ([]entity
 		WHERE group_id = $1;`,
 		groupID)
 	if err != nil {
-		log.Println(err)
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -108,14 +109,14 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(groupID uint64) ([]entity
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			log.Println(err)
+			u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		userGroupMembers = append(userGroupMembers, userGroupMember)
 	}
 
-	return userGroupMembers, err
+	return userGroupMembers, nil
 }
 
 func (u UserGroupMember) FindUserGroupMember(groupID uint64, userID uint64) (entity.UserGroupMember, error) {
@@ -142,6 +143,10 @@ func (u UserGroupMember) FindUserGroupMember(groupID uint64, userID uint64) (ent
 			groupID, userID))
 	}
 
+	if err != nil {
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return userGroupMember, err
 }
 
@@ -155,7 +160,7 @@ func (u UserGroupMember) FindAllUserGroupMembers() ([]entity.UserGroupMember, er
 		FROM user_group_member;
 `)
 	if err != nil {
-		log.Println(err)
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -170,14 +175,14 @@ func (u UserGroupMember) FindAllUserGroupMembers() ([]entity.UserGroupMember, er
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			log.Println(err)
+			u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
 		userGroupMembers = append(userGroupMembers, userGroupMember)
 	}
 
-	return userGroupMembers, err
+	return userGroupMembers, nil
 }
 
 func (u UserGroupMember) CreateUserGroupMember(userGroupMember entity.UserGroupMember) error {
@@ -195,6 +200,11 @@ func (u UserGroupMember) CreateUserGroupMember(userGroupMember entity.UserGroupM
 		userGroupMember.CreatedAt,
 		userGroupMember.CreatorUserID,
 	)
+
+	if err != nil {
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
@@ -204,9 +214,14 @@ func (u UserGroupMember) DeleteUserGroupMember(groupID uint64, userID uint64) er
 		WHERE group_id = $1 AND user_id = $2;
 		`,
 		groupID, userID)
+
+	if err != nil {
+		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewUserGroupMember(sqlDB *sql.DB) UserGroupMember {
-	return UserGroupMember{db: sqlDB}
+func NewUserGroupMember(dataCollector obs.DataCollector, sqlDB *sql.DB) UserGroupMember {
+	return UserGroupMember{dataCollector: dataCollector, db: sqlDB}
 }

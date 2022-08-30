@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type ChunkMetadata struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.ChunkMetadata = (*ChunkMetadata)(nil)
@@ -37,6 +38,10 @@ func (c ChunkMetadata) FindChunkMetadataID(chunkID uint64) (entity.ChunkMetadata
 			"chunk metadata not found: id=%v", chunkID))
 	}
 
+	if err != nil {
+		c.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return chunkMetadata, err
 }
 
@@ -53,8 +58,9 @@ func (c ChunkMetadata) CreateChunkMetadata(metadata entity.ChunkMetadata) error 
 		metadata.SizeInBytes,
 		metadata.CreatedAt,
 	)
+
 	if err != nil {
-		log.Println(err)
+		c.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
@@ -74,9 +80,17 @@ func (c ChunkMetadata) UpdateChunkMetadata(metadata entity.ChunkMetadata) error 
 		metadata.CreatedAt,
 		metadata.ID,
 	)
+
+	if err != nil {
+		c.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewChunkMetadata(sqlDB *sql.DB) ChunkMetadata {
-	return ChunkMetadata{db: sqlDB}
+func NewChunkMetadata(dataCollector obs.DataCollector, sqlDB *sql.DB) ChunkMetadata {
+	return ChunkMetadata{
+		dataCollector: dataCollector,
+		db:            sqlDB,
+	}
 }
