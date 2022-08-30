@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const logBufferSize = 2000
+
 type RawLogger struct {
 	visibleSeverity Severity
 	logQueue        chan Props
@@ -40,7 +42,7 @@ func withDefaults(severity Severity, props Props, skipCallers int) Props {
 }
 
 func NewRawLogger(visibleSeverity Severity) RawLogger {
-	logQueue := make(chan Props, 500)
+	logQueue := make(chan Props, logBufferSize)
 	go func() {
 		for logProps := range logQueue {
 			buf, err := json.Marshal(logProps)
