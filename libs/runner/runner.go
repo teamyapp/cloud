@@ -72,8 +72,10 @@ func (s *ServiceRunner) Start() {
 
 func (s *ServiceRunner) startWebServer() {
 	s.dataCollector.Logger.Log(obs.Info, obs.Props{
-		"message": "service runner Web server started",
-		"port":    s.config.WebServerPort,
+		obs.MessageProp: obs.Props{
+			"summary": "service runner Web server started",
+			"port":    s.config.WebServerPort,
+		},
 	})
 	serveMux := http.NewServeMux()
 	handlerFunc :=
@@ -97,8 +99,10 @@ func (s *ServiceRunner) startGRPCServer() {
 	}
 
 	s.dataCollector.Logger.Log(obs.Info, obs.Props{
-		"message": "service runner gRPC server started",
-		"port":    s.config.WebServerPort,
+		obs.MessageProp: obs.Props{
+			"summary": "service runner gRPC server started",
+			"port":    s.config.GRPCServerPort,
+		},
 	})
 	err = s.gRPCServer.Serve(lis)
 	if err != nil {

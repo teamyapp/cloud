@@ -98,7 +98,7 @@ func New(dataCollector obs.DataCollector, dbName string) {
 	fullDBName := fmt.Sprintf("%s-%s", dbName, dbNamePostfix)
 	password := randString(alphabet, dbPasswordLen)
 	dataCollector.Logger.Log(obs.Info, obs.Props{
-		"message": strings.TrimSpace(fmt.Sprintf(`
+		obs.MessageProp: strings.TrimSpace(fmt.Sprintf(`
 user: %s
 password: %s
 dbName: %s
@@ -143,7 +143,7 @@ func ExecSQL(dataCollector obs.DataCollector, sqlDB *sql.DB, sqlFileName string)
 	err = tx.Commit()
 	if err == nil {
 		dataCollector.Logger.Log(obs.Info, obs.Props{
-			"message": "successfully seeded DB",
+			obs.MessageProp: "successfully seeded DB",
 		})
 	}
 
@@ -155,17 +155,17 @@ func waitUntilReady(dataCollector obs.DataCollector, sqlDB *sql.DB) {
 		err := sqlDB.Ping()
 		if err == nil {
 			dataCollector.Logger.Log(obs.Info, obs.Props{
-				"message": "successfully connected to the DB",
+				obs.MessageProp: "successfully connected to the DB",
 			})
 			break
 		}
 
 		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
-		dataCollector.Logger.Log(obs.Info, obs.Props{
-			"message": "fail to connect to the DB",
+		dataCollector.Logger.Log(obs.Warning, obs.Props{
+			obs.MessageProp: "fail to connect to the DB",
 		})
 		dataCollector.Logger.Log(obs.Info, obs.Props{
-			"message": "retry after 5 seconds",
+			obs.MessageProp: "retry after 5 seconds",
 		})
 		time.Sleep(5 * time.Second)
 	}
@@ -200,7 +200,7 @@ func migrateDB(
 	}
 
 	dataCollector.Logger.Log(obs.Info, obs.Props{
-		"message": "migration finished",
+		obs.MessageProp: "migration finished",
 	})
 	return nil
 }

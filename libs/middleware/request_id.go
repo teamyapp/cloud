@@ -55,8 +55,8 @@ func generateRequestIdIfNot(dataCollector obs.DataCollector, requestID string) (
 		randomID := uuid.New()
 		requestID = randomID.String()
 		dataCollector.Logger.Log(obs.Info, obs.Props{
-			"message":   "generate request ID",
-			"requestID": requestID,
+			obs.MessageProp: "generate request ID",
+			"requestID":     requestID,
 		})
 		return requestID, true
 	}

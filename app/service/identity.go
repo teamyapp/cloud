@@ -113,7 +113,9 @@ func (i Identity) generateSignInURL(authProviderName string, session entity.Sign
 	}
 
 	i.dataCollector.Logger.Log(obs.Info, obs.Props{
-		"signInURL": signInURL,
+		obs.MessageProp: obs.Props{
+			"signInURL": signInURL,
+		},
 	})
 	return signInURL, nil
 }
@@ -123,8 +125,10 @@ func (i Identity) GetOAuthProvider(authProviderName string) (oauth.Provider, err
 	if !ok {
 		err := fmt.Errorf("authProvider not found")
 		i.dataCollector.Logger.Log(obs.Error, obs.Props{
-			obs.CauseProp:  err,
-			"authProvider": provider,
+			obs.CauseProp: err,
+			obs.MessageProp: obs.Props{
+				"authProvider": provider,
+			},
 		})
 		return nil, err
 	}

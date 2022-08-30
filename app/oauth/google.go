@@ -118,9 +118,11 @@ func (g Google) getIDToken(authorizationCode string) (string, error) {
 	if res.StatusCode > 300 || res.StatusCode < 200 {
 		err = fmt.Errorf("fail to obtain %s access token", g.GetName())
 		g.dataCollector.Logger.Log(obs.Error, obs.Props{
-			obs.CauseProp:       err,
-			"oauthProviderName": g.GetName(),
-			"httpStatusCode":    res.StatusCode,
+			obs.CauseProp: err,
+			obs.MessageProp: obs.Props{
+				"oauthProviderName": g.GetName(),
+				"httpStatusCode":    res.StatusCode,
+			},
 		})
 		return "", err
 	}

@@ -2,6 +2,7 @@ package obs
 
 const LogTypeProp string = "LOG_TYPE"
 const CauseProp string = "CAUSE"
+const MessageProp string = "MESSAGE"
 
 type Props = map[string]interface{}
 

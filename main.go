@@ -27,7 +27,9 @@ func main() {
 		cfg.GitRepoName,
 		cfg.GitLongCommitHash)
 	dataCollector.Logger.Log(obs.Info, obs.Props{
-		"gitCommitLink": gitCommitLink,
+		obs.MessageProp: map[string]interface{}{
+			"gitCommitLink": gitCommitLink,
+		},
 	})
 
 	err = sqldb.Use(dataCollector, cfg.Config, func(sqlDB *sql.DB) error {
