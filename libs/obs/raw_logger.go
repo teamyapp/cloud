@@ -8,14 +8,14 @@ import (
 )
 
 type RawLogger struct {
-	visibleLogLevel LogLevel
+	visibleSeverity Severity
 }
 
 var _ Logger = (*RawLogger)(nil)
 
-func (r RawLogger) Log(logLevel LogLevel, properties Props) {
-	if severity[logLevel] >= severity[r.visibleLogLevel] {
-		addDefaultProps(logLevel, properties, 1)
+func (r RawLogger) Log(severity Severity, properties Props) {
+	if severities[severity] >= severities[r.visibleSeverity] {
+		addDefaultProps(severity, properties, 1)
 		buf, err := json.Marshal(properties)
 		if err != nil {
 			return
@@ -25,18 +25,18 @@ func (r RawLogger) Log(logLevel LogLevel, properties Props) {
 	}
 }
 
-func addDefaultProps(logLevel LogLevel, props Props, skipCallers int) {
+func addDefaultProps(severity Severity, props Props, skipCallers int) {
 	_, fileName, lineNum, ok := runtime.Caller(skipCallers + 1)
 	if !ok {
 		return
 	}
 
 	props["happenAt"] = time.Now().UTC()
-	props["logLevel"] = logLevel
+	props["severity"] = severity
 	props["fileName"] = fileName
 	props["lineNumber"] = int64(lineNum)
 }
 
-func NewRawLogger(visibleLogLevel LogLevel) RawLogger {
-	return RawLogger{visibleLogLevel: visibleLogLevel}
+func NewRawLogger(visibleSeverity Severity) RawLogger {
+	return RawLogger{visibleSeverity: visibleSeverity}
 }

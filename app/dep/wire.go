@@ -33,7 +33,7 @@ type S3AccessKeyID string
 type S3AccessKey string
 type S3BucketName string
 
-func InitDataCollector(logLevel obs.LogLevel) obs.DataCollector {
+func InitDataCollector(severity obs.Severity) obs.DataCollector {
 	wire.Build(
 		wire.Bind(new(obs.Logger), new(obs.RawLogger)),
 		obs.NewRawLogger,

@@ -23,8 +23,8 @@ import (
 
 // Injectors from wire.go:
 
-func InitDataCollector(logLevel obs.LogLevel) obs.DataCollector {
-	rawLogger := obs.NewRawLogger(logLevel)
+func InitDataCollector(severity obs.Severity) obs.DataCollector {
+	rawLogger := obs.NewRawLogger(severity)
 	dataCollector := obs.NewDataCollector(rawLogger)
 	return dataCollector
 }

@@ -1,5 +1,5 @@
 package obs
 
 type Logger interface {
-	Log(logLevel LogLevel, properties Props)
+	Log(severity Severity, properties Props)
 }
