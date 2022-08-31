@@ -404,6 +404,7 @@ func NewIdentity(
 	}
 
 	return Identity{
+		dataCollector:     dataCollector,
 		signInSessionDao:  signInSessionDao,
 		userLinkDao:       userLinkDao,
 		serviceAccountDao: serviceAccountDao,
