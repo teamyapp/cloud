@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -122,7 +121,7 @@ GRANT ALL PRIVILEGES ON DATABASE "%s" TO "%s";
 }
 
 func ExecSQL(dataCollector obs.DataCollector, sqlDB *sql.DB, sqlFileName string) error {
-	buf, err := ioutil.ReadFile(sqlFileName)
+	buf, err := os.ReadFile(sqlFileName)
 	if err != nil {
 		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err

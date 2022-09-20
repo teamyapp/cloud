@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -19,7 +18,7 @@ var cliConfig = Config{
 
 func main() {
 	if _, err := os.Stat(configFilePath); err == nil {
-		data, err := ioutil.ReadFile(configFilePath)
+		data, err := os.ReadFile(configFilePath)
 		if err != nil {
 			panic(err)
 		}

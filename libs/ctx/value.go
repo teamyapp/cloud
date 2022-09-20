@@ -9,7 +9,7 @@ import (
 
 func getValueGRPC(ctx context.Context, key key) string {
 	value, ok := ctx.Value(key).(string)
-	if ok && len(value) != 0 {
+	if ok && len(value) > 0 {
 		return value
 	}
 
@@ -28,13 +28,13 @@ func getValueGRPC(ctx context.Context, key key) string {
 
 func getValueHttp(ctx context.Context, request *http.Request, key key) string {
 	value, ok := ctx.Value(key).(string)
-	if !ok {
-		return ""
+	if ok && len(value) > 0 {
+		return value
 	}
 
 	value = request.Header.Get(string(key))
-	if len(value) != 0 {
-		return value
+	if len(value) == 0 {
+		return ""
 	}
 
 	return value

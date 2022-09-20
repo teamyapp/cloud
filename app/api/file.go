@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"path"
 	"strconv"
@@ -135,7 +135,7 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
-	buf, err := ioutil.ReadAll(request.Body)
+	buf, err := io.ReadAll(request.Body)
 	if err != nil {
 		f.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -186,7 +186,7 @@ func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	data, err := ioutil.ReadAll(request.Body)
+	data, err := io.ReadAll(request.Body)
 	if err != nil {
 		f.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)

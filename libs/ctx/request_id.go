@@ -7,12 +7,21 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func GetRequestIdGRPC(ctx context.Context) string {
+func GetRequestIDGRPC(ctx context.Context) string {
 	return getValueGRPC(ctx, requestIDKey)
 }
 
-func GetRequestIdHttp(ctx context.Context, request *http.Request) string {
+func GetRequestIDHttp(ctx context.Context, request *http.Request) string {
 	return getValueHttp(ctx, request, requestIDKey)
+}
+
+func GetRequestID(ctx context.Context) string {
+	value, ok := ctx.Value(requestIDKey).(string)
+	if !ok {
+		return ""
+	}
+
+	return value
 }
 
 func NewContextWithRequestID(ctx context.Context, requestID string) context.Context {

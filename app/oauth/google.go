@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -127,7 +127,7 @@ func (g Google) getIDToken(authorizationCode string) (string, error) {
 		return "", err
 	}
 
-	buf, err = ioutil.ReadAll(res.Body)
+	buf, err = io.ReadAll(res.Body)
 	if err != nil {
 		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err

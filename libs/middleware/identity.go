@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -141,7 +141,7 @@ func ctxWithUserID(dataCollector obs.DataCollector, ct context.Context, verifyTo
 		return nil, err
 	}
 
-	buf, err := ioutil.ReadAll(res.Body)
+	buf, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}

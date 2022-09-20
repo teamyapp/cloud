@@ -17,8 +17,12 @@ type RawLogger struct {
 var _ Logger = (*RawLogger)(nil)
 
 func (r RawLogger) Log(severity Severity, properties Props) {
+	r.LogAndSkip(severity, properties, 1)
+}
+
+func (r RawLogger) LogAndSkip(severity Severity, properties Props, skipCallers int) {
 	if severities[severity] >= severities[r.visibleSeverity] {
-		properties = withDefaults(severity, properties, 1)
+		properties = withDefaults(severity, properties, skipCallers+1)
 		r.logQueue <- properties
 	}
 }
