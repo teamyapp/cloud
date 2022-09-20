@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -14,7 +13,7 @@ type FileSystem struct {
 var _ MapBackend = (*FileSystem)(nil)
 
 func (f FileSystem) Get(key string) ([]byte, error) {
-	return ioutil.ReadFile(path.Join(f.rootDir, key))
+	return os.ReadFile(path.Join(f.rootDir, key))
 }
 
 func (f FileSystem) Put(key string, data []byte) error {
@@ -25,7 +24,7 @@ func (f FileSystem) Put(key string, data []byte) error {
 		return err
 	}
 
-	return ioutil.WriteFile(filePath, data, os.ModePerm)
+	return os.WriteFile(filePath, data, os.ModePerm)
 }
 
 func (f FileSystem) Delete(key string) error {

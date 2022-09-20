@@ -66,7 +66,7 @@ func (a Authorization) ListResourceTypes(ct context.Context, resourceTypeQuery R
 }
 
 func (a Authorization) RegisterResourceType(ct context.Context, resourceTypeName string) error {
-	userID, err := ctx.UserIDFromContext(a.dataCollector, ct)
+	userID, err := ctx.UserIDFromContext(ct)
 	if err != nil {
 		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
@@ -96,7 +96,7 @@ func (a Authorization) ListResources(ct context.Context, resourceQuery ResourceQ
 }
 
 func (a Authorization) RegisterResource(ct context.Context, resourceTypeName string, resourceID uint64) error {
-	userID, err := ctx.UserIDFromContext(a.dataCollector, ct)
+	userID, err := ctx.UserIDFromContext(ct)
 	if err != nil {
 		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
@@ -132,7 +132,7 @@ func (a Authorization) AssignParentResource(
 	parentResourceType string,
 	parentResourceID uint64,
 ) error {
-	userID, err := ctx.UserIDFromContext(a.dataCollector, ct)
+	userID, err := ctx.UserIDFromContext(ct)
 	if err != nil {
 		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
@@ -175,7 +175,7 @@ func (a Authorization) ListOperations(ct context.Context, operationQuery Operati
 }
 
 func (a Authorization) RegisterOperation(ct context.Context, resourceTypeName string, operationName string) error {
-	userID, err := ctx.UserIDFromContext(a.dataCollector, ct)
+	userID, err := ctx.UserIDFromContext(ct)
 	if err != nil {
 		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
@@ -211,7 +211,7 @@ func (a Authorization) AssignParentOperation(
 	parentResourceType string,
 	parentOperation string,
 ) error {
-	userID, err := ctx.UserIDFromContext(a.dataCollector, ct)
+	userID, err := ctx.UserIDFromContext(ct)
 	if err != nil {
 		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
@@ -254,7 +254,7 @@ func (a Authorization) ListUserGroups(ct context.Context, query UserGroupQuery) 
 }
 
 func (a Authorization) CreateUserGroup(ct context.Context, name string, description *string) error {
-	userID, err := ctx.UserIDFromContext(a.dataCollector, ct)
+	userID, err := ctx.UserIDFromContext(ct)
 	if err != nil {
 		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
@@ -312,7 +312,7 @@ func (a Authorization) ListUserGroupMembers(ct context.Context, query UserGroupM
 }
 
 func (a Authorization) AddUserGroupMember(ct context.Context, groupID uint64, userID uint64) error {
-	creatorUserID, err := ctx.UserIDFromContext(a.dataCollector, ct)
+	creatorUserID, err := ctx.UserIDFromContext(ct)
 	if err != nil {
 		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
@@ -343,7 +343,7 @@ func (a Authorization) ListPermissions(ct context.Context, query PermissionQuery
 }
 
 func (a Authorization) AddPermission(ct context.Context, resourceType string, resourceID uint64, operation string, groupID uint64) error {
-	creatorUserID, err := ctx.UserIDFromContext(a.dataCollector, ct)
+	creatorUserID, err := ctx.UserIDFromContext(ct)
 	if err != nil {
 		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err

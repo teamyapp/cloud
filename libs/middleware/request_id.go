@@ -13,7 +13,7 @@ import (
 func WebWithRequestID(dataCollector obs.DataCollector, handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		ct := request.Context()
-		requestID := ctx.GetRequestIdHttp(ct, request)
+		requestID := ctx.GetRequestIDHttp(ct, request)
 		requestID, _ = generateRequestIdIfNot(dataCollector, requestID)
 		ct = ctx.NewContextWithRequestID(ct, requestID)
 		request = request.WithContext(ct)
@@ -28,7 +28,7 @@ func GRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryServerIntercep
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (resp interface{}, err error) {
-		requestID := ctx.GetRequestIdGRPC(ct)
+		requestID := ctx.GetRequestIDGRPC(ct)
 		requestID, isGenerated := generateRequestIdIfNot(dataCollector, requestID)
 		if isGenerated {
 			ct = ctx.MetadataWithRequestID(ct, requestID)
@@ -41,7 +41,7 @@ func GRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryServerIntercep
 
 func ClientWithGRPCRequestID(dataCollector obs.DataCollector) grpc.UnaryClientInterceptor {
 	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		requestID := ctx.GetRequestIdGRPC(ct)
+		requestID := ctx.GetRequestIDGRPC(ct)
 		requestID, _ = generateRequestIdIfNot(dataCollector, requestID)
 		ct = ctx.MetadataWithRequestID(ct, requestID)
 

@@ -2,7 +2,7 @@ package storage
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"path"
 
 	"github.com/minio/minio-go"
@@ -29,7 +29,7 @@ func (s S3Bucket) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 
-	return ioutil.ReadAll(obj)
+	return io.ReadAll(obj)
 }
 
 func (s S3Bucket) Put(key string, data []byte) error {

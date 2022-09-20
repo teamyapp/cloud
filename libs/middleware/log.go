@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -19,7 +19,7 @@ import (
 
 func LogWebRequest(dataCollector obs.DataCollector, handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		buf, err := ioutil.ReadAll(request.Body)
+		buf, err := io.ReadAll(request.Body)
 		if err != nil {
 			dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 			return
@@ -33,7 +33,7 @@ func LogWebRequest(dataCollector obs.DataCollector, handlerFunc http.HandlerFunc
 			"bodySize": len(buf),
 		}
 		responseLogProps := obs.Props{}
-		requestID := ctx.GetRequestIdHttp(request.Context(), request)
+		requestID := ctx.GetRequestIDHttp(request.Context(), request)
 		if len(requestID) > 0 {
 			requestLogProps["requestId"] = requestID
 			responseLogProps["requestId"] = requestID
@@ -43,7 +43,7 @@ func LogWebRequest(dataCollector obs.DataCollector, handlerFunc http.HandlerFunc
 			requestLogProps["body"] = string(buf)
 		}
 
-		request.Body = ioutil.NopCloser(bytes.NewReader(buf))
+		request.Body = io.NopCloser(bytes.NewReader(buf))
 		dataCollector.Logger.Log(obs.Info, obs.MergeProps(
 			obs.Props{
 				"protocol": "web",
@@ -86,7 +86,7 @@ func LogGRPCRequest(dataCollector obs.DataCollector) grpc.UnaryServerInterceptor
 		md, ok := metadata.FromIncomingContext(ct)
 		if ok {
 			requestLogProps["metadata"] = fmt.Sprintf("%v", md)
-			requestID := ctx.GetRequestIdGRPC(ct)
+			requestID := ctx.GetRequestIDGRPC(ct)
 			if len(requestID) > 0 {
 				requestLogProps["requestId"] = requestID
 				responseLogProps["requestId"] = requestID

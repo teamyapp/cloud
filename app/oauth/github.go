@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -67,7 +67,7 @@ func (g GitHub) GetUser(authorizationCode string) (entity.ExternalUser, error) {
 		return entity.ExternalUser{}, err
 	}
 
-	buf, err := ioutil.ReadAll(res.Body)
+	buf, err := io.ReadAll(res.Body)
 	if err != nil {
 		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.ExternalUser{}, err
@@ -154,7 +154,7 @@ func (g GitHub) getAccessToken(authorizationCode string) (string, error) {
 		return "", err
 	}
 
-	buf, err = ioutil.ReadAll(res.Body)
+	buf, err = io.ReadAll(res.Body)
 	if err != nil {
 		g.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
