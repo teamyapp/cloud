@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/teamyapp/cloud/libs/ctx"
 	"github.com/teamyapp/cloud/libs/obs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -19,6 +18,7 @@ import (
 
 func LogWebRequest(dataCollector obs.DataCollector, handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
+		ct := request.Context()
 		buf, err := io.ReadAll(request.Body)
 		if err != nil {
 			dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
@@ -33,18 +33,12 @@ func LogWebRequest(dataCollector obs.DataCollector, handlerFunc http.HandlerFunc
 			"bodySize": len(buf),
 		}
 		responseLogProps := obs.Props{}
-		requestID := ctx.GetRequestIDHttp(request.Context(), request)
-		if len(requestID) > 0 {
-			requestLogProps["requestId"] = requestID
-			responseLogProps["requestId"] = requestID
-		}
-
 		if hasReadableBody(request.Header) {
 			requestLogProps["body"] = string(buf)
 		}
 
 		request.Body = io.NopCloser(bytes.NewReader(buf))
-		dataCollector.Logger.Log(obs.Info, obs.MergeProps(
+		dataCollector.Logger.LogWithContext(ct, obs.Info, obs.MergeProps(
 			obs.Props{
 				"protocol": "web",
 				"stage":    "begin",
@@ -61,7 +55,7 @@ func LogWebRequest(dataCollector obs.DataCollector, handlerFunc http.HandlerFunc
 			responseLogProps["body"] = string(loggableWriter.responseBody)
 		}
 
-		dataCollector.Logger.Log(obs.Info, obs.MergeProps(
+		dataCollector.Logger.LogWithContext(ct, obs.Info, obs.MergeProps(
 			obs.Props{
 				"protocol": "web",
 				"stage":    "end",
@@ -86,14 +80,9 @@ func LogGRPCRequest(dataCollector obs.DataCollector) grpc.UnaryServerInterceptor
 		md, ok := metadata.FromIncomingContext(ct)
 		if ok {
 			requestLogProps["metadata"] = fmt.Sprintf("%v", md)
-			requestID := ctx.GetRequestIDGRPC(ct)
-			if len(requestID) > 0 {
-				requestLogProps["requestId"] = requestID
-				responseLogProps["requestId"] = requestID
-			}
 		}
 
-		dataCollector.Logger.Log(obs.Info, obs.MergeProps(
+		dataCollector.Logger.LogWithContext(ct, obs.Info, obs.MergeProps(
 			obs.Props{
 				"protocol": "gRPC",
 				"stage":    "begin",
@@ -104,7 +93,7 @@ func LogGRPCRequest(dataCollector obs.DataCollector) grpc.UnaryServerInterceptor
 		res, err := handler(ct, req)
 
 		responseLogProps["response"] = res
-		dataCollector.Logger.Log(obs.Info, obs.MergeProps(
+		dataCollector.Logger.LogWithContext(ct, obs.Info, obs.MergeProps(
 			obs.Props{
 				"protocol": "gRPC",
 				"stage":    "end",

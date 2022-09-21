@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"path"
@@ -152,8 +153,9 @@ func (i Identity) webFinishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 }
 
 func (i Identity) webListUserLinks(writer http.ResponseWriter, request *http.Request) {
-	userID, err := ctx.UserIDFromContext(request.Context())
-	if err != nil {
+	userID, ok := ctx.UserIDFromContext(request.Context())
+	if !ok {
+		err := errors.New("user id not found")
 		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
@@ -170,8 +172,9 @@ func (i Identity) webListUserLinks(writer http.ResponseWriter, request *http.Req
 }
 
 func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Request) {
-	userID, err := ctx.UserIDFromContext(request.Context())
-	if err != nil {
+	userID, ok := ctx.UserIDFromContext(request.Context())
+	if !ok {
+		err := errors.New("user id not found")
 		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
@@ -197,14 +200,15 @@ func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Re
 
 func (i Identity) webDeleteUserLink(writer http.ResponseWriter, request *http.Request) {
 	authProviderName := mux.Vars(request)["provider"]
-	userID, err := ctx.UserIDFromContext(request.Context())
-	if err != nil {
+	userID, ok := ctx.UserIDFromContext(request.Context())
+	if !ok {
+		err := errors.New("user id not found")
 		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	err = i.identityService.DeleteUserLink(userID, authProviderName)
+	err := i.identityService.DeleteUserLink(userID, authProviderName)
 	if err != nil {
 		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -215,8 +219,9 @@ func (i Identity) webDeleteUserLink(writer http.ResponseWriter, request *http.Re
 }
 
 func (i Identity) webListServiceAccounts(writer http.ResponseWriter, request *http.Request) {
-	userID, err := ctx.UserIDFromContext(request.Context())
-	if err != nil {
+	userID, ok := ctx.UserIDFromContext(request.Context())
+	if !ok {
+		err := errors.New("user id not found")
 		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
@@ -233,8 +238,9 @@ func (i Identity) webListServiceAccounts(writer http.ResponseWriter, request *ht
 }
 
 func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *http.Request) {
-	userID, err := ctx.UserIDFromContext(request.Context())
-	if err != nil {
+	userID, ok := ctx.UserIDFromContext(request.Context())
+	if !ok {
+		err := errors.New("user id not found")
 		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
@@ -268,8 +274,9 @@ func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *h
 }
 
 func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *http.Request) {
-	userID, err := ctx.UserIDFromContext(request.Context())
-	if err != nil {
+	userID, ok := ctx.UserIDFromContext(request.Context())
+	if !ok {
+		err := errors.New("user id not found")
 		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
@@ -294,8 +301,9 @@ func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *h
 }
 
 func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *http.Request) {
-	userID, err := ctx.UserIDFromContext(request.Context())
-	if err != nil {
+	userID, ok := ctx.UserIDFromContext(request.Context())
+	if !ok {
+		err := errors.New("user id not found")
 		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
