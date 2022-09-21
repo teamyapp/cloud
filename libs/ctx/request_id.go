@@ -15,13 +15,9 @@ func GetRequestIDHttp(ctx context.Context, request *http.Request) string {
 	return getValueHttp(ctx, request, requestIDKey)
 }
 
-func GetRequestID(ctx context.Context) string {
+func GetRequestID(ctx context.Context) (string, bool) {
 	value, ok := ctx.Value(requestIDKey).(string)
-	if !ok {
-		return ""
-	}
-
-	return value
+	return value, ok
 }
 
 func NewContextWithRequestID(ctx context.Context, requestID string) context.Context {

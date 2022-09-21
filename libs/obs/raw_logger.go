@@ -1,6 +1,7 @@
 package obs
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"runtime"
@@ -25,6 +26,14 @@ func (r RawLogger) LogAndSkip(severity Severity, properties Props, skipCallers i
 		properties = withDefaults(severity, properties, skipCallers+1)
 		r.logQueue <- properties
 	}
+}
+
+func (r RawLogger) LogWithContext(ct context.Context, severity Severity, props Props) {
+	r.LogWithContextAndSkip(ct, severity, props, 1)
+}
+
+func (r RawLogger) LogWithContextAndSkip(ct context.Context, severity Severity, properties Props, skipCallers int) {
+	r.LogAndSkip(severity, properties, skipCallers+1)
 }
 
 func withDefaults(severity Severity, props Props, skipCallers int) Props {
