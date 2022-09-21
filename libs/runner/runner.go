@@ -122,7 +122,6 @@ func (s *ServiceRunner) WithGRPCServer(withGRPCServer func(server *grpc.Server))
 }
 
 func NewServiceRunner(dataCollector obs.DataCollector, config ServiceRunnerConfig, services []Service) ServiceRunner {
-	dataCollector = obs.NewDataCollector(obs.NewRequestLogger(dataCollector.Logger))
 	return ServiceRunner{
 		dataCollector: dataCollector,
 		config:        config,
