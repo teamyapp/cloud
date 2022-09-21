@@ -33,10 +33,9 @@ type S3AccessKeyID string
 type S3AccessKey string
 type S3BucketName string
 
-func InitDataCollector(severity obs.Severity) obs.DataCollector {
+func InitDataCollector(serviceName string, severity obs.Severity) obs.DataCollector {
 	wire.Build(
-		wire.Bind(new(obs.Logger), new(obs.RawLogger)),
-		obs.NewRawLogger,
+		newLogger,
 		obs.NewDataCollector,
 	)
 	return obs.DataCollector{}
@@ -225,4 +224,11 @@ func newIdentityService(
 		jwtAuthority,
 		oauthProviders,
 		time.Duration(accessTokenTLL))
+}
+
+func newLogger(serviceName string, severity obs.Severity) obs.Logger {
+	return obs.NewServiceLogger(serviceName,
+		obs.NewRequestLogger(
+			obs.NewClientLogger(
+				obs.NewRawLogger(severity))))
 }
