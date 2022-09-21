@@ -15,7 +15,7 @@ import (
 
 func main() {
 	logVisibleSeverity := obs.Severity(getEnv("LOG_VISIBLE_SEVERITY", "INFO"))
-	dataCollector := dep.InitDataCollector(logVisibleSeverity)
+	dataCollector := dep.InitDataCollector("cloud/backend", logVisibleSeverity)
 	cfg, err := config.AppFromEnv(dataCollector)
 	if err != nil {
 		dataCollector.Logger.Log(obs.Fatal, obs.Props{obs.CauseProp: err})
