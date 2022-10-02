@@ -1,6 +1,7 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ type OperationRelation struct {
 var _ dao.OperationRelation = (*OperationRelation)(nil)
 
 func (o OperationRelation) FindOperationRelation(
+	ct context.Context,
 	childResourceType string,
 	childOperation string,
 	parentResourceType string,
@@ -51,13 +53,13 @@ func (o OperationRelation) FindOperationRelation(
 	}
 
 	if err != nil {
-		o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return operationRelation, err
 }
 
-func (o OperationRelation) FindOperationRelations(childResourceType string, childOperation string) ([]entity.OperationRelation, error) {
+func (o OperationRelation) FindOperationRelations(ct context.Context, childResourceType string, childOperation string) ([]entity.OperationRelation, error) {
 	rows, err := o.db.Query(`
 		SELECT
 			child_resource_type,
@@ -70,7 +72,7 @@ func (o OperationRelation) FindOperationRelations(childResourceType string, chil
 		WHERE child_resource_type = $1 AND child_operation = $2;`,
 		childResourceType, childOperation)
 	if err != nil {
-		o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -87,7 +89,7 @@ func (o OperationRelation) FindOperationRelations(childResourceType string, chil
 			&operationRelation.CreatorUserID,
 		)
 		if err != nil {
-			o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
@@ -97,7 +99,7 @@ func (o OperationRelation) FindOperationRelations(childResourceType string, chil
 	return operationRelations, nil
 }
 
-func (o OperationRelation) FindAllOperationRelations() ([]entity.OperationRelation, error) {
+func (o OperationRelation) FindAllOperationRelations(ct context.Context) ([]entity.OperationRelation, error) {
 	rows, err := o.db.Query(`
 		SELECT
 			child_resource_type,
@@ -109,7 +111,7 @@ func (o OperationRelation) FindAllOperationRelations() ([]entity.OperationRelati
 		FROM operation_relation;
 	`)
 	if err != nil {
-		o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -126,7 +128,7 @@ func (o OperationRelation) FindAllOperationRelations() ([]entity.OperationRelati
 			&operationRelation.CreatorUserID,
 		)
 		if err != nil {
-			o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
@@ -136,7 +138,7 @@ func (o OperationRelation) FindAllOperationRelations() ([]entity.OperationRelati
 	return operationRelations, nil
 }
 
-func (o OperationRelation) CreateOperationRelation(operationRelation entity.OperationRelation) error {
+func (o OperationRelation) CreateOperationRelation(ct context.Context, operationRelation entity.OperationRelation) error {
 	_, err := o.db.Exec(`
 		INSERT INTO operation_relation
 		(
@@ -157,13 +159,14 @@ func (o OperationRelation) CreateOperationRelation(operationRelation entity.Oper
 	)
 
 	if err != nil {
-		o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
 }
 
 func (o OperationRelation) DeleteOperationRelation(
+	ct context.Context,
 	childResourceType string,
 	childOperation string,
 	parentResourceType string,
@@ -176,7 +179,7 @@ func (o OperationRelation) DeleteOperationRelation(
 		childResourceType, childOperation, parentResourceType, parentOperation)
 
 	if err != nil {
-		o.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err

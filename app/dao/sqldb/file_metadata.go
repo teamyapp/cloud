@@ -1,6 +1,7 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -17,7 +18,7 @@ type FileMetadata struct {
 
 var _ dao.FileMetadata = (*FileMetadata)(nil)
 
-func (f FileMetadata) FindMetadataByFileID(fileID uint64) (entity.FileMetadata, error) {
+func (f FileMetadata) FindMetadataByFileID(ct context.Context, fileID uint64) (entity.FileMetadata, error) {
 	fileMetadata := entity.FileMetadata{}
 	var chunkIDsString string
 	err := f.db.QueryRow(`
@@ -47,13 +48,13 @@ func (f FileMetadata) FindMetadataByFileID(fileID uint64) (entity.FileMetadata, 
 	}
 
 	if err != nil {
-		f.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.FileMetadata{}, err
 	}
 
-	chunkIDs, err := parseIDs(f.dataCollector, chunkIDsString)
+	chunkIDs, err := parseIDs(ct, f.dataCollector, chunkIDsString)
 	if err != nil {
-		f.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.FileMetadata{}, err
 	}
 
@@ -61,7 +62,7 @@ func (f FileMetadata) FindMetadataByFileID(fileID uint64) (entity.FileMetadata, 
 	return fileMetadata, nil
 }
 
-func (f FileMetadata) CreateFileMetadata(metadata entity.FileMetadata) error {
+func (f FileMetadata) CreateFileMetadata(ct context.Context, metadata entity.FileMetadata) error {
 	_, err := f.db.Exec(`
 	INSERT INTO file_metadata
 	(
@@ -83,13 +84,13 @@ func (f FileMetadata) CreateFileMetadata(metadata entity.FileMetadata) error {
 		metadata.LastModifiedAt,
 	)
 	if err != nil {
-		f.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
 }
 
-func (f FileMetadata) UpdateFileMetadata(metadata entity.FileMetadata) error {
+func (f FileMetadata) UpdateFileMetadata(ct context.Context, metadata entity.FileMetadata) error {
 	_, err := f.db.Exec(`
 	UPDATE file_metadata
 	SET
@@ -112,7 +113,7 @@ func (f FileMetadata) UpdateFileMetadata(metadata entity.FileMetadata) error {
 	)
 
 	if err != nil {
-		f.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err

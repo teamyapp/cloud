@@ -26,22 +26,23 @@ func withIdentity(
 ) http.HandlerFunc {
 	verifyTokenURL := fmt.Sprintf("%s/verify-token", identityAPIEndpoint)
 	return func(writer http.ResponseWriter, request *http.Request) {
+		ct := request.Context()
 		token, err := getBearerToken(request)
 		if err != nil {
-			dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 			writer.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		if len(token) > 0 {
-			ct, err := ctxWithUserID(dataCollector, request.Context(), verifyTokenURL, token)
+			updatedCt, err := ctxWithUserID(dataCollector, ct, verifyTokenURL, token)
 			if err != nil {
-				dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+				dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 				writer.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
-			request = request.WithContext(ct)
+			request = request.WithContext(updatedCt)
 		}
 
 		handlerFunc(writer, request)
@@ -54,6 +55,7 @@ func ServerWithWebIdentity(
 	handlerFunc http.HandlerFunc,
 ) http.HandlerFunc {
 	return withIdentity(dataCollector, identityAPIEndpoint, handlerFunc, func(request *http.Request) (string, error) {
+		ct := request.Context()
 		value := request.Header.Get("Authorization")
 		if len(value) == 0 {
 			return "", nil
@@ -62,7 +64,7 @@ func ServerWithWebIdentity(
 		parts := strings.Split(value, " ")
 		if len(parts) != 2 {
 			err := errors.New("invalid Authorization header format")
-			dataCollector.Logger.Log(obs.Error, obs.Props{
+			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 				obs.CauseProp: err,
 				obs.MessageProp: obs.Props{
 					"format": value,
@@ -73,7 +75,7 @@ func ServerWithWebIdentity(
 
 		if parts[0] != "Bearer" {
 			err := errors.New("invalid Authorization header format")
-			dataCollector.Logger.Log(obs.Error, obs.Props{
+			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 				obs.CauseProp: err,
 				"format":      value,
 			})
@@ -104,11 +106,12 @@ func ServerWithGRPCIdentity(dataCollector obs.DataCollector, identityAPIEndpoint
 		values := md.Get(gRPCAuthorizationKey)
 		if len(values) > 0 {
 			accessToken := values[0]
-			ct, err = ctxWithUserID(dataCollector, ct, verifyTokenURL, accessToken)
+			updatedCt, err := ctxWithUserID(dataCollector, ct, verifyTokenURL, accessToken)
 			if err != nil {
-				dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+				dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 				return nil, err
 			}
+			ct = updatedCt
 		}
 
 		return handler(ct, req)
@@ -131,13 +134,13 @@ func ctxWithUserID(dataCollector obs.DataCollector, ct context.Context, verifyTo
 		"text/plain",
 		bytes.NewReader([]byte(accessToken)))
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
 	if res.StatusCode == http.StatusUnauthorized {
 		err = errors.New("invalid access token")
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -148,7 +151,7 @@ func ctxWithUserID(dataCollector obs.DataCollector, ct context.Context, verifyTo
 
 	userID, err := strconv.ParseUint(string(buf), 10, 64)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 

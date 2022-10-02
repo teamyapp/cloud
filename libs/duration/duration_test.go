@@ -1,6 +1,7 @@
 package duration
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -98,7 +99,7 @@ func TestParse(t *testing.T) {
 			expectedDuration: yearInNanos + monthInNanos + weekInNanos + dayInNanos + hourInNanos + minuteInNanos + secondInNanos,
 		},
 	}
-
+	ct := context.Background()
 	for _, testCase := range testCases {
 		testCase := testCase
 		name := testCase.input
@@ -108,7 +109,7 @@ func TestParse(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			duration, err := Parse(testLogger, testCase.input)
+			duration, err := Parse(ct, testLogger, testCase.input)
 			if testCase.expectedHasErr {
 				assert.NotNil(t, err)
 				return
@@ -203,11 +204,12 @@ func TestFormat(t *testing.T) {
 		},
 	}
 
+	ct := context.Background()
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.input, func(t *testing.T) {
 			t.Parallel()
-			duration, err := Parse(testLogger, testCase.input)
+			duration, err := Parse(ct, testLogger, testCase.input)
 			assert.Nil(t, err)
 			if err != nil {
 				return

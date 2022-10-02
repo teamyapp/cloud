@@ -1,6 +1,7 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -17,7 +18,7 @@ type UserLink struct {
 
 var _ dao.UserLink = (*UserLink)(nil)
 
-func (u UserLink) FindUserLinkByExternalUserID(authProvider string, externalUserID string) (entity.UserLink, error) {
+func (u UserLink) FindUserLinkByExternalUserID(ct context.Context, authProvider string, externalUserID string) (entity.UserLink, error) {
 	row := u.db.QueryRow(`
 		SELECT
 		    auth_provider,
@@ -44,13 +45,13 @@ func (u UserLink) FindUserLinkByExternalUserID(authProvider string, externalUser
 	}
 
 	if err != nil {
-		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return userLink, err
 }
 
-func (u UserLink) FindUserLinksByInternalUserID(internalUserID uint64) ([]entity.UserLink, error) {
+func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUserID uint64) ([]entity.UserLink, error) {
 	rows, err := u.db.Query(
 		`
 		SELECT
@@ -63,7 +64,7 @@ func (u UserLink) FindUserLinksByInternalUserID(internalUserID uint64) ([]entity
 `,
 		internalUserID)
 	if err != nil {
-		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 	defer rows.Close()
@@ -78,7 +79,7 @@ func (u UserLink) FindUserLinksByInternalUserID(internalUserID uint64) ([]entity
 			&userLink.InternalUserID,
 		)
 		if err != nil {
-			u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
@@ -88,7 +89,7 @@ func (u UserLink) FindUserLinksByInternalUserID(internalUserID uint64) ([]entity
 	return userLinks, nil
 }
 
-func (u UserLink) CreateUserLink(userLink entity.UserLink) error {
+func (u UserLink) CreateUserLink(ct context.Context, userLink entity.UserLink) error {
 	_, err := u.db.Exec(`
 		INSERT INTO identity_user_link 
 		(
@@ -105,13 +106,13 @@ func (u UserLink) CreateUserLink(userLink entity.UserLink) error {
 		userLink.InternalUserID)
 
 	if err != nil {
-		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
 }
 
-func (u UserLink) DeleteUserLink(authProvider string, internalUserID uint64) error {
+func (u UserLink) DeleteUserLink(ct context.Context, authProvider string, internalUserID uint64) error {
 	_, err := u.db.Exec(`
 		DELETE 
 		FROM identity_user_link
@@ -120,7 +121,7 @@ func (u UserLink) DeleteUserLink(authProvider string, internalUserID uint64) err
 		internalUserID)
 
 	if err != nil {
-		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err

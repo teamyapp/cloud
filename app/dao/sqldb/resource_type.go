@@ -1,6 +1,7 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -17,7 +18,7 @@ type ResourceType struct {
 
 var _ dao.ResourceType = (*ResourceType)(nil)
 
-func (r ResourceType) FindResourceType(resourceTypeName string) (entity.ResourceType, error) {
+func (r ResourceType) FindResourceType(ct context.Context, resourceTypeName string) (entity.ResourceType, error) {
 	resourceTypeEntity := entity.ResourceType{}
 	err := r.db.QueryRow(`
 		SELECT
@@ -40,13 +41,13 @@ func (r ResourceType) FindResourceType(resourceTypeName string) (entity.Resource
 	}
 
 	if err != nil {
-		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return resourceTypeEntity, err
 }
 
-func (r ResourceType) FindAllResourceTypes() ([]entity.ResourceType, error) {
+func (r ResourceType) FindAllResourceTypes(ct context.Context) ([]entity.ResourceType, error) {
 	rows, err := r.db.Query(`
 	SELECT
 		resource_type,
@@ -55,7 +56,7 @@ func (r ResourceType) FindAllResourceTypes() ([]entity.ResourceType, error) {
 	FROM resource_type;
 `)
 	if err != nil {
-		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -69,7 +70,7 @@ func (r ResourceType) FindAllResourceTypes() ([]entity.ResourceType, error) {
 			&resourceTypeEntity.CreatorUserID,
 		)
 		if err != nil {
-			r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
@@ -79,7 +80,7 @@ func (r ResourceType) FindAllResourceTypes() ([]entity.ResourceType, error) {
 	return resourceTypeEntities, nil
 }
 
-func (r ResourceType) CreateResourceType(resourceTypeEntity entity.ResourceType) error {
+func (r ResourceType) CreateResourceType(ct context.Context, resourceTypeEntity entity.ResourceType) error {
 	_, err := r.db.Exec(`
 		INSERT INTO resource_type
 		(
@@ -95,14 +96,14 @@ func (r ResourceType) CreateResourceType(resourceTypeEntity entity.ResourceType)
 	return err
 }
 
-func (r ResourceType) DeleteResourceType(resourceTypeName string) error {
+func (r ResourceType) DeleteResourceType(ct context.Context, resourceTypeName string) error {
 	_, err := r.db.Exec(`
 		DELETE FROM resource_type
 		WHERE resource_type = $1;
 		`,
 		resourceTypeName)
 	if err != nil {
-		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err

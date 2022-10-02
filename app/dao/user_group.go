@@ -1,11 +1,15 @@
 package dao
 
-import "github.com/teamyapp/cloud/app/entity"
+import (
+	"context"
+
+	"github.com/teamyapp/cloud/app/entity"
+)
 
 type UserGroup interface {
-	FindGroupByID(groupID uint64) (entity.UserGroup, error)
-	FindAllGroups() ([]entity.UserGroup, error)
-	CreateGroup(group entity.UserGroup) error
-	UpdateGroup(group entity.UserGroup) error
-	DeleteGroup(groupID uint64) error
+	FindGroupByID(ct context.Context, groupID uint64) (entity.UserGroup, error)
+	FindAllGroups(ct context.Context) ([]entity.UserGroup, error)
+	CreateGroup(ct context.Context, group entity.UserGroup) error
+	UpdateGroup(ct context.Context, group entity.UserGroup) error
+	DeleteGroup(ct context.Context, groupID uint64) error
 }

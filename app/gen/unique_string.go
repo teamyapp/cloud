@@ -1,6 +1,8 @@
 package gen
 
 import (
+	"context"
+
 	"github.com/teamyapp/cloud/libs/obs"
 )
 
@@ -11,10 +13,10 @@ type UniqueString struct {
 	alphabet      []rune
 }
 
-func (u UniqueString) GenerateUniqueString() (string, error) {
-	currNum, err := u.uniqueNumGen.GenerateUniqueNumber()
+func (u UniqueString) GenerateUniqueString(ct context.Context) (string, error) {
+	currNum, err := u.uniqueNumGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 

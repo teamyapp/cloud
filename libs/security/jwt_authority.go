@@ -1,6 +1,7 @@
 package security
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 
@@ -13,12 +14,12 @@ type JWTAuthority struct {
 	signingKey    []byte
 }
 
-func (j JWTAuthority) GenerateToken(payload interface{}) (string, error) {
+func (j JWTAuthority) GenerateToken(ct context.Context, payload interface{}) (string, error) {
 	payloadMap := make(map[string]interface{})
 	jsonBuf, _ := json.Marshal(payload)
 	err := json.Unmarshal(jsonBuf, &payloadMap)
 	if err != nil {
-		j.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		j.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
@@ -26,39 +27,39 @@ func (j JWTAuthority) GenerateToken(payload interface{}) (string, error) {
 	return token.SignedString(j.signingKey)
 }
 
-func (j JWTAuthority) DecodeToken(jwtToken string, output interface{}) error {
+func (j JWTAuthority) DecodeToken(ct context.Context, jwtToken string, output interface{}) error {
 	token, err := jwt.Parse(jwtToken, func(token *jwt.Token) (interface{}, error) {
 		return j.signingKey, nil
 	})
 	if err != nil {
-		j.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		j.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
 	if !token.Valid {
 		err = errors.New("token is invalid")
-		j.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		j.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
-	return j.parseJWTClaims(token.Claims, output)
+	return j.parseJWTClaims(ct, token.Claims, output)
 }
 
-func (j JWTAuthority) DecodeUnverifiedToken(jwtToken string, output interface{}) error {
+func (j JWTAuthority) DecodeUnverifiedToken(ct context.Context, jwtToken string, output interface{}) error {
 	claims := jwt.MapClaims{}
 	_, _, err := new(jwt.Parser).ParseUnverified(jwtToken, &claims)
 	if err != nil {
-		j.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		j.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
-	return j.parseJWTClaims(claims, output)
+	return j.parseJWTClaims(ct, claims, output)
 }
 
-func (j JWTAuthority) parseJWTClaims(claims jwt.Claims, output interface{}) error {
+func (j JWTAuthority) parseJWTClaims(ct context.Context, claims jwt.Claims, output interface{}) error {
 	buf, err := json.Marshal(claims)
 	if err != nil {
-		j.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		j.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 

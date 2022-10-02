@@ -23,7 +23,7 @@ var _ runner.Service = (*Authorization)(nil)
 var _ proto.AuthorizationServer = (*Authorization)(nil)
 
 func (a Authorization) HasPermission(ctx context.Context, req *proto.HasPermissionRequest) (*proto.HasPermissionResponse, error) {
-	hasPermission, err := a.authorizationService.HasPermission(req.ResourceType, req.ResourceId, req.Operation, req.UserId)
+	hasPermission, err := a.authorizationService.HasPermission(ctx, req.ResourceType, req.ResourceId, req.Operation, req.UserId)
 	if err != nil {
 		return nil, err
 	}

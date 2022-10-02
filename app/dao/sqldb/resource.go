@@ -1,6 +1,7 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -17,7 +18,7 @@ type Resource struct {
 
 var _ dao.Resource = (*Resource)(nil)
 
-func (r Resource) FindResource(resourceTypeName string, resourceID uint64) (entity.Resource, error) {
+func (r Resource) FindResource(ct context.Context, resourceTypeName string, resourceID uint64) (entity.Resource, error) {
 	resource := entity.Resource{}
 	err := r.db.QueryRow(`
 		SELECT
@@ -42,13 +43,13 @@ func (r Resource) FindResource(resourceTypeName string, resourceID uint64) (enti
 	}
 
 	if err != nil {
-		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return resource, err
 }
 
-func (r Resource) FindAllResources() ([]entity.Resource, error) {
+func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, error) {
 	rows, err := r.db.Query(`
 	SELECT
 		resource_type,
@@ -58,7 +59,7 @@ func (r Resource) FindAllResources() ([]entity.Resource, error) {
 	FROM resource;
 `)
 	if err != nil {
-		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -73,7 +74,7 @@ func (r Resource) FindAllResources() ([]entity.Resource, error) {
 			&resource.CreatorUserID,
 		)
 		if err != nil {
-			r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
@@ -83,7 +84,7 @@ func (r Resource) FindAllResources() ([]entity.Resource, error) {
 	return resources, nil
 }
 
-func (r Resource) CreateResource(resource entity.Resource) error {
+func (r Resource) CreateResource(ct context.Context, resource entity.Resource) error {
 	_, err := r.db.Exec(`
 		INSERT INTO resource
 		(
@@ -100,20 +101,20 @@ func (r Resource) CreateResource(resource entity.Resource) error {
 	)
 
 	if err != nil {
-		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
 }
 
-func (r Resource) DeleteResource(resourceTypeName string, resourceID uint64) error {
+func (r Resource) DeleteResource(ct context.Context, resourceTypeName string, resourceID uint64) error {
 	_, err := r.db.Exec(`
 		DELETE FROM resource
 		WHERE resource_type = $1 AND resource_id = $2;
 		`,
 		resourceTypeName, resourceID)
 	if err != nil {
-		r.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err

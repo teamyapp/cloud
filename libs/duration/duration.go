@@ -3,6 +3,7 @@ package duration
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -74,10 +75,10 @@ var timeSymbolInNanos = map[rune]int64{
 	secondSymbol: secondInNanos,
 }
 
-func Parse(dataCollector obs.DataCollector, input string) (time.Duration, error) {
+func Parse(ct context.Context, dataCollector obs.DataCollector, input string) (time.Duration, error) {
 	if len(input) == 0 || input[0] != uint8(periodSymbol) {
 		err := fmt.Errorf("duration must start with 'P'")
-		dataCollector.Logger.Log(obs.Error, obs.Props{
+		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 			obs.CauseProp: err,
 			"duration":    input,
 		})
@@ -106,18 +107,18 @@ func Parse(dataCollector obs.DataCollector, input string) (time.Duration, error)
 		}
 
 		if visitTimeSection {
-			err := validateSymbol(dataCollector, timeSymbolOrder, timeSymbolIndices, seenSymbols, currRune, index)
+			err := validateSymbol(ct, dataCollector, timeSymbolOrder, timeSymbolIndices, seenSymbols, currRune, index)
 			if err != nil {
-				dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+				dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 				return 0, err
 			}
 
 			totalNanoSeconds += timeSymbolInNanos[currRune] * int64(num)
 			hasTime = true
 		} else {
-			err := validateSymbol(dataCollector, periodSymbolOrder, periodSymbolIndices, seenSymbols, currRune, index)
+			err := validateSymbol(ct, dataCollector, periodSymbolOrder, periodSymbolIndices, seenSymbols, currRune, index)
 			if err != nil {
-				dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+				dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 				return 0, err
 			}
 
@@ -131,13 +132,13 @@ func Parse(dataCollector obs.DataCollector, input string) (time.Duration, error)
 
 	if !hasPeriod && !hasTime {
 		err := errors.New("must has either period or time")
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return 0, err
 	}
 
 	if visitTimeSection && !hasTime {
 		err := errors.New("must remove ending T or have non empty time section")
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return 0, err
 	}
 
@@ -191,6 +192,7 @@ func tryWriteNumWithUnit(buffer *bytes.Buffer, num int64, symbol rune) {
 }
 
 func validateSymbol(
+	ct context.Context,
 	dataCollector obs.DataCollector,
 	symbolOrder []rune,
 	symbolIndices map[rune]int,
@@ -201,7 +203,7 @@ func validateSymbol(
 	symbolIndex, ok := symbolIndices[currSymbol]
 	if !ok {
 		err := errors.New("unsupported symbol")
-		dataCollector.Logger.Log(obs.Error, obs.Props{
+		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 			obs.CauseProp: err,
 			"index":       currIndex,
 			"symbol":      currSymbol,
@@ -214,7 +216,7 @@ func validateSymbol(
 		seenSymbolIndex, ok := seenSymbols[symbol]
 		if ok {
 			err := errors.New("%c(%v) already showed up before %c(%v)")
-			dataCollector.Logger.Log(obs.Error, obs.Props{
+			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 				obs.CauseProp:     err,
 				"seenSymbolIndex": seenSymbolIndex,
 				"currSymbol":      currSymbol,

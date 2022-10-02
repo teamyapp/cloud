@@ -1,6 +1,7 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -17,7 +18,7 @@ type ServiceAccount struct {
 
 var _ dao.ServiceAccount = (*ServiceAccount)(nil)
 
-func (s ServiceAccount) FindAllServiceAccounts(accountOwnerID uint64) ([]entity.ServiceAccount, error) {
+func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerID uint64) ([]entity.ServiceAccount, error) {
 	rows, err := s.db.Query(`
 	SELECT
 	    id,
@@ -29,7 +30,7 @@ func (s ServiceAccount) FindAllServiceAccounts(accountOwnerID uint64) ([]entity.
 	WHERE owner_user_id = $1;`,
 		accountOwnerID)
 	if err != nil {
-		s.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 	defer rows.Close()
@@ -45,7 +46,7 @@ func (s ServiceAccount) FindAllServiceAccounts(accountOwnerID uint64) ([]entity.
 			&serviceAccount.CreatedAt,
 		)
 		if err != nil {
-			s.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
@@ -55,7 +56,7 @@ func (s ServiceAccount) FindAllServiceAccounts(accountOwnerID uint64) ([]entity.
 	return serviceAccounts, nil
 }
 
-func (s ServiceAccount) FindServiceAccountByID(serviceAccountID uint64) (entity.ServiceAccount, error) {
+func (s ServiceAccount) FindServiceAccountByID(ct context.Context, serviceAccountID uint64) (entity.ServiceAccount, error) {
 	serviceAccount := entity.ServiceAccount{}
 	err := s.db.QueryRow(`
 	SELECT
@@ -81,13 +82,13 @@ func (s ServiceAccount) FindServiceAccountByID(serviceAccountID uint64) (entity.
 	}
 
 	if err != nil {
-		s.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return serviceAccount, err
 }
 
-func (s ServiceAccount) CreateServiceAccount(serviceAccount entity.ServiceAccount) error {
+func (s ServiceAccount) CreateServiceAccount(ct context.Context, serviceAccount entity.ServiceAccount) error {
 	_, err := s.db.Exec(`
 	INSERT INTO identity_service_account
 	(
@@ -105,13 +106,13 @@ func (s ServiceAccount) CreateServiceAccount(serviceAccount entity.ServiceAccoun
 		serviceAccount.CreatedAt,
 	)
 	if err != nil {
-		s.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
 }
 
-func (s ServiceAccount) UpdateServiceAccount(serviceAccount entity.ServiceAccount) error {
+func (s ServiceAccount) UpdateServiceAccount(ct context.Context, serviceAccount entity.ServiceAccount) error {
 	_, err := s.db.Exec(`
 	UPDATE identity_service_account
 	SET
@@ -130,13 +131,13 @@ func (s ServiceAccount) UpdateServiceAccount(serviceAccount entity.ServiceAccoun
 	)
 
 	if err != nil {
-		s.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
 }
 
-func (s ServiceAccount) DeleteServiceAccount(serviceAccountID uint64) error {
+func (s ServiceAccount) DeleteServiceAccount(ct context.Context, serviceAccountID uint64) error {
 	_, err := s.db.Exec(`
 		DELETE 
 		FROM identity_service_account
@@ -144,7 +145,7 @@ func (s ServiceAccount) DeleteServiceAccount(serviceAccountID uint64) error {
 		serviceAccountID)
 
 	if err != nil {
-		s.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"path"
 	"strconv"
@@ -25,16 +26,16 @@ func (c ChunksIterator) HasNext() (bool, error) {
 	return c.nextChunkIndex < len(c.chunkIDs), nil
 }
 
-func (c *ChunksIterator) Next() ([]byte, error) {
+func (c *ChunksIterator) Next(ct context.Context) ([]byte, error) {
 	hasNext, err := c.HasNext()
 	if err != nil {
-		c.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		c.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
 	if !hasNext {
 		err = errors.New("no next chunk")
-		c.dataCollector.Logger.Log(obs.Error, obs.Props{
+		c.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 			obs.CauseProp:    err,
 			"nextChunkIndex": c.nextChunkIndex,
 			"numOfChunks":    c.chunkIDs,
@@ -46,7 +47,7 @@ func (c *ChunksIterator) Next() ([]byte, error) {
 	fullPath := path.Join(chunkKeyPrefix, chunkIDPath)
 	data, err := c.mapBackend.Get(fullPath)
 	if err != nil {
-		c.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		c.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
