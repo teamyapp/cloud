@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -422,7 +423,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: false,
 		},
 	}
-
+	ct := context.Background()
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
@@ -435,7 +436,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 				resourceRelationDao:  dao_test.NewResourceRelation(fakeResourceRelationDao),
 			}
 
-			hasPermission, err := mockAuthorization.HasPermission(testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)
+			hasPermission, err := mockAuthorization.HasPermission(ct, testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)
 			assert.Nil(t, err)
 			assert.Equal(t, hasPermission, testCase.expectedHasPermission)
 		})

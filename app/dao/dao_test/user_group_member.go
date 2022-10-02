@@ -1,6 +1,8 @@
 package dao_test
 
 import (
+	"context"
+
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/collect"
@@ -12,7 +14,7 @@ type UserGroupMember struct {
 
 var _ dao.UserGroupMember = (*UserGroupMember)(nil)
 
-func (u UserGroupMember) FindGroupIDsByUserID(userID uint64) ([]uint64, error) {
+func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64) ([]uint64, error) {
 	groupMembers := collect.Filter(u.userGroupMembers, func(userGroupMember entity.UserGroupMember) bool {
 		return userGroupMember.UserID == userID
 	})
@@ -22,32 +24,32 @@ func (u UserGroupMember) FindGroupIDsByUserID(userID uint64) ([]uint64, error) {
 	}), nil
 }
 
-func (u UserGroupMember) FindUserGroupMembersByUserID(userID uint64) ([]entity.UserGroupMember, error) {
+func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID uint64) ([]entity.UserGroupMember, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroupMember) FindUserGroupMembersByGroupID(groupID uint64) ([]entity.UserGroupMember, error) {
+func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, groupID uint64) ([]entity.UserGroupMember, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroupMember) FindUserGroupMember(groupID uint64, userID uint64) (entity.UserGroupMember, error) {
+func (u UserGroupMember) FindUserGroupMember(ct context.Context, groupID uint64, userID uint64) (entity.UserGroupMember, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroupMember) FindAllUserGroupMembers() ([]entity.UserGroupMember, error) {
+func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.UserGroupMember, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroupMember) CreateUserGroupMember(userGroupMember entity.UserGroupMember) error {
+func (u UserGroupMember) CreateUserGroupMember(ct context.Context, userGroupMember entity.UserGroupMember) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroupMember) DeleteUserGroupMember(groupID uint64, userID uint64) error {
+func (u UserGroupMember) DeleteUserGroupMember(ct context.Context, groupID uint64, userID uint64) error {
 	//TODO implement me
 	panic("implement me")
 }
