@@ -1,6 +1,7 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -17,7 +18,7 @@ type ChunkMetadata struct {
 
 var _ dao.ChunkMetadata = (*ChunkMetadata)(nil)
 
-func (c ChunkMetadata) FindChunkMetadataID(chunkID uint64) (entity.ChunkMetadata, error) {
+func (c ChunkMetadata) FindChunkMetadataID(ct context.Context, chunkID uint64) (entity.ChunkMetadata, error) {
 	chunkMetadata := entity.ChunkMetadata{}
 	err := c.db.QueryRow(`
 	SELECT
@@ -39,13 +40,13 @@ func (c ChunkMetadata) FindChunkMetadataID(chunkID uint64) (entity.ChunkMetadata
 	}
 
 	if err != nil {
-		c.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		c.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return chunkMetadata, err
 }
 
-func (c ChunkMetadata) CreateChunkMetadata(metadata entity.ChunkMetadata) error {
+func (c ChunkMetadata) CreateChunkMetadata(ct context.Context, metadata entity.ChunkMetadata) error {
 	_, err := c.db.Exec(`
 	INSERT INTO file_chunk_metadata
 	(
@@ -60,13 +61,13 @@ func (c ChunkMetadata) CreateChunkMetadata(metadata entity.ChunkMetadata) error 
 	)
 
 	if err != nil {
-		c.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		c.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
 }
 
-func (c ChunkMetadata) UpdateChunkMetadata(metadata entity.ChunkMetadata) error {
+func (c ChunkMetadata) UpdateChunkMetadata(ct context.Context, metadata entity.ChunkMetadata) error {
 	_, err := c.db.Exec(`
 	UPDATE file_chunk_metadata
 	SET
@@ -82,7 +83,7 @@ func (c ChunkMetadata) UpdateChunkMetadata(metadata entity.ChunkMetadata) error 
 	)
 
 	if err != nil {
-		c.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		c.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err

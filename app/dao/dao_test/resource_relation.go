@@ -1,6 +1,8 @@
 package dao_test
 
 import (
+	"context"
+
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/collect"
@@ -13,6 +15,7 @@ type ResourceRelation struct {
 var _ dao.ResourceRelation = (*ResourceRelation)(nil)
 
 func (r ResourceRelation) FindResourceRelation(
+	ct context.Context,
 	childResourceType string,
 	childResourceID uint64,
 	parentResourceType string,
@@ -22,7 +25,7 @@ func (r ResourceRelation) FindResourceRelation(
 	panic("implement me")
 }
 
-func (r ResourceRelation) FindResourceRelations(childResourceType string, childResourceID uint64) ([]entity.ResourceRelation, error) {
+func (r ResourceRelation) FindResourceRelations(ct context.Context, childResourceType string, childResourceID uint64) ([]entity.ResourceRelation, error) {
 	resourceRelations := collect.Filter(r.resourceRelations, func(resourceRelation entity.ResourceRelation) bool {
 		return childResourceID == resourceRelation.ChildResourceID && childResourceType == resourceRelation.ChildResourceType
 	})
@@ -30,17 +33,17 @@ func (r ResourceRelation) FindResourceRelations(childResourceType string, childR
 	return resourceRelations, nil
 }
 
-func (r ResourceRelation) FindAllResourceRelations() ([]entity.ResourceRelation, error) {
+func (r ResourceRelation) FindAllResourceRelations(ct context.Context) ([]entity.ResourceRelation, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (r ResourceRelation) CreateResourceRelation(resourceRelation entity.ResourceRelation) error {
+func (r ResourceRelation) CreateResourceRelation(ct context.Context, resourceRelation entity.ResourceRelation) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (r ResourceRelation) DeleteResourceRelation(childResourceType string, childResourceID uint64, parentResourceType string, parentResourceID uint64) error {
+func (r ResourceRelation) DeleteResourceRelation(ct context.Context, childResourceType string, childResourceID uint64, parentResourceType string, parentResourceID uint64) error {
 	//TODO implement me
 	panic("implement me")
 }

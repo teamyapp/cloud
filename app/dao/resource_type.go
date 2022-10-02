@@ -1,10 +1,14 @@
 package dao
 
-import "github.com/teamyapp/cloud/app/entity"
+import (
+	"context"
+
+	"github.com/teamyapp/cloud/app/entity"
+)
 
 type ResourceType interface {
-	FindResourceType(resourceType string) (entity.ResourceType, error)
-	FindAllResourceTypes() ([]entity.ResourceType, error)
-	CreateResourceType(resourceTypeEntity entity.ResourceType) error
-	DeleteResourceType(resourceType string) error
+	FindResourceType(ct context.Context, resourceType string) (entity.ResourceType, error)
+	FindAllResourceTypes(ct context.Context) ([]entity.ResourceType, error)
+	CreateResourceType(ct context.Context, resourceTypeEntity entity.ResourceType) error
+	DeleteResourceType(ct context.Context, resourceType string) error
 }

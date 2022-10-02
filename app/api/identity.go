@@ -90,14 +90,15 @@ func (i Identity) Start(rn *runner.ServiceRunner) error {
 }
 
 func (i Identity) webVerifyToken(w http.ResponseWriter, r *http.Request) {
+	ct := r.Context()
 	buf, err := io.ReadAll(r.Body)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	userID, isValid := i.identityService.VerifyAccessToken(string(buf))
+	userID, isValid := i.identityService.VerifyAccessToken(ct, string(buf))
 	if isValid {
 		w.WriteHeader(http.StatusAccepted)
 		w.Write([]byte(strconv.Itoa(int(userID))))
@@ -107,6 +108,7 @@ func (i Identity) webVerifyToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func (i Identity) webOAuthSignIn(w http.ResponseWriter, r *http.Request) {
+	ct := r.Context()
 	authProviderName := mux.Vars(r)["provider"]
 	query := r.URL.Query()
 	redirectURL := query.Get("redirectUrl")
@@ -115,9 +117,9 @@ func (i Identity) webOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url, err := i.identityService.GenerateUnknownUserSignInURL(authProviderName, redirectURL)
+	url, err := i.identityService.GenerateUnknownUserSignInURL(ct, authProviderName, redirectURL)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -126,25 +128,26 @@ func (i Identity) webOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 }
 
 func (i Identity) webFinishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
+	ct := r.Context()
 	providerName := mux.Vars(r)["provider"]
-	provider, err := i.identityService.GetOAuthProvider(providerName)
+	provider, err := i.identityService.GetOAuthProvider(ct, providerName)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	stateID, err := provider.GetStateID(r)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	authorizationCode := provider.GetAuthorizationCode(r)
-	url, err := i.identityService.FinishOAuthSignIn(providerName, authorizationCode, stateID)
+	url, err := i.identityService.FinishOAuthSignIn(ct, providerName, authorizationCode, stateID)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -153,29 +156,31 @@ func (i Identity) webFinishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 }
 
 func (i Identity) webListUserLinks(writer http.ResponseWriter, request *http.Request) {
+	ct := request.Context()
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		err := errors.New("user id not found")
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	userLinks, err := i.identityService.ListUserLinks(userID)
+	userLinks, err := i.identityService.ListUserLinks(ct, userID)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	web.WriteJSON(i.dataCollector, writer, userLinks)
+	web.WriteJSON(ct, i.dataCollector, writer, userLinks)
 }
 
 func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Request) {
+	ct := request.Context()
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		err := errors.New("user id not found")
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -188,9 +193,9 @@ func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Re
 		return
 	}
 
-	url, err := i.identityService.GenerateLinkUsersSignInURL(authProviderName, userID, redirectURL)
+	url, err := i.identityService.GenerateLinkUsersSignInURL(ct, authProviderName, userID, redirectURL)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -199,18 +204,19 @@ func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Re
 }
 
 func (i Identity) webDeleteUserLink(writer http.ResponseWriter, request *http.Request) {
+	ct := request.Context()
 	authProviderName := mux.Vars(request)["provider"]
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		err := errors.New("user id not found")
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	err := i.identityService.DeleteUserLink(userID, authProviderName)
+	err := i.identityService.DeleteUserLink(ct, userID, authProviderName)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -219,36 +225,38 @@ func (i Identity) webDeleteUserLink(writer http.ResponseWriter, request *http.Re
 }
 
 func (i Identity) webListServiceAccounts(writer http.ResponseWriter, request *http.Request) {
+	ct := request.Context()
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		err := errors.New("user id not found")
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	serviceAccounts, err := i.identityService.ListServiceAccounts(userID)
+	serviceAccounts, err := i.identityService.ListServiceAccounts(ct, userID)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	web.WriteJSON(i.dataCollector, writer, serviceAccounts)
+	web.WriteJSON(ct, i.dataCollector, writer, serviceAccounts)
 }
 
 func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *http.Request) {
+	ct := request.Context()
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		err := errors.New("user id not found")
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -258,14 +266,14 @@ func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *h
 	}
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	err = i.identityService.CreateServiceAccount(userID, body.Name)
+	err = i.identityService.CreateServiceAccount(ct, userID, body.Name)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -274,10 +282,11 @@ func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *h
 }
 
 func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *http.Request) {
+	ct := request.Context()
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		err := errors.New("user id not found")
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -285,14 +294,14 @@ func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *h
 	serviceAccountIDParam := mux.Vars(request)["serviceAccountId"]
 	serviceAccountID, err := strconv.ParseUint(serviceAccountIDParam, 10, 64)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	serviceToken, err := i.identityService.GenerateServiceToken(userID, serviceAccountID)
+	serviceToken, err := i.identityService.GenerateServiceToken(ct, userID, serviceAccountID)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -301,10 +310,11 @@ func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *h
 }
 
 func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *http.Request) {
+	ct := request.Context()
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		err := errors.New("user id not found")
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -312,14 +322,14 @@ func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *h
 	serviceAccountIDParam := mux.Vars(request)["serviceAccountId"]
 	serviceAccountID, err := strconv.ParseUint(serviceAccountIDParam, 10, 64)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	err = i.identityService.DeleteServiceAccount(userID, serviceAccountID)
+	err = i.identityService.DeleteServiceAccount(ct, userID, serviceAccountID)
 	if err != nil {
-		i.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -328,7 +338,7 @@ func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *h
 }
 
 func (i Identity) GetInternalUserId(ct context.Context, req *proto.GetInternalUserIdRequest) (*proto.GetInternalUserIdResponse, error) {
-	internalUserID, err := i.identityService.GetInternalUserID(req.AuthProvider, req.ExternalUserId)
+	internalUserID, err := i.identityService.GetInternalUserID(ct, req.AuthProvider, req.ExternalUserId)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +347,7 @@ func (i Identity) GetInternalUserId(ct context.Context, req *proto.GetInternalUs
 }
 
 func (i Identity) ListUserLinks(ct context.Context, req *proto.ListUserLinksRequest) (*proto.ListUserLinksResponse, error) {
-	userLinks, err := i.identityService.ListUserLinks(req.InternalUserId)
+	userLinks, err := i.identityService.ListUserLinks(ct, req.InternalUserId)
 	if err != nil {
 		return nil, err
 	}

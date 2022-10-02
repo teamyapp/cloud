@@ -26,23 +26,23 @@ type Authorization struct {
 	userGroupIDGenerator *gen.UniqueNumber
 }
 
-func (a Authorization) HasPermission(resourceType string, resourceID uint64, operation string, userID uint64) (bool, error) {
+func (a Authorization) HasPermission(ct context.Context, resourceType string, resourceID uint64, operation string, userID uint64) (bool, error) {
 	// No nested group allowed
-	groupIDs, err := a.userGroupMemberDao.FindGroupIDsByUserID(userID)
+	groupIDs, err := a.userGroupMemberDao.FindGroupIDsByUserID(ct, userID)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return false, err
 	}
 
 	for _, groupID := range groupIDs {
-		hasPermission, err := a.groupHasPermission(entity.PermissionQuery{
+		hasPermission, err := a.groupHasPermission(ct, entity.PermissionQuery{
 			ResourceID:   resourceID,
 			ResourceType: resourceType,
 			Operation:    operation,
 			GroupID:      groupID,
 		})
 		if err != nil {
-			a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 			// Continue check permission in other groups if current group fails to grant permission
 			continue
 		}
@@ -56,9 +56,9 @@ func (a Authorization) HasPermission(resourceType string, resourceID uint64, ope
 }
 
 func (a Authorization) ListResourceTypes(ct context.Context, resourceTypeQuery ResourceTypeQuery) ([]entity.ResourceType, error) {
-	allResourceTypeEntities, err := a.resourceTypeDao.FindAllResourceTypes()
+	allResourceTypeEntities, err := a.resourceTypeDao.FindAllResourceTypes(ct)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -69,7 +69,7 @@ func (a Authorization) RegisterResourceType(ct context.Context, resourceTypeName
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		err := errors.New("user id not found")
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
@@ -79,17 +79,17 @@ func (a Authorization) RegisterResourceType(ct context.Context, resourceTypeName
 		CreatorUserID:    userID,
 	}
 
-	return a.resourceTypeDao.CreateResourceType(resourceTypeEntity)
+	return a.resourceTypeDao.CreateResourceType(ct, resourceTypeEntity)
 }
 
 func (a Authorization) UnregisterResourceType(ct context.Context, resourceTypeName string) error {
-	return a.resourceTypeDao.DeleteResourceType(resourceTypeName)
+	return a.resourceTypeDao.DeleteResourceType(ct, resourceTypeName)
 }
 
 func (a Authorization) ListResources(ct context.Context, resourceQuery ResourceQuery) ([]entity.Resource, error) {
-	allResources, err := a.resourceDao.FindAllResources()
+	allResources, err := a.resourceDao.FindAllResources(ct)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -100,7 +100,7 @@ func (a Authorization) RegisterResource(ct context.Context, resourceTypeName str
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		err := errors.New("user id not found")
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
@@ -110,17 +110,17 @@ func (a Authorization) RegisterResource(ct context.Context, resourceTypeName str
 		CreatedAt:        time.Now().UTC(),
 		CreatorUserID:    userID,
 	}
-	return a.resourceDao.CreateResource(resource)
+	return a.resourceDao.CreateResource(ct, resource)
 }
 
 func (a Authorization) UnregisterResource(ct context.Context, resourceTypeName string, resourceID uint64) error {
-	return a.resourceDao.DeleteResource(resourceTypeName, resourceID)
+	return a.resourceDao.DeleteResource(ct, resourceTypeName, resourceID)
 }
 
 func (a Authorization) ListResourceRelations(ct context.Context, resourceRelationQuery ResourceRelationQuery) ([]entity.ResourceRelation, error) {
-	allResourceRelationEntities, err := a.resourceRelationDao.FindAllResourceRelations()
+	allResourceRelationEntities, err := a.resourceRelationDao.FindAllResourceRelations(ct)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -137,7 +137,7 @@ func (a Authorization) AssignParentResource(
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		err := errors.New("user id not found")
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
@@ -149,7 +149,7 @@ func (a Authorization) AssignParentResource(
 		CreatedAt:          time.Now().UTC(),
 		CreatorUserID:      userID,
 	}
-	return a.resourceRelationDao.CreateResourceRelation(resourceRelation)
+	return a.resourceRelationDao.CreateResourceRelation(ct, resourceRelation)
 }
 
 func (a Authorization) UnassignParentResource(
@@ -160,6 +160,7 @@ func (a Authorization) UnassignParentResource(
 	parentResourceID uint64,
 ) error {
 	return a.resourceRelationDao.DeleteResourceRelation(
+		ct,
 		childResourceType,
 		childResourceID,
 		parentResourceType,
@@ -168,9 +169,9 @@ func (a Authorization) UnassignParentResource(
 }
 
 func (a Authorization) ListOperations(ct context.Context, operationQuery OperationQuery) ([]entity.Operation, error) {
-	allOperations, err := a.operationDao.FindAllOperations()
+	allOperations, err := a.operationDao.FindAllOperations(ct)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -181,7 +182,7 @@ func (a Authorization) RegisterOperation(ct context.Context, resourceTypeName st
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		err := errors.New("user id not found")
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
@@ -191,17 +192,17 @@ func (a Authorization) RegisterOperation(ct context.Context, resourceTypeName st
 		CreatedAt:        time.Now().UTC(),
 		CreatorUserID:    userID,
 	}
-	return a.operationDao.CreateOperation(operation)
+	return a.operationDao.CreateOperation(ct, operation)
 }
 
 func (a Authorization) UnregisterOperation(ct context.Context, resourceTypeName string, operationName string) error {
-	return a.operationDao.DeleteOperation(resourceTypeName, operationName)
+	return a.operationDao.DeleteOperation(ct, resourceTypeName, operationName)
 }
 
 func (a Authorization) ListOperationRelations(ct context.Context, operationRelationQuery OperationRelationQuery) ([]entity.OperationRelation, error) {
-	allOperationRelations, err := a.operationRelationDao.FindAllOperationRelations()
+	allOperationRelations, err := a.operationRelationDao.FindAllOperationRelations(ct)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -218,7 +219,7 @@ func (a Authorization) AssignParentOperation(
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		err := errors.New("user id not found")
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
@@ -230,7 +231,7 @@ func (a Authorization) AssignParentOperation(
 		CreatedAt:          time.Now().UTC(),
 		CreatorUserID:      userID,
 	}
-	return a.operationRelationDao.CreateOperationRelation(operationRelation)
+	return a.operationRelationDao.CreateOperationRelation(ct, operationRelation)
 }
 
 func (a Authorization) UnassignParentOperation(
@@ -241,6 +242,7 @@ func (a Authorization) UnassignParentOperation(
 	parentOperation string,
 ) error {
 	return a.operationRelationDao.DeleteOperationRelation(
+		ct,
 		childResourceType,
 		childOperation,
 		parentResourceType,
@@ -249,9 +251,9 @@ func (a Authorization) UnassignParentOperation(
 }
 
 func (a Authorization) ListUserGroups(ct context.Context, query UserGroupQuery) ([]entity.UserGroup, error) {
-	allGroups, err := a.userGroupDao.FindAllGroups()
+	allGroups, err := a.userGroupDao.FindAllGroups(ct)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -262,13 +264,13 @@ func (a Authorization) CreateUserGroup(ct context.Context, name string, descript
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		err := errors.New("user id not found")
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
-	groupID, err := a.userGroupIDGenerator.GenerateUniqueNumber()
+	groupID, err := a.userGroupIDGenerator.GenerateUniqueNumber(ct)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
@@ -279,13 +281,13 @@ func (a Authorization) CreateUserGroup(ct context.Context, name string, descript
 		CreatedAt:     time.Now().UTC(),
 		CreatorUserID: userID,
 	}
-	return a.userGroupDao.CreateGroup(userGroup)
+	return a.userGroupDao.CreateGroup(ct, userGroup)
 }
 
 func (a Authorization) UpdateUserGroup(ct context.Context, groupID uint64, name *string, description *string) error {
-	userGroup, err := a.userGroupDao.FindGroupByID(groupID)
+	userGroup, err := a.userGroupDao.FindGroupByID(ct, groupID)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
@@ -299,17 +301,17 @@ func (a Authorization) UpdateUserGroup(ct context.Context, groupID uint64, name 
 
 	nowTime := time.Now().UTC()
 	userGroup.UpdatedAt = &nowTime
-	return a.userGroupDao.UpdateGroup(userGroup)
+	return a.userGroupDao.UpdateGroup(ct, userGroup)
 }
 
 func (a Authorization) DeleteUserGroup(ct context.Context, groupID uint64) error {
-	return a.userGroupDao.DeleteGroup(groupID)
+	return a.userGroupDao.DeleteGroup(ct, groupID)
 }
 
 func (a Authorization) ListUserGroupMembers(ct context.Context, query UserGroupMemberQuery) ([]entity.UserGroupMember, error) {
-	allUserGroupMembers, err := a.userGroupMemberDao.FindAllUserGroupMembers()
+	allUserGroupMembers, err := a.userGroupMemberDao.FindAllUserGroupMembers(ct)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -321,7 +323,7 @@ func (a Authorization) AddUserGroupMember(ct context.Context, groupID uint64, us
 	creatorUserID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		err := errors.New("user id not found")
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
@@ -331,17 +333,17 @@ func (a Authorization) AddUserGroupMember(ct context.Context, groupID uint64, us
 		CreatedAt:     time.Now().UTC(),
 		CreatorUserID: creatorUserID,
 	}
-	return a.userGroupMemberDao.CreateUserGroupMember(userGroupMember)
+	return a.userGroupMemberDao.CreateUserGroupMember(ct, userGroupMember)
 }
 
 func (a Authorization) RemoveUserGroupMember(ct context.Context, groupID uint64, userID uint64) error {
-	return a.userGroupMemberDao.DeleteUserGroupMember(groupID, userID)
+	return a.userGroupMemberDao.DeleteUserGroupMember(ct, groupID, userID)
 }
 
 func (a Authorization) ListPermissions(ct context.Context, query PermissionQuery) ([]entity.Permission, error) {
-	allPermissions, err := a.permissionDao.FindAllPermissions()
+	allPermissions, err := a.permissionDao.FindAllPermissions(ct)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -353,7 +355,7 @@ func (a Authorization) AddPermission(ct context.Context, resourceType string, re
 	creatorUserID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		err := errors.New("user id not found")
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
@@ -365,14 +367,14 @@ func (a Authorization) AddPermission(ct context.Context, resourceType string, re
 		CreatedAt:     time.Now().UTC(),
 		CreatorUserID: creatorUserID,
 	}
-	return a.permissionDao.CreatePermission(permission)
+	return a.permissionDao.CreatePermission(ct, permission)
 }
 
 func (a Authorization) RemovePermission(ct context.Context, resourceType string, resourceID uint64, operation string, groupID uint64) error {
-	return a.permissionDao.DeletePermission(resourceType, resourceID, operation, groupID)
+	return a.permissionDao.DeletePermission(ct, resourceType, resourceID, operation, groupID)
 }
 
-func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery) (bool, error) {
+func (a Authorization) groupHasPermission(ct context.Context, permissionQuery entity.PermissionQuery) (bool, error) {
 	visited := make(map[entity.PermissionQuery]bool)
 	visited[permissionQuery] = true
 	queries := []entity.PermissionQuery{permissionQuery}
@@ -380,18 +382,18 @@ func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery
 		currQuery := queries[0]
 		queries = queries[1:]
 
-		_, err := a.permissionDao.FindPermission(currQuery)
+		_, err := a.permissionDao.FindPermission(ct, currQuery)
 		if err == nil {
 			return true, nil
 		}
 
 		var errNotFound dao.ErrNotFound
 		if !errors.As(err, &errNotFound) {
-			a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
-		parentPermissionQueries, err := a.getParentPermissionQueries(currQuery, visited)
+		parentPermissionQueries, err := a.getParentPermissionQueries(ct, currQuery, visited)
 		if err != nil {
 			return false, err
 		}
@@ -402,17 +404,17 @@ func (a Authorization) groupHasPermission(permissionQuery entity.PermissionQuery
 	return false, nil
 }
 
-func (a Authorization) getParentPermissionQueries(currQuery entity.PermissionQuery, visited map[entity.PermissionQuery]bool) ([]entity.PermissionQuery, error) {
+func (a Authorization) getParentPermissionQueries(ct context.Context, currQuery entity.PermissionQuery, visited map[entity.PermissionQuery]bool) ([]entity.PermissionQuery, error) {
 	var parentPermissionQueries []entity.PermissionQuery
-	operationRelations, err := a.operationRelationDao.FindOperationRelations(currQuery.ResourceType, currQuery.Operation)
+	operationRelations, err := a.operationRelationDao.FindOperationRelations(ct, currQuery.ResourceType, currQuery.Operation)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
-	resourceRelations, err := a.resourceRelationDao.FindResourceRelations(currQuery.ResourceType, currQuery.ResourceID)
+	resourceRelations, err := a.resourceRelationDao.FindResourceRelations(ct, currQuery.ResourceType, currQuery.ResourceID)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 

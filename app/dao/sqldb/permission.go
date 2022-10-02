@@ -1,6 +1,7 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -17,7 +18,7 @@ type Permission struct {
 
 var _ dao.Permission = (*Permission)(nil)
 
-func (p Permission) FindPermission(query entity.PermissionQuery) (entity.Permission, error) {
+func (p Permission) FindPermission(ct context.Context, query entity.PermissionQuery) (entity.Permission, error) {
 	permission := entity.Permission{}
 	err := p.db.QueryRow(`
 		SELECT
@@ -46,13 +47,13 @@ func (p Permission) FindPermission(query entity.PermissionQuery) (entity.Permiss
 	}
 
 	if err != nil {
-		p.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return permission, err
 }
 
-func (p Permission) FindAllPermissions() ([]entity.Permission, error) {
+func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission, error) {
 	rows, err := p.db.Query(`
 		SELECT
 			resource_type,
@@ -64,7 +65,7 @@ func (p Permission) FindAllPermissions() ([]entity.Permission, error) {
 		FROM permission;
 	`)
 	if err != nil {
-		p.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -81,7 +82,7 @@ func (p Permission) FindAllPermissions() ([]entity.Permission, error) {
 			&permission.CreatorUserID,
 		)
 		if err != nil {
-			p.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
@@ -91,7 +92,7 @@ func (p Permission) FindAllPermissions() ([]entity.Permission, error) {
 	return permissions, nil
 }
 
-func (p Permission) CreatePermission(permission entity.Permission) error {
+func (p Permission) CreatePermission(ct context.Context, permission entity.Permission) error {
 	_, err := p.db.Exec(`
 		INSERT INTO permission
 		(
@@ -112,20 +113,20 @@ func (p Permission) CreatePermission(permission entity.Permission) error {
 	)
 
 	if err != nil {
-		p.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
 }
 
-func (p Permission) DeletePermission(resourceType string, resourceID uint64, operation string, groupID uint64) error {
+func (p Permission) DeletePermission(ct context.Context, resourceType string, resourceID uint64, operation string, groupID uint64) error {
 	_, err := p.db.Exec(`
 		DELETE FROM permission
 		WHERE resource_type = $1 AND resource_id = $2 AND operation = $3 AND group_id = $4;
 		`,
 		resourceType, resourceID, operation, groupID)
 	if err != nil {
-		p.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err

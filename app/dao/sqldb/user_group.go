@@ -1,6 +1,7 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -17,7 +18,7 @@ type UserGroup struct {
 
 var _ dao.UserGroup = (*UserGroup)(nil)
 
-func (u UserGroup) FindGroupByID(groupID uint64) (entity.UserGroup, error) {
+func (u UserGroup) FindGroupByID(ct context.Context, groupID uint64) (entity.UserGroup, error) {
 	group := entity.UserGroup{}
 	err := u.db.QueryRow(`
 		SELECT
@@ -46,13 +47,13 @@ func (u UserGroup) FindGroupByID(groupID uint64) (entity.UserGroup, error) {
 	}
 
 	if err != nil {
-		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return group, err
 }
 
-func (u UserGroup) FindAllGroups() ([]entity.UserGroup, error) {
+func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, error) {
 	rows, err := u.db.Query(`
 		SELECT
 			id,
@@ -64,7 +65,7 @@ func (u UserGroup) FindAllGroups() ([]entity.UserGroup, error) {
 		FROM user_group;
 	`)
 	if err != nil {
-		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -81,7 +82,7 @@ func (u UserGroup) FindAllGroups() ([]entity.UserGroup, error) {
 			&group.UpdatedAt,
 		)
 		if err != nil {
-			u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 			continue
 		}
 
@@ -91,7 +92,7 @@ func (u UserGroup) FindAllGroups() ([]entity.UserGroup, error) {
 	return groups, nil
 }
 
-func (u UserGroup) CreateGroup(group entity.UserGroup) error {
+func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) error {
 	_, err := u.db.Exec(`
 		INSERT INTO user_group
 		(
@@ -112,13 +113,13 @@ func (u UserGroup) CreateGroup(group entity.UserGroup) error {
 	)
 
 	if err != nil {
-		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
 }
 
-func (u UserGroup) UpdateGroup(group entity.UserGroup) error {
+func (u UserGroup) UpdateGroup(ct context.Context, group entity.UserGroup) error {
 	_, err := u.db.Exec(`
 		UPDATE user_group
 		SET
@@ -137,13 +138,13 @@ func (u UserGroup) UpdateGroup(group entity.UserGroup) error {
 	)
 
 	if err != nil {
-		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
 }
 
-func (u UserGroup) DeleteGroup(groupID uint64) error {
+func (u UserGroup) DeleteGroup(ct context.Context, groupID uint64) error {
 	_, err := u.db.Exec(`
 		DELETE FROM user_group
 		WHERE id = $1;
@@ -151,7 +152,7 @@ func (u UserGroup) DeleteGroup(groupID uint64) error {
 		groupID)
 
 	if err != nil {
-		u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err

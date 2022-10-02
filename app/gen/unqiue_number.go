@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -18,11 +19,11 @@ type UniqueNumber struct {
 	allocatedRange    entity.AllocatedRange
 }
 
-func (u *UniqueNumber) GenerateUniqueNumber() (uint64, error) {
+func (u *UniqueNumber) GenerateUniqueNumber(ct context.Context) (uint64, error) {
 	if u.allocatedRange.NextNumber > u.allocatedRange.RangeEnd {
 		err := u.allocateNewRange()
 		if err != nil {
-			u.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 
 			return uint64(0), err
 		}

@@ -1,6 +1,7 @@
 package dao_test
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/teamyapp/cloud/app/dao"
@@ -14,7 +15,7 @@ type Permission struct {
 
 var _ dao.Permission = (*Permission)(nil)
 
-func (p Permission) FindPermission(permissionQuery entity.PermissionQuery) (entity.Permission, error) {
+func (p Permission) FindPermission(ct context.Context, permissionQuery entity.PermissionQuery) (entity.Permission, error) {
 	permissions := collect.Filter(p.permissions, func(permission entity.Permission) bool {
 		return matchPermission(permissionQuery, permission)
 	})
@@ -28,17 +29,17 @@ func (p Permission) FindPermission(permissionQuery entity.PermissionQuery) (enti
 	return permissions[0], nil
 }
 
-func (p Permission) FindAllPermissions() ([]entity.Permission, error) {
+func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (p Permission) CreatePermission(permission entity.Permission) error {
+func (p Permission) CreatePermission(ct context.Context, permission entity.Permission) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (p Permission) DeletePermission(resourceType string, resourceID uint64, operation string, groupID uint64) error {
+func (p Permission) DeletePermission(ct context.Context, resourceType string, resourceID uint64, operation string, groupID uint64) error {
 	//TODO implement me
 	panic("implement me")
 }
