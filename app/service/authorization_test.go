@@ -10,7 +10,7 @@ import (
 )
 
 func TestAuthorization_HasPermission(t *testing.T) {
-	fakeResourceRelationDao := []entity.ResourceRelation{
+	resourceRelations := []entity.ResourceRelation{
 		{
 			ChildResourceID:   1,
 			ChildResourceType: "team",
@@ -105,7 +105,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		},
 	}
 
-	fakeUserGroupMemberDao := []entity.UserGroupMember{
+	userGroupMembers := []entity.UserGroupMember{
 		{
 			GroupID: 1,
 			UserID:  1,
@@ -136,7 +136,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		},
 	}
 
-	fakePermissionDao := []entity.Permission{
+	permissions := []entity.Permission{
 		{
 			ResourceType: "project",
 			ResourceID:   11,
@@ -229,7 +229,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		},
 	}
 
-	fakeOperationRelationDao := []entity.OperationRelation{
+	operationRelations := []entity.OperationRelation{
 		{
 			ChildResourceType: "team",
 			ChildOperation:    "addUserTo",
@@ -351,7 +351,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		expectedHasPermission bool
 	}{
 		{
-			name:                  "Case 0: has permission by traversing permission table",
+			name:                  "Test hasPermission when current permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -359,7 +359,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Case 0: has no permission by traversing permission table",
+			name:                  "Test hasPermission when current permission not found but parent permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -367,7 +367,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: false,
 		},
 		{
-			name:                  "Case 1: both operation and resource type change happy case",
+			name:                  "Test hasPermission when both operation and resource type of parent permission change and permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -375,7 +375,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Case 1: both operation and resource type change failed case",
+			name:                  "Test hasPermission when both operation and resource type of parent permission change but no permission found",
 			resourceType:          "task",
 			resourceID:            6,
 			operation:             "update",
@@ -383,15 +383,15 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: false,
 		},
 		{
-			name:                  "Case 2: operation and resource type do not change ",
+			name:                  "Test hasPermission when operation and resource type is same and one resource is parent of other resource and permission found",
 			resourceType:          "task",
-			resourceID:            2,
+			resourceID:            5,
 			operation:             "read",
 			userID:                5,
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Case 3: one resource type has multiple same level parent resource types happy case",
+			name:                  "Test hasPermission when one resource type has multiple same level parent resource types and permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -399,7 +399,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Case 3: one resource type has multiple same level parent resource types failed case",
+			name:                  "Test hasPermission one resource type has multiple same level parent resource types but no permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "update",
@@ -407,7 +407,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: false,
 		},
 		{
-			name:                  "Case 4: owner group",
+			name:                  "Test hasPermission permission found for user who is in a owner group",
 			resourceType:          "team",
 			resourceID:            1,
 			operation:             "read",
@@ -415,7 +415,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Case 5: cross team",
+			name:                  "Test hasPermission no permission for user who is outside of a owner group",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -430,10 +430,10 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			t.Parallel()
 
 			mockAuthorization := Authorization{
-				permissionDao:        dao_test.NewPermission(fakePermissionDao),
-				userGroupMemberDao:   dao_test.NewUserGroupMember(fakeUserGroupMemberDao),
-				operationRelationDao: dao_test.NewOperationRelation(fakeOperationRelationDao),
-				resourceRelationDao:  dao_test.NewResourceRelation(fakeResourceRelationDao),
+				permissionDao:        dao_test.NewPermission(permissions),
+				userGroupMemberDao:   dao_test.NewUserGroupMember(userGroupMembers),
+				operationRelationDao: dao_test.NewOperationRelation(operationRelations),
+				resourceRelationDao:  dao_test.NewResourceRelation(resourceRelations),
 			}
 
 			hasPermission, err := mockAuthorization.HasPermission(ct, testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)

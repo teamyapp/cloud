@@ -43,7 +43,9 @@ func (o OperationRelation) DeleteOperationRelation(ct context.Context, childReso
 }
 
 func NewOperationRelation(operationRelations []entity.OperationRelation) OperationRelation {
+	copiedOperationRelations := make([]entity.OperationRelation, len(operationRelations))
+	copy(copiedOperationRelations, operationRelations)
 	return OperationRelation{
-		operationRelations: operationRelations,
+		operationRelations: copiedOperationRelations,
 	}
 }
