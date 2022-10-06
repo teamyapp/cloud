@@ -78,14 +78,15 @@ func (s *ServiceRunner) startWebServer() {
 		},
 	})
 	serveMux := http.NewServeMux()
-	handlerFunc :=
-		middleware.EnableCORS(
-			middleware.WebWithRequestID(s.dataCollector,
-				middleware.WithWebTimeout(s.config.RequestTimeout,
-					middleware.LogWebRequest(s.dataCollector,
-						middleware.ServerWithWebIdentity(s.dataCollector, s.config.IdentityAPIEndpoint,
-							middleware.ServerWithWebSocketIdentity(s.dataCollector, s.config.IdentityAPIEndpoint,
-								s.webRouter.ServeHTTP))))))
+	middlewares := []middleware.HTTPServerMiddleware{
+		middleware.ServerHTTPEnableCORS,
+		middleware.ServerHTTPWithRequestID(s.dataCollector),
+		middleware.ServerHTTPWithTimeout(s.config.RequestTimeout),
+		middleware.ServerHTTPLogRequest(s.dataCollector),
+		middleware.ServerHTTPWithIdentity(s.dataCollector, s.config.IdentityAPIEndpoint),
+		middleware.ServerWebSocketWithIdentity(s.dataCollector, s.config.IdentityAPIEndpoint),
+	}
+	handlerFunc := middleware.HTTPServerWithMiddlewares(s.webRouter.ServeHTTP, middlewares)
 	serveMux.HandleFunc("/", handlerFunc)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.WebServerPort), serveMux); err != nil {
 		panic(err)
@@ -128,10 +129,10 @@ func NewServiceRunner(dataCollector obs.DataCollector, config ServiceRunnerConfi
 		webRouter:     mux.NewRouter(),
 		gRPCServer: grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
-				middleware.ServerWithGRPCTimeout(config.RequestTimeout),
-				middleware.GRPCWithRequestID(dataCollector),
-				middleware.LogGRPCRequest(dataCollector),
-				middleware.ServerWithGRPCIdentity(dataCollector, config.IdentityAPIEndpoint),
+				middleware.ServerGRPCWithTimeout(config.RequestTimeout),
+				middleware.ServerGRPCWithRequestID(dataCollector),
+				middleware.ServerGRPCLogRequest(dataCollector),
+				middleware.ServerGRPCWithIdentity(dataCollector, config.IdentityAPIEndpoint),
 			)),
 		services: services,
 	}

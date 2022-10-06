@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-func EnableCORS(handlerFunc http.HandlerFunc) http.HandlerFunc {
+var ServerHTTPEnableCORS HTTPServerMiddleware = func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
 		writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, PUT, OPTIONS, DELETE")

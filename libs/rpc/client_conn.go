@@ -31,7 +31,7 @@ func NewClientConnection(dataCollector obs.DataCollector, cfg ConnectionConfig) 
 		fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		grpc.WithTransportCredentials(cred),
 		grpc.WithChainUnaryInterceptor(
-			middleware.ClientWithGRPCRequestID(dataCollector),
-			middleware.ClientWithGRPCTimout(cfg.RequestTimeout),
-			middleware.ClientWithGRPCIdentity(cfg.GetAccessToken)))
+			middleware.ClientGRPCWithRequestID(dataCollector),
+			middleware.ClientGRPCWithTimout(cfg.RequestTimeout),
+			middleware.ClientGRPCWithIdentity(cfg.GetAccessToken)))
 }

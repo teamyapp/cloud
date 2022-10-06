@@ -10,18 +10,20 @@ import (
 	"google.golang.org/grpc"
 )
 
-func WebWithRequestID(dataCollector obs.DataCollector, handlerFunc http.HandlerFunc) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		ct := request.Context()
-		requestID := ctx.GetRequestIDHttp(ct, request)
-		requestID, _ = generateRequestIdIfNot(dataCollector, requestID)
-		ct = ctx.NewContextWithRequestID(ct, requestID)
-		request = request.WithContext(ct)
-		handlerFunc(writer, request)
+func ServerHTTPWithRequestID(dataCollector obs.DataCollector) HTTPServerMiddleware {
+	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
+		return func(writer http.ResponseWriter, request *http.Request) {
+			ct := request.Context()
+			requestID := ctx.GetRequestIDHttp(ct, request)
+			requestID, _ = generateRequestIdIfNot(dataCollector, ct, requestID)
+			ct = ctx.NewContextWithRequestID(ct, requestID)
+			request = request.WithContext(ct)
+			handlerFunc(writer, request)
+		}
 	}
 }
 
-func GRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryServerInterceptor {
+func ServerGRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryServerInterceptor {
 	return func(
 		ct context.Context,
 		req interface{},
@@ -29,7 +31,7 @@ func GRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryServerIntercep
 		handler grpc.UnaryHandler,
 	) (resp interface{}, err error) {
 		requestID := ctx.GetRequestIDGRPC(ct)
-		requestID, isGenerated := generateRequestIdIfNot(dataCollector, requestID)
+		requestID, isGenerated := generateRequestIdIfNot(dataCollector, ct, requestID)
 		if isGenerated {
 			ct = ctx.MetadataWithRequestID(ct, requestID)
 		}
@@ -39,22 +41,22 @@ func GRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryServerIntercep
 	}
 }
 
-func ClientWithGRPCRequestID(dataCollector obs.DataCollector) grpc.UnaryClientInterceptor {
+func ClientGRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryClientInterceptor {
 	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		requestID := ctx.GetRequestIDGRPC(ct)
-		requestID, _ = generateRequestIdIfNot(dataCollector, requestID)
+		requestID, _ = generateRequestIdIfNot(dataCollector, ct, requestID)
 		ct = ctx.MetadataWithRequestID(ct, requestID)
 
 		return invoker(ct, method, req, reply, cc, opts...)
 	}
 }
 
-func generateRequestIdIfNot(dataCollector obs.DataCollector, requestID string) (string, bool) {
+func generateRequestIdIfNot(dataCollector obs.DataCollector, ct context.Context, requestID string) (string, bool) {
 	if len(requestID) == 0 {
 		// it's okay to have conflicts for request ID
 		randomID := uuid.New()
 		requestID = randomID.String()
-		dataCollector.Logger.Log(obs.Info, obs.Props{
+		dataCollector.Logger.LogWithContext(ct, obs.Info, obs.Props{
 			obs.MessageProp: obs.Props{
 				"summary":   "generate request ID",
 				"requestID": requestID,

@@ -16,55 +16,57 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func LogWebRequest(dataCollector obs.DataCollector, handlerFunc http.HandlerFunc) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		ct := request.Context()
-		buf, err := io.ReadAll(request.Body)
-		if err != nil {
-			dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
-			return
+func ServerHTTPLogRequest(dataCollector obs.DataCollector) HTTPServerMiddleware {
+	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
+		return func(writer http.ResponseWriter, request *http.Request) {
+			ct := request.Context()
+			buf, err := io.ReadAll(request.Body)
+			if err != nil {
+				dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+				return
+			}
+
+			requestLogProps := obs.Props{
+				"host":     request.URL.Host,
+				"method":   request.Method,
+				"path":     request.URL.Path,
+				"headers":  request.Header,
+				"bodySize": len(buf),
+			}
+			responseLogProps := obs.Props{}
+			if hasReadableBody(request.Header) {
+				requestLogProps["body"] = string(buf)
+			}
+
+			request.Body = io.NopCloser(bytes.NewReader(buf))
+			dataCollector.Logger.LogWithContext(ct, obs.Info, obs.MergeProps(
+				obs.Props{
+					"protocol": "web",
+					"stage":    "begin",
+				},
+				requestLogProps))
+			loggableWriter := newLoggableResponseWriter(dataCollector, writer, ct)
+
+			// Process request
+			handlerFunc(loggableWriter, request)
+
+			responseLogProps["headers"] = writer.Header()
+			responseLogProps["bodySize"] = len(loggableWriter.responseBody)
+			if hasReadableBody(writer.Header()) {
+				responseLogProps["body"] = string(loggableWriter.responseBody)
+			}
+
+			dataCollector.Logger.LogWithContext(ct, obs.Info, obs.MergeProps(
+				obs.Props{
+					"protocol": "web",
+					"stage":    "end",
+				},
+				responseLogProps))
 		}
-
-		requestLogProps := obs.Props{
-			"host":     request.URL.Host,
-			"method":   request.Method,
-			"path":     request.URL.Path,
-			"headers":  request.Header,
-			"bodySize": len(buf),
-		}
-		responseLogProps := obs.Props{}
-		if hasReadableBody(request.Header) {
-			requestLogProps["body"] = string(buf)
-		}
-
-		request.Body = io.NopCloser(bytes.NewReader(buf))
-		dataCollector.Logger.LogWithContext(ct, obs.Info, obs.MergeProps(
-			obs.Props{
-				"protocol": "web",
-				"stage":    "begin",
-			},
-			requestLogProps))
-		loggableWriter := newLoggableResponseWriter(dataCollector, writer)
-
-		// Process request
-		handlerFunc(loggableWriter, request)
-
-		responseLogProps["headers"] = writer.Header()
-		responseLogProps["bodySize"] = len(loggableWriter.responseBody)
-		if hasReadableBody(writer.Header()) {
-			responseLogProps["body"] = string(loggableWriter.responseBody)
-		}
-
-		dataCollector.Logger.LogWithContext(ct, obs.Info, obs.MergeProps(
-			obs.Props{
-				"protocol": "web",
-				"stage":    "end",
-			},
-			responseLogProps))
 	}
 }
 
-func LogGRPCRequest(dataCollector obs.DataCollector) grpc.UnaryServerInterceptor {
+func ServerGRPCLogRequest(dataCollector obs.DataCollector) grpc.UnaryServerInterceptor {
 	return func(
 		ct context.Context,
 		req interface{},
@@ -106,6 +108,7 @@ func LogGRPCRequest(dataCollector obs.DataCollector) grpc.UnaryServerInterceptor
 type LoggableResponseWriter struct {
 	dataCollector obs.DataCollector
 	http.ResponseWriter
+	ct           context.Context
 	responseBody []byte
 }
 
@@ -122,7 +125,7 @@ func (l *LoggableResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	hijacker, ok := l.ResponseWriter.(http.Hijacker)
 	if !ok {
 		err := errors.New("response does not implement http.Hijacker")
-		l.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		l.dataCollector.Logger.LogWithContext(l.ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, nil, err
 	}
 
@@ -133,17 +136,21 @@ func (l *LoggableResponseWriter) Flush() {
 	flusher, ok := l.ResponseWriter.(http.Flusher)
 	if !ok {
 		err := "response does not implement http.Flusher"
-		l.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		l.dataCollector.Logger.LogWithContext(l.ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return
 	}
 
 	flusher.Flush()
 }
 
-func newLoggableResponseWriter(dataCollector obs.DataCollector, writer http.ResponseWriter) *LoggableResponseWriter {
+func newLoggableResponseWriter(
+	dataCollector obs.DataCollector,
+	writer http.ResponseWriter,
+	ct context.Context) *LoggableResponseWriter {
 	return &LoggableResponseWriter{
 		dataCollector:  dataCollector,
 		ResponseWriter: writer,
+		ct:             ct,
 	}
 }
 
