@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func ServerHTTPWithTimeout(duration time.Duration) HTTPMiddleware {
+func ServerHTTPWithTimeout(duration time.Duration) HTTPServerMiddleware {
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		return func(writer http.ResponseWriter, request *http.Request) {
 			ct := request.Context()
