@@ -351,7 +351,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		expectedHasPermission bool
 	}{
 		{
-			name:                  "Test hasPermission when current permission found",
+			name:                  "current permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -359,7 +359,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Test hasPermission when current permission not found but parent permission found",
+			name:                  "current permission not found but parent permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -367,7 +367,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: false,
 		},
 		{
-			name:                  "Test hasPermission when both operation and resource type of parent permission change and permission found",
+			name:                  "operation and resource type of parent permission change and permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -375,7 +375,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Test hasPermission when both operation and resource type of parent permission change but no permission found",
+			name:                  "operation and resource type of parent permission change but no permission found",
 			resourceType:          "task",
 			resourceID:            6,
 			operation:             "update",
@@ -383,7 +383,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: false,
 		},
 		{
-			name:                  "Test hasPermission when operation and resource type is same and one resource is parent of other resource and permission found",
+			name:                  "operation and resource type is same and one resource is parent of other resource and permission found",
 			resourceType:          "task",
 			resourceID:            5,
 			operation:             "read",
@@ -391,7 +391,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Test hasPermission when one resource type has multiple same level parent resource types and permission found",
+			name:                  "one resource type has multiple same level parent resource types and permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -399,7 +399,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Test hasPermission one resource type has multiple same level parent resource types but no permission found",
+			name:                  "one resource type has multiple same level parent resource types but no permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "update",
@@ -407,7 +407,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: false,
 		},
 		{
-			name:                  "Test hasPermission permission found for user who is in a owner group",
+			name:                  "permission found for user who is in a owner group",
 			resourceType:          "team",
 			resourceID:            1,
 			operation:             "read",
@@ -415,7 +415,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Test hasPermission no permission for user who is outside of a owner group",
+			name:                  "no permission for user who is outside of a owner group",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
