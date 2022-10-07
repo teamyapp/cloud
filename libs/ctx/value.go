@@ -3,6 +3,7 @@ package ctx
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"google.golang.org/grpc/metadata"
 )
@@ -18,7 +19,7 @@ func getValueGRPC(ctx context.Context, key key) string {
 		return ""
 	}
 
-	values := md.Get(string(key))
+	values := md.Get(strings.ToLower(string(key)))
 	if len(values) == 0 {
 		return ""
 	}
