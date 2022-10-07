@@ -15,7 +15,7 @@ func ServerHTTPWithRequestID(dataCollector obs.DataCollector) HTTPServerMiddlewa
 		return func(writer http.ResponseWriter, request *http.Request) {
 			ct := request.Context()
 			requestID := ctx.GetRequestIDHttp(ct, request)
-			requestID, _ = generateRequestIdIfNot(dataCollector, ct, requestID)
+			requestID = generateRequestIdIfNot(dataCollector, ct, requestID)
 			ct = ctx.NewContextWithRequestID(ct, requestID)
 			request = request.WithContext(ct)
 			handlerFunc(writer, request)
@@ -31,28 +31,22 @@ func ServerGRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryServerIn
 		handler grpc.UnaryHandler,
 	) (resp interface{}, err error) {
 		requestID := ctx.GetRequestIDGRPC(ct)
-		requestID, isGenerated := generateRequestIdIfNot(dataCollector, ct, requestID)
-		if isGenerated {
-			ct = ctx.MetadataWithRequestID(ct, requestID)
-		}
-
+		requestID = generateRequestIdIfNot(dataCollector, ct, requestID)
 		ct = ctx.NewContextWithRequestID(ct, requestID)
-		res, err := handler(ct, req)
-		return res, err
+		return handler(ct, req)
 	}
 }
 
 func ClientGRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryClientInterceptor {
 	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		requestID := ctx.GetRequestIDGRPC(ct)
-		requestID, _ = generateRequestIdIfNot(dataCollector, ct, requestID)
+		requestID = generateRequestIdIfNot(dataCollector, ct, requestID)
 		ct = ctx.MetadataWithRequestID(ct, requestID)
-
 		return invoker(ct, method, req, reply, cc, opts...)
 	}
 }
 
-func generateRequestIdIfNot(dataCollector obs.DataCollector, ct context.Context, requestID string) (string, bool) {
+func generateRequestIdIfNot(dataCollector obs.DataCollector, ct context.Context, requestID string) string {
 	if len(requestID) == 0 {
 		// it's okay to have conflicts for request ID
 		randomID := uuid.New()
@@ -63,8 +57,8 @@ func generateRequestIdIfNot(dataCollector obs.DataCollector, ct context.Context,
 				"requestID": requestID,
 			},
 		})
-		return requestID, true
+		return requestID
 	}
 
-	return requestID, false
+	return requestID
 }
