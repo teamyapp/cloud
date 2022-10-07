@@ -58,7 +58,7 @@ func ServerHTTPLogRequest(dataCollector obs.DataCollector) HTTPServerMiddleware 
 				responseLogProps["body"] = string(loggableWriter.responseBody)
 			}
 
-			dataCollector.Logger.LogWithContext(ct, obs.Info, requestLogProps)
+			dataCollector.Logger.LogWithContext(ct, obs.Info, responseLogProps)
 		}
 	}
 }
