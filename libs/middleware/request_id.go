@@ -36,6 +36,7 @@ func ServerGRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryServerIn
 			ct = ctx.MetadataWithRequestID(ct, requestID)
 		}
 
+		ct = ctx.NewContextWithRequestID(ct, requestID)
 		res, err := handler(ct, req)
 		return res, err
 	}
