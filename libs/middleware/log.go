@@ -49,6 +49,8 @@ func ServerHTTPLogRequest(dataCollector obs.DataCollector) HTTPServerMiddleware 
 			responseLogProps := obs.Props{
 				"protocol": "web",
 				"stage":    "end",
+				"method":   request.Method,
+				"path":     request.URL.Path,
 				"headers":  writer.Header(),
 				"bodySize": len(loggableWriter.responseBody),
 			}
@@ -91,6 +93,7 @@ func ServerGRPCLogRequest(dataCollector obs.DataCollector) grpc.UnaryServerInter
 		responseLogProps := obs.Props{
 			"protocol": "gRPC",
 			"stage":    "end",
+			"method":   info.FullMethod,
 			"body":     responseBody,
 			"bodySize": len(responseBody),
 		}
