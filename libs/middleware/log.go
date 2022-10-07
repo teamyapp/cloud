@@ -27,41 +27,36 @@ func ServerHTTPLogRequest(dataCollector obs.DataCollector) HTTPServerMiddleware 
 			}
 
 			requestLogProps := obs.Props{
+				"protocol": "web",
+				"stage":    "begin",
 				"host":     request.URL.Host,
 				"method":   request.Method,
 				"path":     request.URL.Path,
 				"headers":  request.Header,
 				"bodySize": len(buf),
 			}
-			responseLogProps := obs.Props{}
 			if hasReadableBody(request.Header) {
 				requestLogProps["body"] = string(buf)
 			}
 
 			request.Body = io.NopCloser(bytes.NewReader(buf))
-			dataCollector.Logger.LogWithContext(ct, obs.Info, obs.MergeProps(
-				obs.Props{
-					"protocol": "web",
-					"stage":    "begin",
-				},
-				requestLogProps))
+			dataCollector.Logger.LogWithContext(ct, obs.Info, requestLogProps)
 			loggableWriter := newLoggableResponseWriter(dataCollector, writer, ct)
 
 			// Process request
 			handlerFunc(loggableWriter, request)
 
-			responseLogProps["headers"] = writer.Header()
-			responseLogProps["bodySize"] = len(loggableWriter.responseBody)
+			responseLogProps := obs.Props{
+				"protocol": "web",
+				"stage":    "end",
+				"headers":  writer.Header(),
+				"bodySize": len(loggableWriter.responseBody),
+			}
 			if hasReadableBody(writer.Header()) {
 				responseLogProps["body"] = string(loggableWriter.responseBody)
 			}
 
-			dataCollector.Logger.LogWithContext(ct, obs.Info, obs.MergeProps(
-				obs.Props{
-					"protocol": "web",
-					"stage":    "end",
-				},
-				responseLogProps))
+			dataCollector.Logger.LogWithContext(ct, obs.Info, requestLogProps)
 		}
 	}
 }
@@ -73,11 +68,14 @@ func ServerGRPCLogRequest(dataCollector obs.DataCollector) grpc.UnaryServerInter
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (resp interface{}, err error) {
+		requestBody := fmt.Sprintf("%v", req)
 		requestLogProps := obs.Props{
-			"method":  info.FullMethod,
-			"request": fmt.Sprintf("%v", req),
+			"protocol": "gRPC",
+			"stage":    "begin",
+			"method":   info.FullMethod,
+			"body":     requestBody,
+			"bodySize": len(requestBody),
 		}
-		responseLogProps := obs.Props{}
 
 		md, ok := metadata.FromIncomingContext(ct)
 		if ok {
@@ -85,22 +83,20 @@ func ServerGRPCLogRequest(dataCollector obs.DataCollector) grpc.UnaryServerInter
 		}
 
 		dataCollector.Logger.LogWithContext(ct, obs.Info, obs.MergeProps(
-			obs.Props{
-				"protocol": "gRPC",
-				"stage":    "begin",
-			},
+			obs.Props{},
 			requestLogProps))
 
 		// Process request
 		res, err := handler(ct, req)
 
-		responseLogProps["response"] = res
-		dataCollector.Logger.LogWithContext(ct, obs.Info, obs.MergeProps(
-			obs.Props{
-				"protocol": "gRPC",
-				"stage":    "end",
-			},
-			responseLogProps))
+		responseBody := fmt.Sprintf("%v", res)
+		responseLogProps := obs.Props{
+			"protocol": "gRPC",
+			"stage":    "end",
+			"body":     responseBody,
+			"bodySize": len(responseBody),
+		}
+		dataCollector.Logger.LogWithContext(ct, obs.Info, responseLogProps)
 		return res, err
 	}
 }
