@@ -82,9 +82,7 @@ func ServerGRPCLogRequest(dataCollector obs.DataCollector) grpc.UnaryServerInter
 			requestLogProps["metadata"] = fmt.Sprintf("%v", md)
 		}
 
-		dataCollector.Logger.LogWithContext(ct, obs.Info, obs.MergeProps(
-			obs.Props{},
-			requestLogProps))
+		dataCollector.Logger.LogWithContext(ct, obs.Info, requestLogProps)
 
 		// Process request
 		res, err := handler(ct, req)
