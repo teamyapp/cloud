@@ -13,7 +13,7 @@ var ServerHTTPEnableCORS HTTPServerMiddleware = func(handlerFunc http.HandlerFun
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
 		writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, PUT, OPTIONS, DELETE")
 		writer.Header().Set("Access-Control-Allow-Headers",
-			fmt.Sprintf("Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, %v", strings.Join(ctx.GetSupportedAllowedHeaders(), ", ")))
+			fmt.Sprintf("Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, %v", strings.Join(ctx.GetSupportedCustomHeaders(), ", ")))
 		if request.Method == http.MethodOptions {
 			return
 		}

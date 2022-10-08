@@ -8,6 +8,6 @@ const (
 	clientIDKey  key = "T-Client-Id"
 )
 
-func GetSupportedAllowedHeaders() []string {
+func GetSupportedCustomHeaders() []string {
 	return []string{string(requestIDKey)}
 }
