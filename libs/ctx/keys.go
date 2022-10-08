@@ -7,3 +7,7 @@ const (
 	requestIDKey key = "T-Request-Id"
 	clientIDKey  key = "T-Client-Id"
 )
+
+func GetSupportedAllowedHeaders() []string {
+	return []string{string(requestIDKey)}
+}
