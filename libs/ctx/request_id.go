@@ -16,7 +16,12 @@ func GetRequestIDHttp(ctx context.Context, request *http.Request) string {
 }
 
 func GetRequestID(ctx context.Context) (string, bool) {
-	value, ok := ctx.Value(requestIDKey).(string)
+	rawValue := ctx.Value(requestIDKey)
+	if rawValue == nil {
+		return "", false
+	}
+
+	value, ok := rawValue.(string)
 	return value, ok
 }
 
@@ -26,6 +31,5 @@ func NewContextWithRequestID(ctx context.Context, requestID string) context.Cont
 
 func MetadataWithRequestID(ctx context.Context, requestID string) context.Context {
 	ctx = metadata.AppendToOutgoingContext(ctx, string(requestIDKey), requestID)
-
 	return ctx
 }

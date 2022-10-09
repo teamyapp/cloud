@@ -113,7 +113,7 @@ func withIdentity(
 			}
 
 			if len(token) > 0 {
-				ct, err := ctxWithUserID(dataCollector, request.Context(), verifyTokenURL, token)
+				ct, err = ctxWithUserID(dataCollector, request.Context(), verifyTokenURL, token)
 				if err != nil {
 					dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 					writer.WriteHeader(http.StatusUnauthorized)

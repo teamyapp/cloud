@@ -5,7 +5,12 @@ import (
 )
 
 func GetClientID(ctx context.Context) (uint64, bool) {
-	value, ok := ctx.Value(clientIDKey).(uint64)
+	rawValue := ctx.Value(clientIDKey)
+	if rawValue == nil {
+		return 0, false
+	}
+
+	value, ok := rawValue.(uint64)
 	return value, ok
 }
 
