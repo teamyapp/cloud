@@ -1,19 +1,21 @@
 package obs
 
-type Severity string
+type VisibleLevel string
 
 const (
-	Fatal   Severity = "Fatal"
-	Error            = "Error"
-	Warning          = "Warning"
-	Info             = "Info"
-	Debug            = "Debug"
+	Off     VisibleLevel = "Off"
+	Fatal   VisibleLevel = "Fatal"
+	Error   VisibleLevel = "Error"
+	Warning VisibleLevel = "Warning"
+	Info    VisibleLevel = "Info"
+	Debug   VisibleLevel = "Debug"
 )
 
-var severities = map[Severity]int{
-	Debug:   0,
-	Info:    1,
-	Warning: 2,
-	Error:   3,
-	Fatal:   4,
+var visibleLevelRank = map[VisibleLevel]int{
+	Off:     0,
+	Fatal:   1,
+	Error:   2,
+	Warning: 3,
+	Info:    4,
+	Debug:   5,
 }
