@@ -23,7 +23,7 @@ import (
 
 // Injectors from wire.go:
 
-func InitDataCollector(serviceName string, visibleLevel obs.VisibleLevel) obs.DataCollector {
+func InitDataCollector(serviceName string, visibleLevel obs.LogLevel) obs.DataCollector {
 	logger := newLogger(serviceName, visibleLevel)
 	dataCollector := obs.NewDataCollector(logger)
 	return dataCollector
@@ -189,6 +189,6 @@ func newIdentityService(
 		oauthProviders, time.Duration(accessTokenTLL))
 }
 
-func newLogger(serviceName string, visibleLevel obs.VisibleLevel) obs.Logger {
+func newLogger(serviceName string, visibleLevel obs.LogLevel) obs.Logger {
 	return obs.NewServiceLogger(serviceName, obs.NewRequestLogger(obs.NewClientLogger(obs.NewRawLogger(visibleLevel))))
 }

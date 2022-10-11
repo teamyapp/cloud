@@ -33,7 +33,7 @@ type S3AccessKeyID string
 type S3AccessKey string
 type S3BucketName string
 
-func InitDataCollector(serviceName string, visibleLevel obs.VisibleLevel) obs.DataCollector {
+func InitDataCollector(serviceName string, visibleLevel obs.LogLevel) obs.DataCollector {
 	wire.Build(
 		newLogger,
 		obs.NewDataCollector,
@@ -226,7 +226,7 @@ func newIdentityService(
 		time.Duration(accessTokenTLL))
 }
 
-func newLogger(serviceName string, visibleLevel obs.VisibleLevel) obs.Logger {
+func newLogger(serviceName string, visibleLevel obs.LogLevel) obs.Logger {
 	return obs.NewServiceLogger(serviceName,
 		obs.NewRequestLogger(
 			obs.NewClientLogger(

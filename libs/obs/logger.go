@@ -5,8 +5,8 @@ import (
 )
 
 type Logger interface {
-	Log(level VisibleLevel, props Props)
-	LogWithContext(ct context.Context, level VisibleLevel, props Props)
-	LogAndSkip(level VisibleLevel, props Props, skipCallers int)
-	LogWithContextAndSkip(ct context.Context, level VisibleLevel, props Props, skipCallers int)
+	Log(level LogLevel, props Props)
+	LogWithContext(ct context.Context, level LogLevel, props Props)
+	LogAndSkip(level LogLevel, props Props, skipCallers int)
+	LogWithContextAndSkip(ct context.Context, level LogLevel, props Props, skipCallers int)
 }

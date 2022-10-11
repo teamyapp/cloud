@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	logVisibleLevel := obs.VisibleLevel(getEnv("LOG_VISIBLE_LEVEL", "Info"))
+	logVisibleLevel := obs.LogLevel(getEnv("LOG_VISIBLE_LEVEL", "Info"))
 	dataCollector := dep.InitDataCollector("cloud/backend", logVisibleLevel)
 	cfg, err := config.AppFromEnv(dataCollector)
 	if err != nil {

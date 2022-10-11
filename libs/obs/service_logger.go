@@ -11,19 +11,19 @@ type ServiceLogger struct {
 
 var _ Logger = (*ServiceLogger)(nil)
 
-func (s ServiceLogger) Log(level VisibleLevel, props Props) {
+func (s ServiceLogger) Log(level LogLevel, props Props) {
 	s.LogAndSkip(level, props, 1)
 }
 
-func (s ServiceLogger) LogAndSkip(level VisibleLevel, props Props, skipCallers int) {
+func (s ServiceLogger) LogAndSkip(level LogLevel, props Props, skipCallers int) {
 	s.logger.LogAndSkip(level, s.withServiceProps(props), skipCallers+1)
 }
 
-func (s ServiceLogger) LogWithContext(ct context.Context, level VisibleLevel, props Props) {
+func (s ServiceLogger) LogWithContext(ct context.Context, level LogLevel, props Props) {
 	s.LogWithContextAndSkip(ct, level, props, 1)
 }
 
-func (s ServiceLogger) LogWithContextAndSkip(ct context.Context, level VisibleLevel, props Props, skipCallers int) {
+func (s ServiceLogger) LogWithContextAndSkip(ct context.Context, level LogLevel, props Props, skipCallers int) {
 	s.logger.LogWithContextAndSkip(ct, level, s.withServiceProps(props), skipCallers+1)
 }
 

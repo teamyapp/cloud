@@ -11,32 +11,32 @@ import (
 const logBufferSize = 2000
 
 type RawLogger struct {
-	visibleLevel VisibleLevel
+	visibleLevel LogLevel
 	logQueue     chan Props
 }
 
 var _ Logger = (*RawLogger)(nil)
 
-func (r RawLogger) Log(level VisibleLevel, properties Props) {
+func (r RawLogger) Log(level LogLevel, properties Props) {
 	r.LogAndSkip(level, properties, 1)
 }
 
-func (r RawLogger) LogAndSkip(level VisibleLevel, properties Props, skipCallers int) {
-	if visibleLevelRank[level] <= visibleLevelRank[r.visibleLevel] {
+func (r RawLogger) LogAndSkip(level LogLevel, properties Props, skipCallers int) {
+	if logLevelRank[level] <= logLevelRank[r.visibleLevel] {
 		properties = withDefaults(level, properties, skipCallers+1)
 		r.logQueue <- properties
 	}
 }
 
-func (r RawLogger) LogWithContext(ct context.Context, level VisibleLevel, props Props) {
+func (r RawLogger) LogWithContext(ct context.Context, level LogLevel, props Props) {
 	r.LogWithContextAndSkip(ct, level, props, 1)
 }
 
-func (r RawLogger) LogWithContextAndSkip(ct context.Context, level VisibleLevel, properties Props, skipCallers int) {
+func (r RawLogger) LogWithContextAndSkip(ct context.Context, level LogLevel, properties Props, skipCallers int) {
 	r.LogAndSkip(level, properties, skipCallers+1)
 }
 
-func withDefaults(level VisibleLevel, props Props, skipCallers int) Props {
+func withDefaults(level LogLevel, props Props, skipCallers int) Props {
 	_, fileName, lineNum, ok := runtime.Caller(skipCallers + 1)
 	if !ok {
 		return props
@@ -54,7 +54,7 @@ func withDefaults(level VisibleLevel, props Props, skipCallers int) Props {
 	return newProps
 }
 
-func NewRawLogger(visibleLevel VisibleLevel) RawLogger {
+func NewRawLogger(visibleLevel LogLevel) RawLogger {
 	logQueue := make(chan Props, logBufferSize)
 	go func() {
 		for logProps := range logQueue {
