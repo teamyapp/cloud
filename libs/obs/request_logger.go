@@ -12,19 +12,19 @@ type RequestLogger struct {
 
 var _ Logger = (*RequestLogger)(nil)
 
-func (r RequestLogger) Log(severity Severity, props Props) {
-	r.LogAndSkip(severity, props, 1)
+func (r RequestLogger) Log(level LogLevel, props Props) {
+	r.LogAndSkip(level, props, 1)
 }
 
-func (r RequestLogger) LogAndSkip(severity Severity, props Props, skipCallers int) {
-	r.logger.LogAndSkip(severity, props, skipCallers+1)
+func (r RequestLogger) LogAndSkip(level LogLevel, props Props, skipCallers int) {
+	r.logger.LogAndSkip(level, props, skipCallers+1)
 }
 
-func (r RequestLogger) LogWithContext(ct context.Context, severity Severity, props Props) {
-	r.LogWithContextAndSkip(ct, severity, props, 1)
+func (r RequestLogger) LogWithContext(ct context.Context, level LogLevel, props Props) {
+	r.LogWithContextAndSkip(ct, level, props, 1)
 }
 
-func (r RequestLogger) LogWithContextAndSkip(ct context.Context, severity Severity, props Props, skipCallers int) {
+func (r RequestLogger) LogWithContextAndSkip(ct context.Context, level LogLevel, props Props, skipCallers int) {
 	newProps := Props{}
 	for key, value := range props {
 		newProps[key] = value
@@ -35,7 +35,7 @@ func (r RequestLogger) LogWithContextAndSkip(ct context.Context, severity Severi
 		newProps["requestId"] = requestID
 	}
 
-	r.logger.LogWithContextAndSkip(ct, severity, newProps, skipCallers+1)
+	r.logger.LogWithContextAndSkip(ct, level, newProps, skipCallers+1)
 }
 
 func NewRequestLogger(logger Logger) RequestLogger {

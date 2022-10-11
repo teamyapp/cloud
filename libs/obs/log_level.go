@@ -1,19 +1,21 @@
 package obs
 
-type Severity string
+type LogLevel string
 
 const (
-	Fatal   Severity = "Fatal"
-	Error            = "Error"
-	Warning          = "Warning"
-	Info             = "Info"
-	Debug            = "Debug"
+	Off     LogLevel = "Off"
+	Fatal   LogLevel = "Fatal"
+	Error   LogLevel = "Error"
+	Warning LogLevel = "Warning"
+	Info    LogLevel = "Info"
+	Debug   LogLevel = "Debug"
 )
 
-var severities = map[Severity]int{
-	Debug:   0,
-	Info:    1,
-	Warning: 2,
-	Error:   3,
-	Fatal:   4,
+var logLevelRank = map[LogLevel]int{
+	Off:     0,
+	Fatal:   1,
+	Error:   2,
+	Warning: 3,
+	Info:    4,
+	Debug:   5,
 }
