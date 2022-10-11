@@ -75,8 +75,7 @@ func ServerGRPCWithIdentity(dataCollector obs.DataCollector, identityAPIEndpoint
 			accessToken := values[0]
 			updatedCt, err := ctxWithUserID(dataCollector, ct, verifyTokenURL, accessToken)
 			if err != nil {
-				dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-				return nil, err
+				dataCollector.Logger.LogWithContext(ct, obs.Warning, obs.Props{obs.CauseProp: err})
 			}
 
 			ct = updatedCt
@@ -89,7 +88,10 @@ func ServerGRPCWithIdentity(dataCollector obs.DataCollector, identityAPIEndpoint
 func ClientGRPCWithIdentity(getAccessToken func() string) grpc.UnaryClientInterceptor {
 	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		if getAccessToken != nil {
-			ct = metadata.AppendToOutgoingContext(ct, gRPCAuthorizationKey, getAccessToken())
+			accessToken := getAccessToken()
+			if len(accessToken) > 0 {
+				ct = metadata.AppendToOutgoingContext(ct, gRPCAuthorizationKey, accessToken)
+			}
 		}
 
 		return invoker(ct, method, req, reply, cc, opts...)
