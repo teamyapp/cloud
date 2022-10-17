@@ -97,11 +97,13 @@ func main() {
 			return err
 		}
 
+		monitorAPI := dep.InitMonitorAPI(dataCollector)
 		rn := runner.NewServiceRunner(dataCollector, runnerConfig, []runner.Service{
 			identityAPI,
 			generatorAPI,
 			authorizationAPI,
 			fileAPI,
+			monitorAPI,
 		})
 
 		rn.Start()

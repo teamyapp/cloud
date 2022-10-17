@@ -93,6 +93,13 @@ var storageSet = wire.NewSet(
 	newS3Bucket,
 )
 
+func InitMonitorAPI(dataCollector obs.DataCollector) *api.Monitor {
+	wire.Build(
+		api.NewMonitor,
+	)
+	return nil
+}
+
 func InitIdentityAPI(
 	dataCollector obs.DataCollector,
 	sqlDB *sql.DB,
