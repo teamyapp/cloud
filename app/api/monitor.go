@@ -38,7 +38,7 @@ func (m *Monitor) uploadLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logEntries := []string{}
+	logEntries := []map[string]string{}
 	err = json.Unmarshal(buf, &logEntries)
 	if err != nil {
 		m.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
