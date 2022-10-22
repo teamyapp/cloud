@@ -76,9 +76,9 @@ func ServerGRPCWithIdentity(dataCollector obs.DataCollector, identityAPIEndpoint
 			updatedCt, err := ctxWithUserID(dataCollector, ct, verifyTokenURL, accessToken)
 			if err != nil {
 				dataCollector.Logger.LogWithContext(ct, obs.Warning, obs.Props{obs.CauseProp: err})
+			} else {
+				ct = updatedCt
 			}
-
-			ct = updatedCt
 		}
 
 		return handler(ct, req)
@@ -119,10 +119,11 @@ func withIdentity(
 				if err != nil {
 					dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 					writer.WriteHeader(http.StatusUnauthorized)
-					return
+				} else {
+					ct = updatedCt
 				}
 
-				request = request.WithContext(updatedCt)
+				request = request.WithContext(ct)
 			}
 
 			handlerFunc(writer, request)
