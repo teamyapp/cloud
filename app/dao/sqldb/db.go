@@ -25,7 +25,7 @@ const MigrateAll = 0
 const lowerCaseLetters = "abcdefghijklmnopqrstuvwxyz"
 const upperCaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const digits = "0123456789"
-const specialChars = "!@#$%^&*()-+=?[]"
+const specialChars = "!@$%^&*()-+=?[]"
 const dbPasswordLen = 20
 
 type Config struct {
@@ -85,7 +85,7 @@ func NewMigration(dataCollector obs.DataCollector, migrationDir string, fileName
 	return fullFilePath, nil
 }
 
-func New(dataCollector obs.DataCollector, dbName string) {
+func New(dbName string) {
 	alphabet := concatenate([]string{
 		lowerCaseLetters,
 		upperCaseLetters,
@@ -96,8 +96,7 @@ func New(dataCollector obs.DataCollector, dbName string) {
 	dbNamePostfix := randString(dbNamePostfixAlphabet, 5)
 	fullDBName := fmt.Sprintf("%s-%s", dbName, dbNamePostfix)
 	password := randString(alphabet, dbPasswordLen)
-	dataCollector.Logger.Log(obs.Info, obs.Props{
-		obs.MessageProp: strings.TrimSpace(fmt.Sprintf(`
+	fmt.Println(strings.TrimSpace(fmt.Sprintf(`
 user: %s
 password: %s
 dbName: %s
@@ -108,16 +107,15 @@ CREATE USER "%s" WITH PASSWORD '%s';
 GRANT ALL PRIVILEGES ON DATABASE "%s" TO "%s";
 ================================================================================
 `,
-			fullDBName,
-			password,
-			fullDBName,
-			fullDBName,
-			fullDBName,
-			password,
-			fullDBName,
-			fullDBName,
-		)),
-	})
+		fullDBName,
+		password,
+		fullDBName,
+		fullDBName,
+		fullDBName,
+		password,
+		fullDBName,
+		fullDBName,
+	)))
 }
 
 func ExecSQL(dataCollector obs.DataCollector, sqlDB *sql.DB, sqlFileName string) error {

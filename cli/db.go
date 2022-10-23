@@ -33,7 +33,7 @@ var newDBCmd = &cobra.Command{
 	Use:   "new",
 	Short: "Generate SQL to create new database",
 	Run: func(cmd *cobra.Command, args []string) {
-		sqldb.New(dataCollector, dbName)
+		sqldb.New(dbName)
 	},
 }
 
