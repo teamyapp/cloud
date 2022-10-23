@@ -1,46 +1,10 @@
-apiVersion: kubernetes-client.io/v1
-kind: ExternalSecret
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
 metadata:
   namespace: testing
   name: cloud
 spec:
-  backendType: vault
-  vaultMountPoint: kubernetes
-  vaultRole: secrets-read-role
-  data:
-    - name: db-user
-      key: kv/data/secrets/testing/cloud/db
-      property: user
-    - name: db-password
-      key: kv/data/secrets/testing/cloud/db
-      property: password
-    - name: db-name
-      key: kv/data/secrets/testing/cloud/db
-      property: name
-    - name: jwt-signing-key
-      key: kv/data/secrets/testing/cloud
-      property: jwt-signing-key
-    - name: google-client-id
-      key: kv/data/secrets/testing/cloud
-      property: google-client-id
-    - name: google-client-secret
-      key: kv/data/secrets/testing/cloud
-      property: google-client-secret
-    - name: github-client-id
-      key: kv/data/secrets/testing/cloud
-      property: github-client-id
-    - name: github-client-secret
-      key: kv/data/secrets/testing/cloud
-      property: github-client-secret
-    - name: s3-endpoint
-      key: kv/data/secrets/testing/cloud
-      property: s3-endpoint
-    - name: s3-access-key-id
-      key: kv/data/secrets/testing/cloud
-      property: s3-access-key-id
-    - name: s3-access-key
-      key: kv/data/secrets/testing/cloud
-      property: s3-access-key
+  itemPath: vaults/Automation/items/apps:testing:cloud
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -190,5 +154,5 @@ spec:
           port: 81
           scheme: h2c
   tls:
-    secretName: teamy-cert
+    secretName: certs-teamyapp.com
 
