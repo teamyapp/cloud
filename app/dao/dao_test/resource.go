@@ -1,6 +1,7 @@
 package dao_test
 
 import (
+	"context"
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 )
@@ -11,22 +12,22 @@ type Resource struct {
 
 var _ dao.Resource = (*Resource)(nil)
 
-func (r Resource) FindResource(resourceTypeName string, resourceID uint64) (entity.Resource, error) {
+func (r Resource) FindResource(ct context.Context, resourceTypeName string, resourceID uint64) (entity.Resource, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (r Resource) FindAllResources() ([]entity.Resource, error) {
+func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (r Resource) CreateResource(resource entity.Resource) error {
+func (r Resource) CreateResource(ct context.Context, resource entity.Resource) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (r Resource) DeleteResource(resourceTypeName string, resourceID uint64) error {
+func (r Resource) DeleteResource(ct context.Context, resourceTypeName string, resourceID uint64) error {
 	//TODO implement me
 	panic("implement me")
 }

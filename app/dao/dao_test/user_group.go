@@ -1,6 +1,7 @@
 package dao_test
 
 import (
+	"context"
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 )
@@ -11,27 +12,27 @@ type UserGroup struct {
 
 var _ dao.UserGroup = (*UserGroup)(nil)
 
-func (u UserGroup) FindGroupByID(groupID uint64) (entity.UserGroup, error) {
+func (u UserGroup) FindGroupByID(ct context.Context, groupID uint64) (entity.UserGroup, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroup) FindAllGroups() ([]entity.UserGroup, error) {
+func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroup) CreateGroup(group entity.UserGroup) error {
+func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroup) UpdateGroup(group entity.UserGroup) error {
+func (u UserGroup) UpdateGroup(ct context.Context, group entity.UserGroup) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroup) DeleteGroup(groupID uint64) error {
+func (u UserGroup) DeleteGroup(ct context.Context, groupID uint64) error {
 	//TODO implement me
 	panic("implement me")
 }
