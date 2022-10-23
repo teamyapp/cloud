@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/teamyapp/cloud/app/dao/dao_test"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/app/gen"
+	"github.com/teamyapp/cloud/libs/obs"
+	"testing"
 )
 
 func TestAuthorization_HasPermission(t *testing.T) {
@@ -342,6 +344,14 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		},
 	}
 
+	allocatedRanges := []entity.AllocatedRange{
+		{
+			Key:        "userGroupID",
+			RangeEnd:   0,
+			NextNumber: 1,
+		},
+	}
+
 	testCases := []struct {
 		name                  string
 		resourceType          string
@@ -435,6 +445,19 @@ func TestAuthorization_HasPermission(t *testing.T) {
 				operationRelationDao: dao_test.NewOperationRelation(operationRelations),
 				resourceRelationDao:  dao_test.NewResourceRelation(resourceRelations),
 			}
+
+			mockAuthorization, err := NewAuthorization(
+				obs.NewDataCollector(obs.NewRawLogger(obs.Info)),
+				dao_test.NewResourceRelation(resourceRelations),
+				dao_test.NewUserGroupMember(userGroupMembers),
+				dao_test.NewPermission(permissions),
+				dao_test.NewOperationRelation(operationRelations),
+				dao_test.NewOperation(make([]entity.Operation, 0)),
+				dao_test.NewResourceType(make([]entity.ResourceType, 0)),
+				dao_test.NewResource(make([]entity.Resource, 0)),
+				dao_test.NewUserGroup(make([]entity.UserGroup, 0)),
+				gen.NewUniqueNumberFactory(obs.NewDataCollector(obs.NewRawLogger(obs.Info)), dao_test.NewAllocatedRange(allocatedRanges), 0),
+			)
 
 			hasPermission, err := mockAuthorization.HasPermission(ct, testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)
 			assert.Nil(t, err)
