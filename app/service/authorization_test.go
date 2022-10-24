@@ -446,6 +446,10 @@ func TestAuthorization_HasPermission(t *testing.T) {
 				resourceRelationDao:  dao_test.NewResourceRelation(resourceRelations),
 			}
 
+			mockLogger := obs.NewRawLogger(obs.Info)
+			mockDataCollector := obs.NewDataCollector(mockLogger)
+			mockAllocatedRange := dao_test.NewAllocatedRange(allocatedRanges)
+
 			mockAuthorization, err := NewAuthorization(
 				obs.NewDataCollector(obs.NewRawLogger(obs.Info)),
 				dao_test.NewResourceRelation(resourceRelations),
@@ -456,7 +460,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 				dao_test.NewResourceType(make([]entity.ResourceType, 0)),
 				dao_test.NewResource(make([]entity.Resource, 0)),
 				dao_test.NewUserGroup(make([]entity.UserGroup, 0)),
-				gen.NewUniqueNumberFactory(obs.NewDataCollector(obs.NewRawLogger(obs.Info)), dao_test.NewAllocatedRange(allocatedRanges), 0),
+				gen.NewUniqueNumberFactory(mockDataCollector, mockAllocatedRange, 0),
 			)
 
 			hasPermission, err := mockAuthorization.HasPermission(ct, testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)
