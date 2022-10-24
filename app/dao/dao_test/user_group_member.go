@@ -55,7 +55,9 @@ func (u UserGroupMember) DeleteUserGroupMember(ct context.Context, groupID uint6
 }
 
 func NewUserGroupMember(userGroupMembers []entity.UserGroupMember) UserGroupMember {
+	copiedUserGroupMembers := make([]entity.UserGroupMember, len(userGroupMembers))
+	copy(copiedUserGroupMembers, userGroupMembers)
 	return UserGroupMember{
-		userGroupMembers: userGroupMembers,
+		userGroupMembers: copiedUserGroupMembers,
 	}
 }

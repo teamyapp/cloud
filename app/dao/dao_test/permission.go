@@ -45,8 +45,10 @@ func (p Permission) DeletePermission(ct context.Context, resourceType string, re
 }
 
 func NewPermission(permissions []entity.Permission) Permission {
+	copiedPermissions := make([]entity.Permission, len(permissions))
+	copy(copiedPermissions, permissions)
 	return Permission{
-		permissions: permissions,
+		permissions: copiedPermissions,
 	}
 }
 

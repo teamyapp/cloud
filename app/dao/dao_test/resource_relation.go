@@ -49,7 +49,9 @@ func (r ResourceRelation) DeleteResourceRelation(ct context.Context, childResour
 }
 
 func NewResourceRelation(resourceRelations []entity.ResourceRelation) ResourceRelation {
+	copiedResourceRelations := make([]entity.ResourceRelation, len(resourceRelations))
+	copy(copiedResourceRelations, resourceRelations)
 	return ResourceRelation{
-		resourceRelations: resourceRelations,
+		resourceRelations: copiedResourceRelations,
 	}
 }
