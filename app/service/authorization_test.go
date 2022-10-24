@@ -449,7 +449,6 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			mockLogger := obs.NewRawLogger(obs.Info)
 			mockDataCollector := obs.NewDataCollector(mockLogger)
 			mockAllocatedRange := dao_test.NewAllocatedRange(allocatedRanges)
-
 			mockAuthorization, err := NewAuthorization(
 				obs.NewDataCollector(obs.NewRawLogger(obs.Info)),
 				dao_test.NewResourceRelation(resourceRelations),
