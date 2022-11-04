@@ -489,6 +489,7 @@ func NewAuthorization(
 	}
 
 	return Authorization{
+		dataCollector:        dataCollector,
 		resourceRelationDao:  resourceRelationDao,
 		userGroupMemberDao:   userGroupMemberDao,
 		permissionDao:        permissionDao,
