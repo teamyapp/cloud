@@ -19,3 +19,14 @@ func String(alphabet []rune, length int) string {
 func Int(min int, max int) int {
 	return min + rand.Intn(max-min+1)
 }
+
+type RandomNumberGenerator interface {
+	Intn(i int) int
+}
+
+type BuiltinRanGen struct {
+}
+
+func (b BuiltinRanGen) Intn(i int) int {
+	return rand.Intn(i)
+}
