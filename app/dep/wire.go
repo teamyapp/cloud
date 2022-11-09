@@ -93,9 +93,9 @@ var storageSet = wire.NewSet(
 	newS3Bucket,
 )
 
-func InitMonitorAPI(dataCollector obs.DataCollector) *api.Monitor {
+func InitTelemetryAPI(dataCollector obs.DataCollector) *api.Telemetry {
 	wire.Build(
-		api.NewMonitor,
+		api.NewTelemetry,
 	)
 	return nil
 }
