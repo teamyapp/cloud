@@ -1,7 +1,7 @@
 package api
 
 const (
-	identityPathPrefix = "/identity"
-	filePathPrefix     = "/file"
-	monitorPathPrefix  = "/monitor"
+	identityPathPrefix  = "/identity"
+	filePathPrefix      = "/file"
+	telemetryPathPrefix = "/telemetry"
 )

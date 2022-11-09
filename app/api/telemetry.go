@@ -11,29 +11,29 @@ import (
 	"github.com/teamyapp/cloud/libs/runner"
 )
 
-type Monitor struct {
+type Telemetry struct {
 	dataCollector obs.DataCollector
 }
 
-var _ runner.Service = (*Monitor)(nil)
+var _ runner.Service = (*Telemetry)(nil)
 
-func (m *Monitor) Start(rn *runner.ServiceRunner) error {
+func (t *Telemetry) Start(rn *runner.ServiceRunner) error {
 	rn.RegisterWebRoutes([]runner.WebRoute{
 		{
-			Path:        path.Join(monitorPathPrefix, "upload-log"),
+			Path:        path.Join(telemetryPathPrefix, "upload-log"),
 			Method:      http.MethodPost,
-			HandlerFunc: m.uploadLog,
+			HandlerFunc: t.uploadLog,
 		},
 	})
 
 	return nil
 }
 
-func (m *Monitor) uploadLog(w http.ResponseWriter, r *http.Request) {
+func (t *Telemetry) uploadLog(w http.ResponseWriter, r *http.Request) {
 	ct := r.Context()
 	buf, err := io.ReadAll(r.Body)
 	if err != nil {
-		m.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		t.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -41,7 +41,7 @@ func (m *Monitor) uploadLog(w http.ResponseWriter, r *http.Request) {
 	logEntries := []map[string]string{}
 	err = json.Unmarshal(buf, &logEntries)
 	if err != nil {
-		m.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		t.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -53,8 +53,8 @@ func (m *Monitor) uploadLog(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func NewMonitor(dataCollector obs.DataCollector) *Monitor {
-	return &Monitor{
+func NewTelemetry(dataCollector obs.DataCollector) *Telemetry {
+	return &Telemetry{
 		dataCollector: dataCollector,
 	}
 }

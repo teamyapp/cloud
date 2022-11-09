@@ -36,9 +36,9 @@ func InitGoogleOAuthProvider(dataCollector obs.DataCollector, webAPIBaseURL WebA
 	return google
 }
 
-func InitMonitorAPI(dataCollector obs.DataCollector) *api.Monitor {
-	monitor := api.NewMonitor(dataCollector)
-	return monitor
+func InitTelemetryAPI(dataCollector obs.DataCollector) *api.Telemetry {
+	telemetry := api.NewTelemetry(dataCollector)
+	return telemetry
 }
 
 func InitIdentityAPI(dataCollector obs.DataCollector, sqlDB *sql.DB, oauthProviders OAuthProviders, accessTokenTTL AccessTokenTTL, jwtSigningKey JWTSigningKey, genRangeSize GenRangeSize) (api.Identity, error) {
