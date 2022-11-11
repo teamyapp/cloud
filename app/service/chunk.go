@@ -37,8 +37,8 @@ func (c *ChunksIterator) Next(ct context.Context) ([]byte, error) {
 		err = errors.New("no next chunk")
 		c.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 			obs.CauseProp:    err,
-			"nextChunkIndex": c.nextChunkIndex,
-			"numOfChunks":    c.chunkIDs,
+			"NextChunkIndex": c.nextChunkIndex,
+			"NumOfChunks":    c.chunkIDs,
 		})
 		return nil, err
 	}

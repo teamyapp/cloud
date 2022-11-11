@@ -121,8 +121,8 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 			obs.CauseProp: err,
 			obs.MessageProp: obs.Props{
-				"oauthProviderName": g.GetName(),
-				"httpStatusCode":    res.StatusCode,
+				"OauthProviderName": g.GetName(),
+				"HttpStatusCode":    res.StatusCode,
 			},
 		})
 		return "", err

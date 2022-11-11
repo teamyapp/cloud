@@ -80,7 +80,7 @@ func Parse(ct context.Context, dataCollector obs.DataCollector, input string) (t
 		err := fmt.Errorf("duration must start with 'P'")
 		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 			obs.CauseProp: err,
-			"duration":    input,
+			"Duration":    input,
 		})
 		return 0, err
 	}
@@ -205,8 +205,8 @@ func validateSymbol(
 		err := errors.New("unsupported symbol")
 		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 			obs.CauseProp: err,
-			"index":       currIndex,
-			"symbol":      currSymbol,
+			"Index":       currIndex,
+			"Symbol":      currSymbol,
 		})
 		return err
 	}
@@ -218,9 +218,9 @@ func validateSymbol(
 			err := errors.New("%c(%v) already showed up before %c(%v)")
 			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 				obs.CauseProp:     err,
-				"seenSymbolIndex": seenSymbolIndex,
-				"currSymbol":      currSymbol,
-				"currIndex":       currIndex,
+				"SeenSymbolIndex": seenSymbolIndex,
+				"CurrSymbol":      currSymbol,
+				"CurrIndex":       currIndex,
 			})
 			return err
 		}

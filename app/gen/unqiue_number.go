@@ -57,7 +57,7 @@ func (u *UniqueNumber) allocateNewRange() error {
 	u.allocatedRange = newRange
 	u.dataCollector.Logger.Log(obs.Info, obs.Props{
 		obs.MessageProp: obs.Props{
-			"allocatedRange": newRange.String(),
+			"AllocatedRange": newRange.String(),
 		},
 	})
 	return nil
