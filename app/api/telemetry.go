@@ -38,7 +38,7 @@ func (t *Telemetry) uploadLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logEntries := []map[string]string{}
+	logEntries := []string{}
 	err = json.Unmarshal(buf, &logEntries)
 	if err != nil {
 		t.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
