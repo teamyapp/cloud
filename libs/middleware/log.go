@@ -27,13 +27,13 @@ func ServerHTTPLogRequest(dataCollector obs.DataCollector) HTTPServerMiddleware 
 			}
 
 			requestLogProps := obs.Props{
-				"protocol": "web",
-				"stage":    "begin",
-				"host":     request.URL.Host,
-				"method":   request.Method,
-				"path":     request.URL.Path,
-				"headers":  request.Header,
-				"bodySize": len(buf),
+				"Protocol": "web",
+				"Stage":    "begin",
+				"Host":     request.URL.Host,
+				"Method":   request.Method,
+				"Path":     request.URL.Path,
+				"Headers":  request.Header,
+				"BodySize": len(buf),
 			}
 			if hasReadableBody(request.Header) {
 				requestLogProps["body"] = string(buf)

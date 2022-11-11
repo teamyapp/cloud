@@ -32,7 +32,7 @@ func (r RequestLogger) LogWithContextAndSkip(ct context.Context, level LogLevel,
 
 	requestID, ok := ctx.GetRequestID(ct)
 	if ok {
-		newProps["requestId"] = requestID
+		newProps["RequestId"] = requestID
 	}
 
 	r.logger.LogWithContextAndSkip(ct, level, newProps, skipCallers+1)

@@ -32,7 +32,7 @@ func (c ClientLogger) LogWithContextAndSkip(ct context.Context, level LogLevel, 
 
 	clientID, ok := ctx.GetClientID(ct)
 	if ok {
-		newProps["clientId"] = clientID
+		newProps["ClientId"] = clientID
 	}
 
 	c.logger.LogWithContextAndSkip(ct, level, newProps, skipCallers+1)
