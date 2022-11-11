@@ -33,7 +33,7 @@ func (s ServiceLogger) withServiceProps(props Props) Props {
 		newProps[key] = value
 	}
 
-	newProps["serviceName"] = s.serviceName
+	newProps["ServiceName"] = s.serviceName
 	return newProps
 }
 
