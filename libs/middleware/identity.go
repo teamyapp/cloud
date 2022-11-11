@@ -35,7 +35,7 @@ func ServerHTTPWithIdentity(
 			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 				obs.CauseProp: err,
 				obs.MessageProp: obs.Props{
-					"format": value,
+					"Format": value,
 				},
 			})
 			return "", err
@@ -45,7 +45,7 @@ func ServerHTTPWithIdentity(
 			err := errors.New("invalid Authorization header format")
 			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 				obs.CauseProp: err,
-				"format":      value,
+				"Format":      value,
 			})
 			return "", err
 		}

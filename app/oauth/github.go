@@ -61,9 +61,9 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 	if res.StatusCode > 300 || res.StatusCode < 200 {
 		err = fmt.Errorf("fail to obtain %s user ID", g.GetName())
 		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-			obs.CauseProp:       err,
-			"oauthProviderName": g.GetName(),
-			"httpStatusCode":    res.StatusCode,
+			obs.CauseProp:      err,
+			"AuthProviderName": g.GetName(),
+			"HttpStatusCode":   res.StatusCode,
 		})
 		return entity.ExternalUser{}, err
 	}
@@ -149,8 +149,8 @@ func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (st
 		err = fmt.Errorf("fail to obtain %s access token", g.GetName())
 		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 			obs.CauseProp:       err,
-			"oauthProviderName": g.GetName(),
-			"httpStatusCode":    res.StatusCode,
+			"OauthProviderName": g.GetName(),
+			"HttpStatusCode":    res.StatusCode,
 		})
 		return "", err
 	}

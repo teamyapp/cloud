@@ -53,8 +53,8 @@ func generateRequestIdIfNot(dataCollector obs.DataCollector, ct context.Context,
 		requestID = randomID.String()
 		dataCollector.Logger.LogWithContext(ct, obs.Info, obs.Props{
 			obs.MessageProp: obs.Props{
-				"summary":   "generate request ID",
-				"requestID": requestID,
+				"Summary":   "generate request ID",
+				"RequestID": requestID,
 			},
 		})
 		return requestID

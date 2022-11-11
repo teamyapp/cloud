@@ -72,16 +72,16 @@ func ServerGRPCLogRequest(dataCollector obs.DataCollector) grpc.UnaryServerInter
 	) (resp interface{}, err error) {
 		requestBody := fmt.Sprintf("%v", req)
 		requestLogProps := obs.Props{
-			"protocol": "gRPC",
-			"stage":    "begin",
-			"method":   info.FullMethod,
-			"body":     requestBody,
-			"bodySize": len(requestBody),
+			"Protocol": "gRPC",
+			"Stage":    "begin",
+			"Method":   info.FullMethod,
+			"Body":     requestBody,
+			"BodySize": len(requestBody),
 		}
 
 		md, ok := metadata.FromIncomingContext(ct)
 		if ok {
-			requestLogProps["metadata"] = fmt.Sprintf("%v", md)
+			requestLogProps["Metadata"] = fmt.Sprintf("%v", md)
 		}
 
 		dataCollector.Logger.LogWithContext(ct, obs.Info, requestLogProps)
@@ -91,11 +91,11 @@ func ServerGRPCLogRequest(dataCollector obs.DataCollector) grpc.UnaryServerInter
 
 		responseBody := fmt.Sprintf("%v", res)
 		responseLogProps := obs.Props{
-			"protocol": "gRPC",
-			"stage":    "end",
-			"method":   info.FullMethod,
-			"body":     responseBody,
-			"bodySize": len(responseBody),
+			"Protocol": "gRPC",
+			"Stage":    "end",
+			"Method":   info.FullMethod,
+			"Body":     responseBody,
+			"BodySize": len(responseBody),
 		}
 		dataCollector.Logger.LogWithContext(ct, obs.Info, responseLogProps)
 		return res, err

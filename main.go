@@ -28,7 +28,7 @@ func main() {
 		cfg.GitLongCommitHash)
 	dataCollector.Logger.Log(obs.Info, obs.Props{
 		obs.MessageProp: map[string]interface{}{
-			"gitCommitLink": gitCommitLink,
+			"GitCommitLink": gitCommitLink,
 		},
 	})
 

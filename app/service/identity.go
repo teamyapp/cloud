@@ -116,7 +116,7 @@ func (i Identity) generateSignInURL(ct context.Context, authProviderName string,
 
 	i.dataCollector.Logger.LogWithContext(ct, obs.Info, obs.Props{
 		obs.MessageProp: obs.Props{
-			"signInURL": signInURL,
+			"SignInURL": signInURL,
 		},
 	})
 	return signInURL, nil
@@ -129,7 +129,7 @@ func (i Identity) GetOAuthProvider(ct context.Context, authProviderName string) 
 		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 			obs.CauseProp: err,
 			obs.MessageProp: obs.Props{
-				"authProvider": provider,
+				"AuthProvider": provider,
 			},
 		})
 		return nil, err
@@ -188,7 +188,7 @@ func (i Identity) FinishOAuthSignIn(ct context.Context, authProviderName string,
 		err = errors.New("unsupported sign in session type")
 		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 			obs.CauseProp: err,
-			"sessionType": session.Type,
+			"SessionType": session.Type,
 		})
 		return "", err
 	}
@@ -279,8 +279,8 @@ func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64
 		err = errors.New("service account not found")
 		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 			obs.CauseProp:      err,
-			"userID":           accountOwnerID,
-			"serviceAccountID": serviceAccountID,
+			"UserID":           accountOwnerID,
+			"ServiceAccountID": serviceAccountID,
 		})
 		return "", err
 	}
@@ -317,8 +317,8 @@ func (i Identity) DeleteServiceAccount(ct context.Context, accountOwnerID uint64
 		err = errors.New("service account not found")
 		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
 			obs.CauseProp:      err,
-			"userID":           accountOwnerID,
-			"serviceAccountID": serviceAccountID,
+			"UserID":           accountOwnerID,
+			"ServiceAccountID": serviceAccountID,
 		})
 		return err
 	}
