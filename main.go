@@ -15,7 +15,7 @@ import (
 
 func main() {
 	logVisibleLevel := obs.LogLevel(getEnv("LOG_VISIBLE_LEVEL", "Info"))
-	dataCollector := dep.InitDataCollector("cloud/backend", logVisibleLevel)
+	dataCollector := dep.InitDataCollector("cloud/backend", dep.Commit(getEnv("GIT_LONG_COMMIT_HASH", "")), logVisibleLevel)
 	cfg, err := config.AppFromEnv(dataCollector)
 	if err != nil {
 		dataCollector.Logger.Log(obs.Fatal, obs.Props{obs.CauseProp: err})
