@@ -8,11 +8,11 @@ import (
 )
 
 type Timeout struct {
+	runtime          runtime.Runtime
+	clock            runtime.Clock
 	backoff          backoff.BackOff
 	timeout          time.Duration
-	clock            runtime.Clock
 	beforeRetryDelay func()
-	runtime          runtime.Runtime
 }
 
 var _ Retry = (*Timeout)(nil)
@@ -23,19 +23,19 @@ func (t Timeout) WithRetry(execute func() error) (int, error) {
 	var err error
 	for {
 		err = execute()
-		if t.beforeRetryDelay != nil {
-			t.beforeRetryDelay()
-		}
-
 		if err == nil {
 			t.backoff.OnSuccess()
 			return retryCount, nil
 		}
+		
+		if t.beforeRetryDelay != nil {
+			t.beforeRetryDelay()
+		}
 
 		t.backoff.OnFailure()
-		if !t.clock.Now().Before(timeoutAt) {
+		if !t.clock.Now().Add(t.backoff.Delay()).Before(timeoutAt) {
 			retryCount++
-			break
+			return retryCount, err
 		}
 
 		t.runtime.Sleep(t.backoff.Delay())
@@ -45,6 +45,17 @@ func (t Timeout) WithRetry(execute func() error) (int, error) {
 	return retryCount, err
 }
 
-func NewTimeout(backoff backoff.BackOff, timeout time.Duration, clock runtime.Clock, beforeRetryDelay func(), runtime runtime.Runtime) Timeout {
-	return Timeout{backoff: backoff, timeout: timeout, clock: clock, beforeRetryDelay: beforeRetryDelay, runtime: runtime}
+func NewTimeout(
+    runtime runtime.Runtime
+    backOff backoff.BackOff, 
+    clock runtime.Clock,
+    timeout time.Duration, 
+    beforeRetryDelay func()) Timeout {
+	return Timeout{
+	    runtime: runtime,
+	    backoff: backoff,
+	    clock: clock,
+	    timeout: timeout, 
+	    beforeRetryDelay: beforeRetryDelay,
+	}
 }

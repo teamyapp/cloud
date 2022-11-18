@@ -20,10 +20,12 @@ func TestInitialize(t *testing.T) {
 			randomInts:       []int{},
 		},
 	}
+	
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			exponential := getExponential(testCase)
+			
 			assert.Equal(t, exponential.maxDelay, testCase.maxDelay)
 			assert.Equal(t, exponential.minDelay, testCase.minDelay)
 			assert.Equal(t, exponential.scalingFactor, testCase.scalingFactor)

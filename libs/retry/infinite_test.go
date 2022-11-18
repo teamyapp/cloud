@@ -11,7 +11,6 @@ import (
 )
 
 func TestInfinite(t *testing.T) {
-
 	testCases := []*infiniteTestCase{
 		makeInfiniteTestCase("should retry until succeed", 10),
 	}
@@ -55,11 +54,9 @@ func makeInfiniteTestCase(name string, retries int) *infiniteTestCase {
 	}
 
 	backoff := backoff_test.NewExponentialBuilder().Build()
-
 	testCase.runtime = runtime_test.NewRuntime(func(d time.Duration) {
 		testCase.beforeThreadSleepChan <- true
 	})
-
 	testCase.execute = func() error {
 		prevCount := testCase.count
 		testCase.count++
@@ -68,8 +65,6 @@ func makeInfiniteTestCase(name string, retries int) *infiniteTestCase {
 		}
 		return nil
 	}
-
 	testCase.infiniteExecutor = NewInfinite(&backoff, testCase.runtime)
-
 	return &testCase
 }

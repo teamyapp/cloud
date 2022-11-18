@@ -6,9 +6,9 @@ import (
 )
 
 type MaxCount struct {
+	runtime  runtime.Runtime
 	backoff  backoff.BackOff
 	maxCount int
-	runtime  runtime.Runtime
 }
 
 var _ Retry = (*MaxCount)(nil)
@@ -16,7 +16,7 @@ var _ Retry = (*MaxCount)(nil)
 func (m MaxCount) WithRetry(execute func() error) (int, error) {
 	var err error
 	var retryCount int
-	for retryCount < m.maxCount {
+	for retry := 0; retry < m.maxCount; retry++ {
 		err = execute()
 		if err == nil {
 			m.backoff.OnSuccess()
@@ -25,12 +25,15 @@ func (m MaxCount) WithRetry(execute func() error) (int, error) {
 
 		m.backoff.OnFailure()
 		m.runtime.Sleep(m.backoff.Delay())
-		retryCount++
 	}
 
-	return retryCount, err
+	return m.maxCount, err
 }
 
-func NewMaxCount(backoff backoff.BackOff, maxCount int, runtime runtime.Runtime) MaxCount {
-	return MaxCount{backoff: backoff, maxCount: maxCount, runtime: runtime}
+func NewMaxCount(runtime runtime.Runtime, backoff backoff.BackOff, maxCount inT) MaxCount {
+	return MaxCount{
+	    runtime: runtime, 
+	    backoff: backoff, 
+	    maxCount: maxCount,
+	}
 }

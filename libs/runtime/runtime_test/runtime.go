@@ -3,8 +3,8 @@ package runtime_test
 import "time"
 
 type Runtime struct {
+	wakeupChan     chan bool
 	beforeThreadSleep func(time.Duration)
-	wakeupChannel     chan bool
 }
 
 func (t Runtime) Sleep(duration time.Duration) {
@@ -12,7 +12,7 @@ func (t Runtime) Sleep(duration time.Duration) {
 		(t.beforeThreadSleep)(duration)
 	}
 
-	<-t.wakeupChannel
+	<-t.wakeupChan
 }
 
 func (t Runtime) Awake() {
@@ -22,7 +22,7 @@ func (t Runtime) Awake() {
 func NewRuntime(beforeThreadSleep func(time.Duration)) *Runtime {
 	runtime := &Runtime{
 		beforeThreadSleep: beforeThreadSleep,
-		wakeupChannel:     make(chan bool),
+		wakeupChan:     make(chan bool),
 	}
 
 	return runtime

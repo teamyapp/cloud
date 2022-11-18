@@ -3,7 +3,6 @@ package retry
 import (
 	"errors"
 	"time"
-
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +11,6 @@ import (
 )
 
 func TestMaxCount(t *testing.T) {
-
 	testCases := []*maxCountTestCase{
 		makeMaxCountTestCase("should succeed before reaching max count", 3, nil),
 		makeMaxCountTestCase("should not call more than max count retries", 2, errors.New("some error")),
@@ -57,11 +55,9 @@ func makeMaxCountTestCase(name string, maxCount int, err error) *maxCountTestCas
 	}
 
 	backoff := backoff_test.NewExponentialBuilder().Build()
-
 	testCase.runtime = runtime_test.NewRuntime(func(d time.Duration) {
 		testCase.beforeThreadSleepChan <- true
 	})
-
 	testCase.execute = func() error {
 		prevCount := testCase.count
 		testCase.count++
@@ -72,7 +68,6 @@ func makeMaxCountTestCase(name string, maxCount int, err error) *maxCountTestCas
 	}
 
 	testCase.maxCountExecutor = NewMaxCount(&backoff, maxCount, testCase.runtime)
-
 	return &testCase
 
 }

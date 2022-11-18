@@ -21,7 +21,7 @@ func Int(min int, max int) int {
 }
 
 type RandomNumberGenerator interface {
-	Intn(i int) int
+	RandomInt(max int) int
 }
 
 type BuiltinRanGen struct {

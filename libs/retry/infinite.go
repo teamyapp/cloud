@@ -27,6 +27,6 @@ func (i Infinite) WithRetry(execute func() error) (int, error) {
 	}
 }
 
-func NewInfinite(backoff backoff.BackOff, runtime runtime.Runtime) Infinite {
-	return Infinite{backoff: backoff, runtime: runtime}
+func NewInfinite(runtime runtime.Runtime, backoff backoff.BackOff) Infinite {
+	return Infinite{runtime: runtime, backoff: backoff}
 }

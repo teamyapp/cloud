@@ -3,7 +3,6 @@ package retry
 import (
 	"errors"
 	"time"
-
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -58,29 +57,23 @@ func makeTimeoutTestCase(name string, maxDuration time.Duration, err error) *tim
 
 	currentTime := time.Now()
 	testClock := runtime_test.TestClock{}
-
 	testClock.SetTime(currentTime)
-
 	backoff := backoff_test.NewExponentialBuilder().Build()
-
 	testCase.runtime = runtime_test.NewRuntime(func(duration time.Duration) {
 		testClock.SetTime(testClock.Now().Add(duration))
 		testCase.beforeThreadSleepChan <- true
 	})
-
 	testCase.execute = func() error {
 		prevCount := testCase.count
 		testCase.count++
 		if prevCount < 2 {
 			return errors.New("some error")
 		}
+		
 		return nil
 	}
-
 	testCase.timeoutExecutor = NewTimeout(&backoff, maxDuration, &testClock, func() {
 		testClock.SetTime(testClock.Now().Add(2 * time.Millisecond))
 	}, testCase.runtime)
-
 	return &testCase
-
 }
