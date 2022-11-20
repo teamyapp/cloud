@@ -33,13 +33,6 @@ type S3AccessKeyID string
 type S3AccessKey string
 type S3BucketName string
 
-func InitDataCollector(serviceName string, visibleLevel obs.LogLevel) obs.DataCollector {
-	wire.Build(
-		newLogger,
-		obs.NewDataCollector,
-	)
-	return obs.DataCollector{}
-}
 
 func InitGoogleOAuthProvider(
 	dataCollector obs.DataCollector,
@@ -231,11 +224,4 @@ func newIdentityService(
 		jwtAuthority,
 		oauthProviders,
 		time.Duration(accessTokenTLL))
-}
-
-func newLogger(serviceName string, visibleLevel obs.LogLevel) obs.Logger {
-	return obs.NewServiceLogger(serviceName,
-		obs.NewRequestLogger(
-			obs.NewClientLogger(
-				obs.NewRawLogger(visibleLevel))))
 }
