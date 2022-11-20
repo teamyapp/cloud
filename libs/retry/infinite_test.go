@@ -12,32 +12,27 @@ import (
 
 func TestInfinite_flow(t *testing.T) {
 	testCases := []struct {
-		name                  string
-		execute               func() error
-		count                 int
-		beforeThreadSleepChan chan bool
-		infiniteExecutor      Infinite
-		runtime               *runtime_test.BuiltInRuntime
-		retries               int
+		name    string
+		count   int
+		retries int
 	}{
 		{
-			name:                  "Should retry until succeed",
-			beforeThreadSleepChan: make(chan bool),
-			count:                 0,
-			retries:               10,
+			name:    "Should retry until succeed",
+			count:   0,
+			retries: 10,
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			testCase := &testCase
-
+			beforeThreadSleepChan := make(chan bool)
 			backoff := backoff_test.NewExponentialBuilder().Build()
-			testCase.runtime = runtime_test.NewBuiltInRuntime(func(d time.Duration) {
-				testCase.beforeThreadSleepChan <- true
+			runtime := runtime_test.NewBuiltInRuntime(func(d time.Duration) {
+				beforeThreadSleepChan <- true
 			})
 
-			testCase.execute = func() error {
+			execute := func() error {
 				prevCount := testCase.count
 				testCase.count++
 				if prevCount < testCase.retries {
@@ -45,10 +40,10 @@ func TestInfinite_flow(t *testing.T) {
 				}
 				return nil
 			}
-			testCase.infiniteExecutor = NewInfinite(testCase.runtime, &backoff)
+			infiniteExecutor := NewInfinite(runtime, &backoff)
 
 			go func() {
-				retries, err := testCase.infiniteExecutor.WithRetry(testCase.execute)
+				retries, err := infiniteExecutor.WithRetry(execute)
 
 				assert.Equal(t, retries, testCase.retries)
 				assert.Equal(t, err, nil)
@@ -56,9 +51,9 @@ func TestInfinite_flow(t *testing.T) {
 
 			retry := 1
 			for retry <= testCase.retries {
-				<-testCase.beforeThreadSleepChan
+				<-beforeThreadSleepChan
 				assert.Equal(t, testCase.count, retry)
-				testCase.runtime.Awake()
+				runtime.Awake()
 				retry++
 			}
 		})
