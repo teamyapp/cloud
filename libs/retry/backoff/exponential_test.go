@@ -51,13 +51,7 @@ func TestExponential_flow(t *testing.T) {
 
 			exponentialBuilder := NewExponentialBuilder()
 
-			exponentialBuilder.minDelay = testCase.minDelay
-			exponentialBuilder.maxDelay = testCase.maxDelay
-			exponentialBuilder.randGenerator = randgen_test.NewBuiltinRanGen(testCase.randomInts)
-			exponentialBuilder.scalingFactor = testCase.scalingFactor
-			exponentialBuilder.randomOffset = testCase.randomOffset
-			exponentialBuilder.resetOnSuccess = testCase.resetOnSuccess
-			exponentialBuilder.randomOffsetUnit = testCase.randomOffsetUnit
+			exponentialBuilder = exponentialBuilder.MinDelay(testCase.minDelay).MaxDelay(testCase.maxDelay).RandGenerator(randgen_test.NewBuiltinRanGen(testCase.randomInts)).ScalingFactor(testCase.scalingFactor).RandomOffset(testCase.randomOffset).ResetOnSuccess(testCase.resetOnSuccess).RandomOffsetUnit(testCase.randomOffsetUnit)
 
 			exponential := exponentialBuilder.Build()
 
