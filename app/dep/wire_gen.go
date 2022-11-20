@@ -24,12 +24,6 @@ import (
 
 // Injectors from wire.go:
 
-func InitDataCollector(serviceName ServiceName, commit Commit, visibleLevel obs.LogLevel) obs.DataCollector {
-	logger := newLogger(serviceName, commit, visibleLevel)
-	dataCollector := obs.NewDataCollector(logger)
-	return dataCollector
-}
-
 func InitGoogleOAuthProvider(dataCollector obs.DataCollector, webAPIBaseURL WebAPIBaseURL, jwtSigningKey JWTSigningKey, clientID ClientID, clientSecret ClientSecret) oauth.Google {
 	jwtAuthority := newJWTAuthority(dataCollector, jwtSigningKey)
 	google := newGoogleOAuthProvider(dataCollector, jwtAuthority, webAPIBaseURL, clientID, clientSecret)
@@ -197,8 +191,4 @@ func newIdentityService(
 		uniqueNumberFactory,
 		jwtAuthority,
 		oauthProviders, time.Duration(accessTokenTLL))
-}
-
-func newLogger(serviceName ServiceName, commit Commit, visibleLevel obs.LogLevel) obs.Logger {
-	return obs.NewServiceLogger(string(serviceName), obs.NewCommitLogger(string(commit), obs.NewRequestLogger(obs.NewClientLogger(obs.NewRawLogger(visibleLevel)))))
 }

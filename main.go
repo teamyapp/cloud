@@ -15,12 +15,21 @@ import (
 
 func main() {
 	logVisibleLevel := obs.LogLevel(getEnv("LOG_VISIBLE_LEVEL", "Info"))
-	dataCollector := dep.InitDataCollector("cloud/backend", dep.Commit(getEnv("GIT_LONG_COMMIT_HASH", "")), logVisibleLevel)
+
+	var logger obs.Logger = obs.NewServiceLogger("cloud/backend",
+		obs.NewRequestLogger(
+			obs.NewClientLogger(
+				obs.NewRawLogger(logVisibleLevel))))
+
+	dataCollector := obs.NewDataCollector(logger)
 	cfg, err := config.AppFromEnv(dataCollector)
 	if err != nil {
 		dataCollector.Logger.Log(obs.Fatal, obs.Props{obs.CauseProp: err})
 		panic(err)
 	}
+
+	logger = obs.NewCommitLogger(cfg.GitLongCommitHash, logger)
+	dataCollector = obs.NewDataCollector(logger)
 
 	gitCommitLink := fmt.Sprintf("https://github.com/%s/%s/commit/%s",
 		cfg.GitRepoOwner,

@@ -36,14 +36,6 @@ type S3BucketName string
 type ServiceName string
 type Commit string
 
-func InitDataCollector(serviceName ServiceName, commit Commit, visibleLevel obs.LogLevel) obs.DataCollector {
-	wire.Build(
-		newLogger,
-		obs.NewDataCollector,
-	)
-	return obs.DataCollector{}
-}
-
 func InitGoogleOAuthProvider(
 	dataCollector obs.DataCollector,
 	webAPIBaseURL WebAPIBaseURL,
@@ -234,12 +226,4 @@ func newIdentityService(
 		jwtAuthority,
 		oauthProviders,
 		time.Duration(accessTokenTLL))
-}
-
-func newLogger(serviceName ServiceName, commit Commit, visibleLevel obs.LogLevel) obs.Logger {
-	return obs.NewServiceLogger(string(serviceName),
-		obs.NewCommitLogger(string(commit),
-			obs.NewRequestLogger(
-				obs.NewClientLogger(
-					obs.NewRawLogger(visibleLevel)))))
 }
