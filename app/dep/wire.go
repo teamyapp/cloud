@@ -33,8 +33,6 @@ type S3AccessKeyID string
 type S3AccessKey string
 type S3BucketName string
 
-type ServiceName string
-type Commit string
 
 func InitGoogleOAuthProvider(
 	dataCollector obs.DataCollector,
