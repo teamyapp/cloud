@@ -29,6 +29,7 @@ func TestMaxCount_flow(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
+		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			backoff := backoff_test.NewExponentialBuilder().Build()
 			beforeThreadSleepChan := make(chan bool)

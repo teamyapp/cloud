@@ -24,6 +24,7 @@ func TestInfinite_flow(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
+		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			testCase := &testCase
 			beforeThreadSleepChan := make(chan bool)
