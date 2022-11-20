@@ -4,10 +4,12 @@ import (
 	"math"
 	"time"
 
+	"github.com/teamyapp/cloud/libs/num"
 	"github.com/teamyapp/cloud/libs/randgen"
 )
 
 type Exponential struct {
+	randGenerator    randgen.RandomNumberGenerator
 	minDelay         time.Duration
 	maxDelay         time.Duration
 	scalingFactor    int
@@ -15,7 +17,6 @@ type Exponential struct {
 	randomOffsetUnit time.Duration
 	nextDelay        time.Duration
 	resetOnSuccess   bool
-	randGenerator    randgen.RandomNumberGenerator
 }
 
 var _ BackOff = (*Exponential)(nil)
@@ -26,13 +27,13 @@ func (e *Exponential) OnSuccess() {
 		return
 	}
 
-	scaled := time.Duration(math.Pow(float64(e.nextDelay.Milliseconds()), float64(1)/float64(e.scalingFactor)) * float64(time.Millisecond))
-	e.nextDelay = max(scaled, e.minDelay) + e.randOffset()
+	scaled := time.Duration(math.Pow(float64(e.nextDelay), float64(1)/float64(e.scalingFactor)))
+	e.nextDelay = num.Max(scaled, e.minDelay) + e.randOffset()
 }
 
 func (e *Exponential) OnFailure() {
-	scaled := time.Duration(math.Pow(float64(e.nextDelay.Milliseconds()), float64(e.scalingFactor)) * float64(time.Millisecond))
-	e.nextDelay = min(scaled, e.maxDelay) + e.randOffset()
+	scaled := time.Duration(math.Pow(float64(e.nextDelay), float64(e.scalingFactor)))
+	e.nextDelay = num.Min(scaled, e.maxDelay) + e.randOffset()
 }
 
 func (e *Exponential) Delay() time.Duration {
@@ -40,17 +41,17 @@ func (e *Exponential) Delay() time.Duration {
 }
 
 func (e *Exponential) randOffset() time.Duration {
-	return time.Duration(e.randGenerator.Intn(e.randomOffset)) * e.randomOffsetUnit
+	return time.Duration(e.randGenerator.RandomInt(e.randomOffset)) * e.randomOffsetUnit
 }
 
 type ExponentialBuilder struct {
+	randGenerator    randgen.RandomNumberGenerator
 	minDelay         time.Duration
 	maxDelay         time.Duration
 	scalingFactor    int
 	randomOffset     int
 	randomOffsetUnit time.Duration
 	resetOnSuccess   bool
-	randGenerator    randgen.RandomNumberGenerator
 }
 
 func (e ExponentialBuilder) MinDelay(minDelay time.Duration) ExponentialBuilder {
@@ -103,28 +104,12 @@ func (e ExponentialBuilder) Build() Exponential {
 
 func NewExponentialBuilder() ExponentialBuilder {
 	return ExponentialBuilder{
+		randGenerator:    randgen.NewBuiltinRanGen(),
 		minDelay:         200 * time.Millisecond,
 		maxDelay:         5 * time.Minute,
 		scalingFactor:    2,
 		randomOffset:     100,
 		randomOffsetUnit: time.Millisecond,
 		resetOnSuccess:   false,
-		randGenerator:    randgen.BuiltinRanGen{},
-	}
-}
-
-func min[Num int | uint64 | float32 | float64 | time.Duration](num1 Num, num2 Num) Num {
-	if num1 < num2 {
-		return num1
-	} else {
-		return num2
-	}
-}
-
-func max[Num int | uint64 | float32 | float64 | time.Duration](num1 Num, num2 Num) Num {
-	if num1 > num2 {
-		return num1
-	} else {
-		return num2
 	}
 }

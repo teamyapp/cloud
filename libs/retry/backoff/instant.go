@@ -17,13 +17,6 @@ func (i *Instant) Delay() time.Duration {
 	return 0
 }
 
-type InstantBuilder struct {
-}
-
-func (i InstantBuilder) Build() Instant {
+func NewInstant() Instant {
 	return Instant{}
-}
-
-func NewInstantBuilder() InstantBuilder {
-	return InstantBuilder{}
 }

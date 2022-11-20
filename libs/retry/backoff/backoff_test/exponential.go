@@ -17,7 +17,7 @@ func (e *Exponential) OnSuccess() {
 }
 
 func (e *Exponential) OnFailure() {
-	e.nextDelay = time.Duration(math.Pow(float64(e.nextDelay.Milliseconds()), float64(2)) * float64(time.Millisecond))
+	e.nextDelay = time.Duration(math.Pow(float64(e.nextDelay), float64(2)))
 }
 
 func (e *Exponential) Delay() time.Duration {
@@ -33,7 +33,7 @@ type ExponentialBuilder struct {
 
 func (e ExponentialBuilder) Build() Exponential {
 	return Exponential{
-		nextDelay: 2 * time.Millisecond,
+		nextDelay: 2,
 	}
 }
 
