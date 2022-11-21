@@ -67,14 +67,17 @@ func TestExponential(t *testing.T) {
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
-
 			t.Parallel()
-			exponentialBuilder := NewExponentialBuilder()
-
-			exponentialBuilder =
-				exponentialBuilder.MinDelay(testCase.minDelay).MaxDelay(testCase.maxDelay).RandGenerator(randgen_test.NewBuiltinRanGen(testCase.randomInts)).ScalingFactor(testCase.scalingFactor).RandomOffset(testCase.randomOffset).ResetOnSuccess(testCase.resetOnSuccess).RandomOffsetUnit(testCase.randomOffsetUnit)
-
-			exponential := exponentialBuilder.Build()
+			randGen := randgen_test.NewBuiltinRanGen(testCase.randomInts)
+			exponential := NewExponentialBuilder().
+				MinDelay(testCase.minDelay).
+				MaxDelay(testCase.maxDelay).
+				RandGenerator(randGen).
+				ScalingFactor(testCase.scalingFactor).
+				RandomOffset(testCase.randomOffset).
+				ResetOnSuccess(testCase.resetOnSuccess).
+				RandomOffsetUnit(testCase.randomOffsetUnit).
+				Build()
 
 			for index := 0; index < len(testCase.executeSucceed); index++ {
 				if testCase.executeSucceed[index] {
