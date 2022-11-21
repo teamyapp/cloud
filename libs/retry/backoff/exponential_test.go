@@ -82,6 +82,7 @@ func TestExponential(t *testing.T) {
 				} else {
 					exponential.OnFailure()
 				}
+				
 				assert.Equal(t, exponential.Delay(), testCase.expectedDelays[index])
 			}
 		})
