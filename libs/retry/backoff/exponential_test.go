@@ -8,7 +8,7 @@ import (
 	"github.com/teamyapp/cloud/libs/randgen/randgen_test"
 )
 
-func TestExponential_flow(t *testing.T) {
+func TestExponential(t *testing.T) {
 	testCases := []struct {
 		name             string
 		minDelay         time.Duration
