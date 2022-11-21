@@ -49,6 +49,7 @@ func TestExponential(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 
+                         t.Parallel()
 			exponentialBuilder := NewExponentialBuilder()
 
 			exponentialBuilder = exponentialBuilder.MinDelay(testCase.minDelay).MaxDelay(testCase.maxDelay).RandGenerator(randgen_test.NewBuiltinRanGen(testCase.randomInts)).ScalingFactor(testCase.scalingFactor).RandomOffset(testCase.randomOffset).ResetOnSuccess(testCase.resetOnSuccess).RandomOffsetUnit(testCase.randomOffsetUnit)
