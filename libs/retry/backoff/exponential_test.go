@@ -20,6 +20,7 @@ func TestExponential(t *testing.T) {
 		resetOnSuccess   bool
 		randomInts       []int
 		expectedDelays   []time.Duration
+		executeSucceed   []bool
 	}{
 		{
 			name:             "Without resetOnSuccess",
@@ -36,7 +37,10 @@ func TestExponential(t *testing.T) {
 				61 * time.Nanosecond,
 				8 * time.Nanosecond,
 				3 * time.Nanosecond,
+				3 * time.Nanosecond,
+				3 * time.Nanosecond,
 			},
+			executeSucceed: []bool{false, false, false, true, true, true, true},
 		},
 		{
 			name:             "With resetOnSuccess",
@@ -53,7 +57,10 @@ func TestExponential(t *testing.T) {
 				61 * time.Nanosecond,
 				2 * time.Nanosecond,
 				2 * time.Nanosecond,
+				2 * time.Nanosecond,
+				2 * time.Nanosecond,
 			},
+			executeSucceed: []bool{false, false, false, true, true, true, true},
 		},
 	}
 
@@ -69,20 +76,14 @@ func TestExponential(t *testing.T) {
 
 			exponential := exponentialBuilder.Build()
 
-			exponential.OnFailure()
-			assert.Equal(t, exponential.Delay(), testCase.expectedDelays[0])
-			exponential.OnFailure()
-			assert.Equal(t, exponential.Delay(), testCase.expectedDelays[1])
-			exponential.OnFailure()
-			assert.Equal(t, exponential.Delay(), testCase.expectedDelays[2])
-			exponential.OnSuccess()
-			assert.Equal(t, exponential.Delay(), testCase.expectedDelays[3])
-
-			exponential.OnSuccess()
-			exponential.OnSuccess()
-			exponential.OnSuccess()
-
-			assert.Equal(t, exponential.Delay(), testCase.expectedDelays[4])
+			for index := 0; index < len(testCase.executeSucceed); index++ {
+				if testCase.executeSucceed[index] {
+					exponential.OnSuccess()
+				} else {
+					exponential.OnFailure()
+				}
+				assert.Equal(t, exponential.Delay(), testCase.expectedDelays[index])
+			}
 		})
 	}
 }
