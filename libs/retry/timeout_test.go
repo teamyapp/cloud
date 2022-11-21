@@ -37,10 +37,10 @@ func TestTimeout(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			currentTime := time.Now()
-			testClock := runtime_test.NewBuiltinClock(currentTime)
+			testClock := runtime_test.NewTestClock(currentTime)
 			beforeThreadSleepChan := make(chan bool)
 			backoff := backoff_test.NewExponentialBuilder().Build()
-			builtinRuntime := runtime_test.NewBuiltInRuntime(func(duration time.Duration) {
+			builtinRuntime := runtime_test.NewTestRuntime(func(duration time.Duration) {
 				testClock.SetTime(testClock.Now().Add(duration))
 				beforeThreadSleepChan <- true
 			})

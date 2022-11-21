@@ -31,10 +31,10 @@ func TestMaxCount(t *testing.T) {
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
-                         t.Parallel()
+			t.Parallel()
 			backoff := backoff_test.NewExponentialBuilder().Build()
 			beforeThreadSleepChan := make(chan bool)
-			builtinRuntime := runtime_test.NewBuiltInRuntime(func(d time.Duration) {
+			builtinRuntime := runtime_test.NewTestRuntime(func(d time.Duration) {
 				beforeThreadSleepChan <- true
 			})
 			count := 0

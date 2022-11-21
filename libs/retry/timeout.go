@@ -1,7 +1,6 @@
 package retry
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/teamyapp/cloud/libs/retry/backoff"
@@ -34,7 +33,8 @@ func (t Timeout) WithRetry(execute func() error) (int, error) {
 		}
 
 		t.backoff.OnFailure()
-		if !t.clock.Now().Add(t.backoff.Delay()).Before(timeoutAt) {
+		expectTime := t.clock.Now().Add(t.backoff.Delay())
+		if !expectTime.Before(timeoutAt) {
 			retryCount++
 			break
 		}
@@ -48,13 +48,13 @@ func (t Timeout) WithRetry(execute func() error) (int, error) {
 
 func NewTimeout(
 	runtime runtime.Runtime,
-	_backOff backoff.BackOff,
+	backoff backoff.BackOff,
 	clock runtime.Clock,
 	timeout time.Duration,
 	beforeRetryDelay func()) Timeout {
 	return Timeout{
 		runtime:          runtime,
-		backoff:          _backOff,
+		backoff:          backoff,
 		clock:            clock,
 		timeout:          timeout,
 		beforeRetryDelay: beforeRetryDelay,

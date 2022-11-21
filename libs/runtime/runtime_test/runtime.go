@@ -7,7 +7,7 @@ type TestRuntime struct {
 	beforeThreadSleep func(time.Duration)
 }
 
-func (b BuiltInRuntime) Sleep(duration time.Duration) {
+func (b TestRuntime) Sleep(duration time.Duration) {
 	if b.beforeThreadSleep != nil {
 		b.beforeThreadSleep(duration)
 	}
@@ -15,12 +15,12 @@ func (b BuiltInRuntime) Sleep(duration time.Duration) {
 	<-b.wakeupChan
 }
 
-func (b BuiltInRuntime) Awake() {
+func (b TestRuntime) Awake() {
 	b.wakeupChan <- true
 }
 
-func NewBuiltInRuntime(beforeThreadSleep func(time.Duration)) *BuiltInRuntime {
-	runtime := &BuiltInRuntime{
+func NewTestRuntime(beforeThreadSleep func(time.Duration)) *TestRuntime {
+	runtime := &TestRuntime{
 		beforeThreadSleep: beforeThreadSleep,
 		wakeupChan:        make(chan bool),
 	}

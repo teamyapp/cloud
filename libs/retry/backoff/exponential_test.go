@@ -19,7 +19,7 @@ func TestExponential(t *testing.T) {
 		nextDelay        time.Duration
 		resetOnSuccess   bool
 		randomInts       []int
-		expectedDelays          []time.Duration
+		expectedDelays   []time.Duration
 	}{
 		{
 			name:             "Without resetOnSuccess",
@@ -30,7 +30,13 @@ func TestExponential(t *testing.T) {
 			randomOffsetUnit: time.Nanosecond,
 			resetOnSuccess:   false,
 			randomInts:       []int{1},
-			expects:          []time.Duration{5 * time.Nanosecond, 26 * time.Nanosecond, 61 * time.Nanosecond, 8 * time.Nanosecond, 3 * time.Nanosecond},
+			expectedDelays: []time.Duration{
+				5 * time.Nanosecond,
+				26 * time.Nanosecond,
+				61 * time.Nanosecond,
+				8 * time.Nanosecond,
+				3 * time.Nanosecond,
+			},
 		},
 		{
 			name:             "With resetOnSuccess",
@@ -41,7 +47,13 @@ func TestExponential(t *testing.T) {
 			randomOffsetUnit: time.Nanosecond,
 			resetOnSuccess:   true,
 			randomInts:       []int{1},
-			expects:          []time.Duration{5 * time.Nanosecond, 26 * time.Nanosecond, 61 * time.Nanosecond, 2 * time.Nanosecond, 2 * time.Nanosecond},
+			expectedDelays: []time.Duration{
+				5 * time.Nanosecond,
+				26 * time.Nanosecond,
+				61 * time.Nanosecond,
+				2 * time.Nanosecond,
+				2 * time.Nanosecond,
+			},
 		},
 	}
 
@@ -49,33 +61,28 @@ func TestExponential(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 
-                         t.Parallel()
+			t.Parallel()
 			exponentialBuilder := NewExponentialBuilder()
 
-			exponentialBuilder = exponentialBuilder.MinDelay(testCase.minDelay).MaxDelay(testCase.maxDelay).RandGenerator(randgen_test.NewBuiltinRanGen(testCase.randomInts)).ScalingFactor(testCase.scalingFactor).RandomOffset(testCase.randomOffset).ResetOnSuccess(testCase.resetOnSuccess).RandomOffsetUnit(testCase.randomOffsetUnit)
+			exponentialBuilder =
+				exponentialBuilder.MinDelay(testCase.minDelay).MaxDelay(testCase.maxDelay).RandGenerator(randgen_test.NewBuiltinRanGen(testCase.randomInts)).ScalingFactor(testCase.scalingFactor).RandomOffset(testCase.randomOffset).ResetOnSuccess(testCase.resetOnSuccess).RandomOffsetUnit(testCase.randomOffsetUnit)
 
 			exponential := exponentialBuilder.Build()
 
-			assert.Equal(t, exponential.maxDelay, testCase.maxDelay)
-			assert.Equal(t, exponential.minDelay, testCase.minDelay)
-			assert.Equal(t, exponential.scalingFactor, testCase.scalingFactor)
-			assert.Equal(t, exponential.randomOffset, testCase.randomOffset)
-			assert.Equal(t, exponential.resetOnSuccess, testCase.resetOnSuccess)
-
 			exponential.OnFailure()
-			assert.Equal(t, exponential.Delay(), testCase.expects[0])
+			assert.Equal(t, exponential.Delay(), testCase.expectedDelays[0])
 			exponential.OnFailure()
-			assert.Equal(t, exponential.Delay(), testCase.expects[1])
+			assert.Equal(t, exponential.Delay(), testCase.expectedDelays[1])
 			exponential.OnFailure()
-			assert.Equal(t, exponential.Delay(), testCase.expects[2])
+			assert.Equal(t, exponential.Delay(), testCase.expectedDelays[2])
 			exponential.OnSuccess()
-			assert.Equal(t, exponential.Delay(), testCase.expects[3])
+			assert.Equal(t, exponential.Delay(), testCase.expectedDelays[3])
 
 			exponential.OnSuccess()
 			exponential.OnSuccess()
 			exponential.OnSuccess()
 
-			assert.Equal(t, exponential.Delay(), testCase.expects[4])
+			assert.Equal(t, exponential.Delay(), testCase.expectedDelays[4])
 		})
 	}
 }

@@ -26,10 +26,10 @@ func TestInfinite(t *testing.T) {
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
-t.Parallel()
+			t.Parallel()
 			beforeThreadSleepChan := make(chan bool)
 			backoff := backoff_test.NewExponentialBuilder().Build()
-			runtime := runtime_test.NewBuiltInRuntime(func(d time.Duration) {
+			runtime := runtime_test.NewTestRuntime(func(d time.Duration) {
 				beforeThreadSleepChan <- true
 			})
 
@@ -39,7 +39,7 @@ t.Parallel()
 				if prevCount < testCase.retries {
 					return errors.New("some error")
 				}
-				
+
 				return nil
 			}
 			infiniteExecutor := NewInfinite(runtime, &backoff)
