@@ -19,7 +19,7 @@ func TestExponential_flow(t *testing.T) {
 		nextDelay        time.Duration
 		resetOnSuccess   bool
 		randomInts       []int
-		expects          []time.Duration
+		expectedDelays          []time.Duration
 	}{
 		{
 			name:             "Without resetOnSuccess",
