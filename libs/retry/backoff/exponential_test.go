@@ -33,7 +33,7 @@ func TestExponential_flow(t *testing.T) {
 			expects:          []time.Duration{5 * time.Nanosecond, 26 * time.Nanosecond, 61 * time.Nanosecond, 8 * time.Nanosecond, 3 * time.Nanosecond},
 		},
 		{
-			name:             "Test with resetOnSuccess",
+			name:             "With resetOnSuccess",
 			minDelay:         2,
 			maxDelay:         60,
 			scalingFactor:    2,
