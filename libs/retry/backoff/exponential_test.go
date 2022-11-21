@@ -22,7 +22,7 @@ func TestExponential_flow(t *testing.T) {
 		expects          []time.Duration
 	}{
 		{
-			name:             "Test without resetOnSuccess",
+			name:             "Without resetOnSuccess",
 			minDelay:         2,
 			maxDelay:         60,
 			scalingFactor:    2,
