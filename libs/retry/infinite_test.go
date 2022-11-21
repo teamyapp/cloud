@@ -10,7 +10,7 @@ import (
 	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
 )
 
-func TestInfinite_flow(t *testing.T) {
+func TestInfinite(t *testing.T) {
 	testCases := []struct {
 		name    string
 		count   int
