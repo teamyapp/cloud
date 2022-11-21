@@ -34,12 +34,6 @@ func (t Timeout) WithRetry(execute func() error) (int, error) {
 		}
 
 		t.backoff.OnFailure()
-
-		fmt.Sprintf(t.clock.Now().String())
-
-		fmt.Sprintf(t.clock.Now().Add(t.backoff.Delay()).String())
-		fmt.Sprintf(timeoutAt.String())
-
 		if !t.clock.Now().Add(t.backoff.Delay()).Before(timeoutAt) {
 			retryCount++
 			break

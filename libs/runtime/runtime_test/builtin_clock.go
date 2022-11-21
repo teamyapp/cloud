@@ -2,7 +2,7 @@ package runtime_test
 
 import "time"
 
-type BuiltInClock struct {
+type TestClock struct {
 	time time.Time
 }
 

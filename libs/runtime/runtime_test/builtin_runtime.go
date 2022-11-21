@@ -2,7 +2,7 @@ package runtime_test
 
 import "time"
 
-type BuiltInRuntime struct {
+type TestRuntime struct {
 	wakeupChan        chan bool
 	beforeThreadSleep func(time.Duration)
 }

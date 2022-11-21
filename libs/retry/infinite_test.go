@@ -39,6 +39,7 @@ t.Parallel()
 				if prevCount < testCase.retries {
 					return errors.New("some error")
 				}
+				
 				return nil
 			}
 			infiniteExecutor := NewInfinite(runtime, &backoff)

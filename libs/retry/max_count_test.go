@@ -10,19 +10,19 @@ import (
 	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
 )
 
-func TestMaxCount_flow(t *testing.T) {
+func TestMaxCount(t *testing.T) {
 	testCases := []struct {
 		name     string
 		maxCount int
 		err      error
 	}{
 		{
-			name:     "Should succeed before reaching max count",
+			name:     "Succeed before reaching max count",
 			maxCount: 3,
 			err:      nil,
 		},
 		{
-			name:     "Should not call more than max count retries",
+			name:     "Not exceed max count retries",
 			maxCount: 2,
 			err:      errors.New("some error"),
 		},
@@ -31,6 +31,7 @@ func TestMaxCount_flow(t *testing.T) {
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
+                         t.Parallel()
 			backoff := backoff_test.NewExponentialBuilder().Build()
 			beforeThreadSleepChan := make(chan bool)
 			builtinRuntime := runtime_test.NewBuiltInRuntime(func(d time.Duration) {
