@@ -6,6 +6,7 @@ import (
 
 	"github.com/teamyapp/cloud/libs/middleware"
 	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/retry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -19,7 +20,7 @@ type ConnectionConfig struct {
 	RequestTimeout time.Duration
 }
 
-func NewClientConnection(dataCollector obs.DataCollector, cfg ConnectionConfig) (*grpc.ClientConn, error) {
+func NewClientConnection(dataCollector obs.DataCollector, cfg ConnectionConfig, retry retry.Retry) (*grpc.ClientConn, error) {
 	var cred credentials.TransportCredentials
 	if cfg.ShouldEncrypt {
 		cred = credentials.NewTLS(nil)
@@ -33,5 +34,6 @@ func NewClientConnection(dataCollector obs.DataCollector, cfg ConnectionConfig) 
 		grpc.WithChainUnaryInterceptor(
 			middleware.ClientGRPCWithRequestID(dataCollector),
 			middleware.ClientGRPCWithTimout(cfg.RequestTimeout),
-			middleware.ClientGRPCWithIdentity(cfg.GetAccessToken)))
+			middleware.ClientGRPCWithIdentity(cfg.GetAccessToken),
+			middleware.ClientGRPCWithRetry(retry)))
 }
