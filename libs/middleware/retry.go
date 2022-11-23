@@ -2,9 +2,7 @@ package middleware
 
 import (
 	"context"
-	"net/http"
 
-	"github.com/teamyapp/cloud/libs/obs"
 	"github.com/teamyapp/cloud/libs/retry"
 	"google.golang.org/grpc"
 )
@@ -16,18 +14,5 @@ func ClientGRPCWithRetry(retry retry.Retry) grpc.UnaryClientInterceptor {
 		}
 		_, err := retry.WithRetry(execute)
 		return err
-	}
-}
-
-func ClientHTTPWithRetry(dataCollector obs.DataCollector, retry retry.Retry) func(httpRequest *http.Request) *http.Request {
-	return func(preHttpRequest *http.Request) *http.Request {
-		httpRequest, err := http.NewRequest(preHttpRequest.Method, preHttpRequest.Referer(), preHttpRequest.Body)
-		if err != nil {
-			ct := httpRequest.Context()
-			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-			return nil
-		}
-
-		return httpRequest
 	}
 }
