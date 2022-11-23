@@ -9,10 +9,9 @@ import (
 
 func ClientGRPCWithRetry(retry retry.Retry) grpc.UnaryClientInterceptor {
 	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		execute := func() error {
+		_, err := retry.WithRetry(func() error {
 			return invoker(ct, method, req, reply, cc, opts...)
-		}
-		_, err := retry.WithRetry(execute)
+		})
 		return err
 	}
 }
