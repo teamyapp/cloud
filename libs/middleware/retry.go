@@ -15,7 +15,6 @@ func ClientGRPCWithRetry(retry retry.Retry) grpc.UnaryClientInterceptor {
 			return invoker(ct, method, req, reply, cc, opts...)
 		}
 		_, err := retry.WithRetry(execute)
-
 		return err
 	}
 }
@@ -23,7 +22,6 @@ func ClientGRPCWithRetry(retry retry.Retry) grpc.UnaryClientInterceptor {
 func ClientHTTPWithRetry(dataCollector obs.DataCollector, retry retry.Retry) func(httpRequest *http.Request) *http.Request {
 	return func(preHttpRequest *http.Request) *http.Request {
 		httpRequest, err := http.NewRequest(preHttpRequest.Method, preHttpRequest.Referer(), preHttpRequest.Body)
-
 		if err != nil {
 			ct := httpRequest.Context()
 			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
@@ -32,5 +30,4 @@ func ClientHTTPWithRetry(dataCollector obs.DataCollector, retry retry.Retry) fun
 
 		return httpRequest
 	}
-
 }
