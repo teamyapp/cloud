@@ -16,7 +16,7 @@ func (e *Exponential) OnSuccess() {
 }
 
 func (e *Exponential) OnFailure() {
-	e.nextDelay = (e.nextDelay) * time.Duration(2)
+	e.nextDelay = e.nextDelay * time.Duration(2)
 }
 
 func (e *Exponential) Delay() time.Duration {
