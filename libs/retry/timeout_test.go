@@ -21,13 +21,13 @@ func TestTimeout(t *testing.T) {
 
 		{
 			name:    "Should succeed before reaching timeout",
-			timeout: 25,
+			timeout: 17,
 			err:     nil,
 			awaits:  2,
 		},
 		{
 			name:    "Should get error when reaching timeout",
-			timeout: 24,
+			timeout: 16,
 			err:     errors.New("some error"),
 			awaits:  1,
 		},
