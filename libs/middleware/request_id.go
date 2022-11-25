@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func ServerHTTPWithRequestID(dataCollector obs.DataCollector) HTTPServerMiddleware {
+func ServerHTTPWithRequestID(dataCollector obs.DataCollector) Middleware[http.HandlerFunc] {
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		return func(writer http.ResponseWriter, request *http.Request) {
 			ct := request.Context()

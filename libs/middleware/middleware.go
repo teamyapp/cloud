@@ -1,15 +1,11 @@
 package middleware
 
-import (
-	"net/http"
-)
+type Middleware[ExecuteFunc any] func(executeFunc ExecuteFunc) ExecuteFunc
 
-type HTTPServerMiddleware func(handlerFunc http.HandlerFunc) http.HandlerFunc
-
-func HTTPServerWithMiddlewares(handlerFunc http.HandlerFunc, middlewares []HTTPServerMiddleware) http.HandlerFunc {
+func WithMiddlewares[ExecuteFunc any](executeFunc ExecuteFunc, middlewares []Middleware[ExecuteFunc]) ExecuteFunc {
 	if len(middlewares) == 0 {
-		return handlerFunc
+		return executeFunc
 	}
 
-	return middlewares[0](HTTPServerWithMiddlewares(handlerFunc, middlewares[1:]))
+	return middlewares[0](WithMiddlewares(executeFunc, middlewares[1:]))
 }

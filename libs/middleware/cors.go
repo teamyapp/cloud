@@ -7,7 +7,7 @@ import (
 	"github.com/teamyapp/cloud/libs/ctx"
 )
 
-var ServerHTTPEnableCORS HTTPServerMiddleware = func(handlerFunc http.HandlerFunc) http.HandlerFunc {
+var ServerHTTPEnableCORS Middleware[http.HandlerFunc] = func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 
 	return func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Access-Control-Allow-Origin", "*")

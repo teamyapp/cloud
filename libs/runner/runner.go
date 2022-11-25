@@ -78,7 +78,7 @@ func (s *ServiceRunner) startWebServer() {
 		},
 	})
 	serveMux := http.NewServeMux()
-	middlewares := []middleware.HTTPServerMiddleware{
+	middlewares := []middleware.Middleware[http.HandlerFunc]{
 		middleware.ServerHTTPEnableCORS,
 		middleware.ServerHTTPWithRequestID(s.dataCollector),
 		middleware.ServerHTTPWithTimeout(s.config.RequestTimeout),
@@ -86,7 +86,7 @@ func (s *ServiceRunner) startWebServer() {
 		middleware.ServerHTTPWithIdentity(s.dataCollector, s.config.IdentityAPIEndpoint),
 		middleware.ServerWebSocketWithIdentity(s.dataCollector, s.config.IdentityAPIEndpoint),
 	}
-	handlerFunc := middleware.HTTPServerWithMiddlewares(s.webRouter.ServeHTTP, middlewares)
+	handlerFunc := middleware.WithMiddlewares[http.HandlerFunc](s.webRouter.ServeHTTP, middlewares)
 	serveMux.HandleFunc("/", handlerFunc)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.WebServerPort), serveMux); err != nil {
 		panic(err)

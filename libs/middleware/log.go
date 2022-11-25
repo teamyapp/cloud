@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func ServerHTTPLogRequest(dataCollector obs.DataCollector) HTTPServerMiddleware {
+func ServerHTTPLogRequest(dataCollector obs.DataCollector) Middleware[http.HandlerFunc] {
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		return func(writer http.ResponseWriter, request *http.Request) {
 			ct := request.Context()

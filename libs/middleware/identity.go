@@ -21,7 +21,7 @@ const gRPCAuthorizationKey = "Authorization"
 func ServerHTTPWithIdentity(
 	dataCollector obs.DataCollector,
 	identityAPIEndpoint string,
-) HTTPServerMiddleware {
+) Middleware[http.HandlerFunc] {
 	return withIdentity(dataCollector, identityAPIEndpoint, func(request *http.Request) (string, error) {
 		value := request.Header.Get("Authorization")
 		if len(value) == 0 {
@@ -56,7 +56,7 @@ func ServerHTTPWithIdentity(
 func ServerWebSocketWithIdentity(
 	dataCollector obs.DataCollector,
 	identityAPIEndpoint string,
-) HTTPServerMiddleware {
+) Middleware[http.HandlerFunc] {
 	return withIdentity(dataCollector, identityAPIEndpoint, func(request *http.Request) (string, error) {
 		return request.URL.Query().Get("accessToken"), nil
 	})
@@ -102,7 +102,7 @@ func withIdentity(
 	dataCollector obs.DataCollector,
 	identityAPIEndpoint string,
 	getBearerToken func(request *http.Request) (string, error),
-) HTTPServerMiddleware {
+) Middleware[http.HandlerFunc] {
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		verifyTokenURL := fmt.Sprintf("%s/verify-token", identityAPIEndpoint)
 		return func(writer http.ResponseWriter, request *http.Request) {
