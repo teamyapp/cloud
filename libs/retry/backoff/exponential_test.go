@@ -33,14 +33,16 @@ func TestExponential(t *testing.T) {
 			randomInts:       []int{1},
 			expectedDelays: []time.Duration{
 				5 * time.Nanosecond,
-				26 * time.Nanosecond,
+				11 * time.Nanosecond,
+				23 * time.Nanosecond,
+				47 * time.Nanosecond,
 				61 * time.Nanosecond,
-				8 * time.Nanosecond,
-				3 * time.Nanosecond,
-				3 * time.Nanosecond,
-				3 * time.Nanosecond,
+				31 * time.Nanosecond,
+				16 * time.Nanosecond,
+				9 * time.Nanosecond,
+				5 * time.Nanosecond,
 			},
-			executeSucceed: []bool{false, false, false, true, true, true, true},
+			executeSucceed: []bool{false, false, false, false, false, true, true, true, true},
 		},
 		{
 			name:             "With resetOnSuccess",
@@ -53,8 +55,8 @@ func TestExponential(t *testing.T) {
 			randomInts:       []int{1},
 			expectedDelays: []time.Duration{
 				5 * time.Nanosecond,
-				26 * time.Nanosecond,
-				61 * time.Nanosecond,
+				11 * time.Nanosecond,
+				23 * time.Nanosecond,
 				2 * time.Nanosecond,
 				2 * time.Nanosecond,
 				2 * time.Nanosecond,
@@ -85,7 +87,7 @@ func TestExponential(t *testing.T) {
 				} else {
 					exponential.OnFailure()
 				}
-				
+
 				assert.Equal(t, exponential.Delay(), testCase.expectedDelays[index])
 			}
 		})

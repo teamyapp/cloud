@@ -1,7 +1,6 @@
 package backoff_test
 
 import (
-	"math"
 	"time"
 
 	"github.com/teamyapp/cloud/libs/retry/backoff"
@@ -17,7 +16,7 @@ func (e *Exponential) OnSuccess() {
 }
 
 func (e *Exponential) OnFailure() {
-	e.nextDelay = time.Duration(math.Pow(float64(e.nextDelay), float64(2)))
+	e.nextDelay = (e.nextDelay) * time.Duration(2)
 }
 
 func (e *Exponential) Delay() time.Duration {
