@@ -6,30 +6,49 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/teamyapp/cloud/libs/retry/backoff/backoff_test"
+	"github.com/teamyapp/cloud/libs/randgen/randgen_test"
+	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
 )
 
 func TestTimeout(t *testing.T) {
 
 	testCases := []struct {
-		name    string
-		timeout time.Duration
-		err     error
-		awaits  int
+		name             string
+		timeout          time.Duration
+		err              error
+		awaits           int
+		randomInts       []int
+		minDelay         time.Duration
+		maxDelay         time.Duration
+		scalingFactor    int
+		randomOffset     int
+		randomOffsetUnit time.Duration
 	}{
 
 		{
-			name:    "Should succeed before reaching timeout",
-			timeout: 17,
-			err:     nil,
-			awaits:  2,
+			name:             "Should succeed before reaching timeout",
+			timeout:          19,
+			err:              nil,
+			awaits:           2,
+			randomInts:       []int{1},
+			minDelay:         2,
+			maxDelay:         60,
+			scalingFactor:    2,
+			randomOffset:     10,
+			randomOffsetUnit: time.Nanosecond,
 		},
 		{
-			name:    "Should get error when reaching timeout",
-			timeout: 16,
-			err:     errors.New("some error"),
-			awaits:  1,
+			name:             "Should get error when reaching timeout",
+			timeout:          18,
+			err:              errors.New("some error"),
+			awaits:           1,
+			randomInts:       []int{1},
+			minDelay:         2,
+			maxDelay:         60,
+			scalingFactor:    2,
+			randomOffset:     10,
+			randomOffsetUnit: time.Nanosecond,
 		},
 	}
 
@@ -39,7 +58,15 @@ func TestTimeout(t *testing.T) {
 			currentTime := time.Now()
 			testClock := runtime_test.NewTestClock(currentTime)
 			beforeThreadSleepChan := make(chan bool)
-			backoff := backoff_test.NewExponentialBuilder().Build()
+			randGen := randgen_test.NewBuiltinRanGen(testCase.randomInts)
+			backoff := backoff.NewExponentialBuilder().
+				MinDelay(testCase.minDelay).
+				MaxDelay(testCase.maxDelay).
+				RandGenerator(randGen).
+				ScalingFactor(testCase.scalingFactor).
+				RandomOffset(testCase.randomOffset).
+				RandomOffsetUnit(testCase.randomOffsetUnit).
+				Build()
 			builtinRuntime := runtime_test.NewTestRuntime(func(duration time.Duration) {
 				testClock.SetTime(testClock.Now().Add(duration))
 				beforeThreadSleepChan <- true
@@ -54,7 +81,7 @@ func TestTimeout(t *testing.T) {
 
 				return nil
 			}
-			timeoutExecutor := NewTimeout(builtinRuntime, &backoff, &testClock, testCase.timeout, func() {
+			timeoutExecutor := NewTimeout(builtinRuntime, backoff, &testClock, testCase.timeout, func() {
 				testClock.SetTime(testClock.Now().Add(2))
 			})
 

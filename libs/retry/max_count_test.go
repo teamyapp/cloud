@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/teamyapp/cloud/libs/retry/backoff/backoff_test"
+	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
 )
 
@@ -32,7 +32,7 @@ func TestMaxCount(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			backoff := backoff_test.NewExponentialBuilder().Build()
+			backoff := backoff.NewExponentialBuilder().Build()
 			beforeThreadSleepChan := make(chan bool)
 			builtinRuntime := runtime_test.NewTestRuntime(func(d time.Duration) {
 				beforeThreadSleepChan <- true
@@ -47,7 +47,7 @@ func TestMaxCount(t *testing.T) {
 				return nil
 			}
 
-			maxCountExecutor := NewMaxCount(builtinRuntime, &backoff, testCase.maxCount)
+			maxCountExecutor := NewMaxCount(builtinRuntime, backoff, testCase.maxCount)
 
 			go func() {
 				retries, err := maxCountExecutor.WithRetry(execute)

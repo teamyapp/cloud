@@ -27,16 +27,16 @@ func (e *Exponential) OnSuccess() {
 	}
 
 	scaled := e.nextDelay / time.Duration(e.scalingFactor)
-	e.nextDelay = num.Max(scaled, e.minDelay) + e.randOffset()
+	e.nextDelay = num.Max(scaled, e.minDelay)
 }
 
 func (e *Exponential) OnFailure() {
 	scaled := e.nextDelay * time.Duration(e.scalingFactor)
-	e.nextDelay = num.Min(scaled, e.maxDelay) + e.randOffset()
+	e.nextDelay = num.Min(scaled, e.maxDelay)
 }
 
 func (e *Exponential) Delay() time.Duration {
-	return e.nextDelay
+	return e.nextDelay + e.randOffset()
 }
 
 func (e *Exponential) randOffset() time.Duration {
