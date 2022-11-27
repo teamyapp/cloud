@@ -1,7 +1,6 @@
 package backoff
 
 import (
-	"math"
 	"time"
 
 	"github.com/teamyapp/cloud/libs/num"
@@ -27,17 +26,17 @@ func (e *Exponential) OnSuccess() {
 		return
 	}
 
-	scaled := time.Duration(math.Pow(float64(e.nextDelay), float64(1)/float64(e.scalingFactor)))
-	e.nextDelay = num.Max(scaled, e.minDelay) + e.randOffset()
+	scaled := e.nextDelay / time.Duration(e.scalingFactor)
+	e.nextDelay = num.Max(scaled, e.minDelay)
 }
 
 func (e *Exponential) OnFailure() {
-	scaled := time.Duration(math.Pow(float64(e.nextDelay), float64(e.scalingFactor)))
-	e.nextDelay = num.Min(scaled, e.maxDelay) + e.randOffset()
+	scaled := e.nextDelay * time.Duration(e.scalingFactor)
+	e.nextDelay = num.Min(scaled, e.maxDelay)
 }
 
 func (e *Exponential) Delay() time.Duration {
-	return e.nextDelay
+	return e.nextDelay + e.randOffset()
 }
 
 func (e *Exponential) randOffset() time.Duration {
@@ -89,8 +88,8 @@ func (e ExponentialBuilder) RandGenerator(randGenerator randgen.RandomNumberGene
 	return e
 }
 
-func (e ExponentialBuilder) Build() Exponential {
-	return Exponential{
+func (e ExponentialBuilder) Build() *Exponential {
+	return &Exponential{
 		minDelay:         e.minDelay,
 		maxDelay:         e.maxDelay,
 		scalingFactor:    e.scalingFactor,

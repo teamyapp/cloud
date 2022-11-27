@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/teamyapp/cloud/libs/retry/backoff/backoff_test"
+	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
 )
 
@@ -28,7 +28,7 @@ func TestInfinite(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			beforeThreadSleepChan := make(chan bool)
-			backoff := backoff_test.NewExponentialBuilder().Build()
+			backoff := backoff.NewExponentialBuilder().Build()
 			runtime := runtime_test.NewTestRuntime(func(d time.Duration) {
 				beforeThreadSleepChan <- true
 			})
@@ -42,7 +42,7 @@ func TestInfinite(t *testing.T) {
 
 				return nil
 			}
-			infiniteExecutor := NewInfinite(runtime, &backoff)
+			infiniteExecutor := NewInfinite(runtime, backoff)
 
 			go func() {
 				retries, err := infiniteExecutor.WithRetry(execute)
