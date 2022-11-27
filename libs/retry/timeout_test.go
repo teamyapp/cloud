@@ -60,9 +60,9 @@ func TestTimeout(t *testing.T) {
 			beforeThreadSleepChan := make(chan bool)
 			randGen := randgen_test.NewBuiltinRanGen(testCase.randomInts)
 			backoff := backoff.NewExponentialBuilder().
+				RandGenerator(randGen).
 				MinDelay(testCase.minDelay).
 				MaxDelay(testCase.maxDelay).
-				RandGenerator(randGen).
 				ScalingFactor(testCase.scalingFactor).
 				RandomOffset(testCase.randomOffset).
 				RandomOffsetUnit(testCase.randomOffsetUnit).
