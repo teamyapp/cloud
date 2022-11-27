@@ -36,17 +36,18 @@ func ClientHTTPWithRetry(dataCollector obs.DataCollector, retry retry.Retry) Mid
 		return (HttpClientExecuteFunc)(func(request *http.Request) (*http.Response, error) {
 			var res *http.Response
 			_, err := retry.WithRetry(func() error {
+                                ct := request.Context()
 				var err error
 				res, err = httpClientExecutor.Do(request)
 				if err != nil {
-					ct := request.Context()
+					
 					dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 					return err
 				}
 
 				if res.StatusCode >= 400 {
-					err = fmt.Errorf("http error %v", res.StatusCode)
-					fmt.Println(err)
+					err = fmt.Errorf("http response error: statusCode=%v", res.StatusCode)
+					dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 				}
 
 				return err

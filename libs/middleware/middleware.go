@@ -1,11 +1,11 @@
 package middleware
 
-type Middleware[ExecuteFunc any] func(executeFunc ExecuteFunc) ExecuteFunc
+type Middleware[Executor any] func(executor Executor) Executor
 
-func WithMiddlewares[ExecuteFunc any](executeFunc ExecuteFunc, middlewares []Middleware[ExecuteFunc]) ExecuteFunc {
+func WithMiddlewares[Executor any](executor Executor, middlewares []Middleware[Executor]) Executor {
 	if len(middlewares) == 0 {
-		return executeFunc
+		return executor
 	}
 
-	return middlewares[0](WithMiddlewares(executeFunc, middlewares[1:]))
+	return middlewares[0](WithMiddlewares(executor, middlewares[1:]))
 }
