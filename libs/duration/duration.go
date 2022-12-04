@@ -15,15 +15,16 @@ import (
 
 // format: P[n]Y[n]M[n]W[n]DT[n]H[n]M[n]S
 const (
-	periodSymbol rune = 'P'
-	yearSymbol        = 'Y'
-	monthSymbol       = 'M'
-	weekSymbol        = 'W'
-	daySymbol         = 'D'
-	timeSymbol        = 'T'
-	hourSymbol        = 'H'
-	minuteSymbol      = 'M'
-	secondSymbol      = 'S'
+	negativeSymbol rune = '-'
+	periodSymbol        = 'P'
+	yearSymbol          = 'Y'
+	monthSymbol         = 'M'
+	weekSymbol          = 'W'
+	daySymbol           = 'D'
+	timeSymbol          = 'T'
+	hourSymbol          = 'H'
+	minuteSymbol        = 'M'
+	secondSymbol        = 'S'
 )
 
 var periodSymbolOrder = []rune{
@@ -76,6 +77,12 @@ var timeSymbolInNanos = map[rune]int64{
 }
 
 func Parse(ct context.Context, dataCollector obs.DataCollector, input string) (time.Duration, error) {
+	var sign int64 = 1
+	if len(input) > 0 && input[0] == '-' {
+		sign = -1
+		input = input[1:]
+	}
+
 	if len(input) == 0 || input[0] != uint8(periodSymbol) {
 		err := fmt.Errorf("duration must start with 'P'")
 		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
@@ -142,30 +149,40 @@ func Parse(ct context.Context, dataCollector obs.DataCollector, input string) (t
 		return 0, err
 	}
 
-	return time.Duration(totalNanoSeconds), nil
+	return time.Duration(sign * totalNanoSeconds), nil
 }
 
 func Format(duration time.Duration) string {
 	nanos := int64(duration)
-	if nanos == 0 || nanos < secondInNanos {
+
+	if nanos == 0 {
 		return "PT0S"
 	}
 
-	years := nanos / yearInNanos
-	nanos %= yearInNanos
-	months := nanos / monthInNanos
-	nanos %= monthInNanos
-	weeks := nanos / weekInNanos
-	nanos %= weekInNanos
-	days := nanos / dayInNanos
-	nanos %= dayInNanos
-	hours := nanos / hourInNanos
-	nanos %= hourInNanos
-	minutes := nanos / minuteInNanos
-	nanos %= minuteInNanos
-	seconds := nanos / secondInNanos
+	absNanos := nanos
+	if nanos < 0 {
+		absNanos = -nanos
+	}
+
+	years := absNanos / yearInNanos
+	absNanos %= yearInNanos
+	months := absNanos / monthInNanos
+	absNanos %= monthInNanos
+	weeks := absNanos / weekInNanos
+	absNanos %= weekInNanos
+	days := absNanos / dayInNanos
+	absNanos %= dayInNanos
+	hours := absNanos / hourInNanos
+	absNanos %= hourInNanos
+	minutes := absNanos / minuteInNanos
+	absNanos %= minuteInNanos
+	seconds := absNanos / secondInNanos
 
 	var buffer bytes.Buffer
+	if nanos < 0 {
+		buffer.WriteRune(negativeSymbol)
+	}
+
 	buffer.WriteRune(periodSymbol)
 	tryWriteNumWithUnit(&buffer, years, yearSymbol)
 	tryWriteNumWithUnit(&buffer, months, monthSymbol)
