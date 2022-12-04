@@ -98,6 +98,50 @@ func TestParse(t *testing.T) {
 			input:            "P1Y1M1W1DT1H1M1S",
 			expectedDuration: yearInNanos + monthInNanos + weekInNanos + dayInNanos + hourInNanos + minuteInNanos + secondInNanos,
 		},
+		{
+			input:            "-PT0S",
+			expectedDuration: time.Duration(0),
+		},
+		{
+			input:            "-PT5S",
+			expectedDuration: -5 * time.Second,
+		},
+		{
+			input:            "-PT1M",
+			expectedDuration: -time.Minute,
+		},
+		{
+			input:            "-PT5M7S",
+			expectedDuration: -5*time.Minute - 7*time.Second,
+		},
+		{
+			input:            "-PT1H",
+			expectedDuration: -time.Hour,
+		},
+		{
+			input:            "-PT3H4M",
+			expectedDuration: -3*time.Hour - 4*time.Minute,
+		},
+		{
+			input:            "-PT3H4M5S",
+			expectedDuration: -3*time.Hour - 4*time.Minute - 5*time.Second,
+		},
+		{
+			input:            "-P1D",
+			expectedDuration: -dayInNanos,
+		},
+		{
+			input:            "-P1DT3H4M5S",
+			expectedDuration: -dayInNanos - 3*time.Hour - 4*time.Minute - 5*time.Second,
+		},
+		{
+			input:            "-P2Y3M4DT5M",
+			expectedDuration: -2*yearInNanos - 3*monthInNanos - 4*dayInNanos - 5*time.Minute,
+		},
+		{
+			input:            "-P1Y1M1W1DT1H1M1S",
+			expectedDuration: -yearInNanos - monthInNanos - weekInNanos - dayInNanos - hourInNanos - minuteInNanos - secondInNanos,
+		},
 	}
 	ct := context.Background()
 	for _, testCase := range testCases {
@@ -163,10 +207,6 @@ func TestFormat(t *testing.T) {
 			expectedFormattedDuration: "P1D",
 		},
 		{
-			input:                     "P1D",
-			expectedFormattedDuration: "P1D",
-		},
-		{
 			input:                     "P1DT3H4M5S",
 			expectedFormattedDuration: "P1DT3H4M5S",
 		},
@@ -201,6 +241,74 @@ func TestFormat(t *testing.T) {
 		{
 			input:                     "P10Y13M36DT0S",
 			expectedFormattedDuration: "P11Y2M1D",
+		},
+		{
+			input:                     "-PT0S",
+			expectedFormattedDuration: "PT0S",
+		},
+		{
+			input:                     "-PT5S",
+			expectedFormattedDuration: "-PT5S",
+		},
+		{
+			input:                     "-PT1M",
+			expectedFormattedDuration: "-PT1M",
+		},
+		{
+			input:                     "-PT5M7S",
+			expectedFormattedDuration: "-PT5M7S",
+		},
+		{
+			input:                     "-PT1H",
+			expectedFormattedDuration: "-PT1H",
+		},
+		{
+			input:                     "-PT3H4M",
+			expectedFormattedDuration: "-PT3H4M",
+		},
+		{
+			input:                     "-PT3H4M5S",
+			expectedFormattedDuration: "-PT3H4M5S",
+		},
+		{
+			input:                     "-P1D",
+			expectedFormattedDuration: "-P1D",
+		},
+		{
+			input:                     "-P1DT3H4M5S",
+			expectedFormattedDuration: "-P1DT3H4M5S",
+		},
+		{
+			input:                     "-P1Y1M1W1DT1H1M1S",
+			expectedFormattedDuration: "-P1Y1M1W1DT1H1M1S",
+		},
+		{
+			input:                     "-PT675S",
+			expectedFormattedDuration: "-PT11M15S",
+		},
+		{
+			input:                     "-P29DT70S",
+			expectedFormattedDuration: "-P4W1DT1M10S",
+		},
+		{
+			input:                     "-P31D",
+			expectedFormattedDuration: "-P1M1D",
+		},
+		{
+			input:                     "-P61D",
+			expectedFormattedDuration: "-P2M1D",
+		},
+		{
+			input:                     "-P12M5D",
+			expectedFormattedDuration: "-P1Y",
+		},
+		{
+			input:                     "-P10Y13M36D",
+			expectedFormattedDuration: "-P11Y2M1D",
+		},
+		{
+			input:                     "-P10Y13M36DT0S",
+			expectedFormattedDuration: "-P11Y2M1D",
 		},
 	}
 
