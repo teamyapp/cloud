@@ -260,18 +260,18 @@ func (a Authorization) ListUserGroups(ct context.Context, query UserGroupQuery) 
 	return queryUserGroups(allGroups, query), nil
 }
 
-func (a Authorization) CreateUserGroup(ct context.Context, name string, description *string) error {
+func (a Authorization) CreateUserGroup(ct context.Context, name string, description *string) (entity.UserGroup, error) {
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		err := errors.New("user id not found")
 		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return err
+		return entity.UserGroup{}, err
 	}
 
 	groupID, err := a.userGroupIDGenerator.GenerateUniqueNumber(ct)
 	if err != nil {
 		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return err
+		return entity.UserGroup{}, err
 	}
 
 	userGroup := entity.UserGroup{
@@ -281,7 +281,14 @@ func (a Authorization) CreateUserGroup(ct context.Context, name string, descript
 		CreatedAt:     time.Now().UTC(),
 		CreatorUserID: userID,
 	}
-	return a.userGroupDao.CreateGroup(ct, userGroup)
+
+	createdUserGroup, err := a.userGroupDao.CreateGroup(ct, userGroup)
+	if err != nil {
+		a.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return entity.UserGroup{}, err
+	}
+
+	return createdUserGroup, nil
 }
 
 func (a Authorization) UpdateUserGroup(ct context.Context, groupID uint64, name *string, description *string) error {

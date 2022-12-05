@@ -318,9 +318,20 @@ func (a Authorization) ListUserGroups(ct context.Context, query *proto.ListUserG
 	return &proto.ListUserGroupsResponse{UserGroups: userGroups}, nil
 }
 
-func (a Authorization) CreateUserGroup(ct context.Context, request *proto.CreateUserGroupRequest) (*emptypb.Empty, error) {
-	err := a.authorizationService.CreateUserGroup(ct, request.Name, request.Description)
-	return &emptypb.Empty{}, err
+func (a Authorization) CreateUserGroup(ct context.Context, request *proto.CreateUserGroupRequest) (*proto.CreateUserGroupResponse, error) {
+	userGroup, err := a.authorizationService.CreateUserGroup(ct, request.Name, request.Description)
+	if err != nil {
+		return nil, err
+	}
+
+	return &proto.CreateUserGroupResponse{UserGroup: &proto.UserGroup{
+		GroupId:       userGroup.ID,
+		Name:          userGroup.Name,
+		Description:   userGroup.Description,
+		CreatedAt:     timestamppb.New(userGroup.CreatedAt),
+		CreatorUserId: userGroup.CreatorUserID,
+		UpdatedAt:     toProtoTimePtr(userGroup.UpdatedAt),
+	}}, nil
 }
 
 func (a Authorization) UpdateUserGroup(ct context.Context, request *proto.UpdateUserGroupRequest) (*emptypb.Empty, error) {
