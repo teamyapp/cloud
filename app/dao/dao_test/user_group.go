@@ -22,7 +22,7 @@ func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, error)
 	panic("implement me")
 }
 
-func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) error {
+func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) (entity.UserGroup, error) {
 	//TODO implement me
 	panic("implement me")
 }

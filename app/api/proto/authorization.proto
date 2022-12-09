@@ -29,7 +29,7 @@ service Authorization {
   rpc UnassignParentOperation(UnassignParentOperationRequest) returns (google.protobuf.Empty);
 
   rpc ListUserGroups(ListUserGroupsQuery) returns (ListUserGroupsResponse);
-  rpc CreateUserGroup(CreateUserGroupRequest) returns (google.protobuf.Empty);
+  rpc CreateUserGroup(CreateUserGroupRequest) returns (CreateUserGroupResponse);
   rpc UpdateUserGroup(UpdateUserGroupRequest) returns (google.protobuf.Empty);
   rpc DeleteUserGroup(DeleteUserGroupRequest) returns (google.protobuf.Empty);
 
@@ -259,6 +259,10 @@ message UserGroup {
 message CreateUserGroupRequest {
   string name = 1;
   optional string description = 2;
+}
+
+message CreateUserGroupResponse {
+    UserGroup userGroup = 1;
 }
 
 // UpdateUserGroup

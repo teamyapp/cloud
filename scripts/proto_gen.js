@@ -3,7 +3,7 @@
 const fs = require('fs');
 const {join} = require('path');
 const {execSync} = require("child_process");
-const paths = ['core', 'apps'];
+const paths = ['app'];
 
 for (let path of paths) {
 	findFilesRec(path, (file) => {

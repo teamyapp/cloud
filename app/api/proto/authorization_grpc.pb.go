@@ -41,7 +41,7 @@ type AuthorizationClient interface {
 	AssignParentOperation(ctx context.Context, in *AssignParentOperationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	UnassignParentOperation(ctx context.Context, in *UnassignParentOperationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	ListUserGroups(ctx context.Context, in *ListUserGroupsQuery, opts ...grpc.CallOption) (*ListUserGroupsResponse, error)
-	CreateUserGroup(ctx context.Context, in *CreateUserGroupRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	CreateUserGroup(ctx context.Context, in *CreateUserGroupRequest, opts ...grpc.CallOption) (*CreateUserGroupResponse, error)
 	UpdateUserGroup(ctx context.Context, in *UpdateUserGroupRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	DeleteUserGroup(ctx context.Context, in *DeleteUserGroupRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	ListUserGroupMembers(ctx context.Context, in *ListUserGroupMembersQuery, opts ...grpc.CallOption) (*ListUserGroupMembersResponse, error)
@@ -213,8 +213,8 @@ func (c *authorizationClient) ListUserGroups(ctx context.Context, in *ListUserGr
 	return out, nil
 }
 
-func (c *authorizationClient) CreateUserGroup(ctx context.Context, in *CreateUserGroupRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
+func (c *authorizationClient) CreateUserGroup(ctx context.Context, in *CreateUserGroupRequest, opts ...grpc.CallOption) (*CreateUserGroupResponse, error) {
+	out := new(CreateUserGroupResponse)
 	err := c.cc.Invoke(ctx, "/Authorization/CreateUserGroup", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -315,7 +315,7 @@ type AuthorizationServer interface {
 	AssignParentOperation(context.Context, *AssignParentOperationRequest) (*emptypb.Empty, error)
 	UnassignParentOperation(context.Context, *UnassignParentOperationRequest) (*emptypb.Empty, error)
 	ListUserGroups(context.Context, *ListUserGroupsQuery) (*ListUserGroupsResponse, error)
-	CreateUserGroup(context.Context, *CreateUserGroupRequest) (*emptypb.Empty, error)
+	CreateUserGroup(context.Context, *CreateUserGroupRequest) (*CreateUserGroupResponse, error)
 	UpdateUserGroup(context.Context, *UpdateUserGroupRequest) (*emptypb.Empty, error)
 	DeleteUserGroup(context.Context, *DeleteUserGroupRequest) (*emptypb.Empty, error)
 	ListUserGroupMembers(context.Context, *ListUserGroupMembersQuery) (*ListUserGroupMembersResponse, error)
@@ -382,7 +382,7 @@ func (UnimplementedAuthorizationServer) UnassignParentOperation(context.Context,
 func (UnimplementedAuthorizationServer) ListUserGroups(context.Context, *ListUserGroupsQuery) (*ListUserGroupsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListUserGroups not implemented")
 }
-func (UnimplementedAuthorizationServer) CreateUserGroup(context.Context, *CreateUserGroupRequest) (*emptypb.Empty, error) {
+func (UnimplementedAuthorizationServer) CreateUserGroup(context.Context, *CreateUserGroupRequest) (*CreateUserGroupResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateUserGroup not implemented")
 }
 func (UnimplementedAuthorizationServer) UpdateUserGroup(context.Context, *UpdateUserGroupRequest) (*emptypb.Empty, error) {
