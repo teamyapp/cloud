@@ -29,12 +29,16 @@ const specialChars = "!@#$%^&*()-+=?[]"
 const dbPasswordLen = 20
 
 type Config struct {
-	DBHost     string `envconfig:"DB_HOST" default:"localhost"`
-	DBPort     int    `envconfig:"DB_PORT" default:"5432"`
-	DBUser     string `envconfig:"DB_USER"`
-	DBName     string `envconfig:"DB_NAME" default:"teamy"`
-	DBPassword string `envconfig:"DB_PASSWORD"`
-	DBSSLMode  string `envconfig:"DB_SSL_MODE" default:"require"`
+	DBHost                  string        `envconfig:"DB_HOST" default:"localhost"`
+	DBPort                  int           `envconfig:"DB_PORT" default:"5432"`
+	DBUser                  string        `envconfig:"DB_USER"`
+	DBName                  string        `envconfig:"DB_NAME" default:"teamy"`
+	DBPassword              string        `envconfig:"DB_PASSWORD"`
+	DBSSLMode               string        `envconfig:"DB_SSL_MODE" default:"require"`
+	DBMaxOpenConnections    int           `envconfig:"DB_MAX_OPEN_CONNECTIONS" default:"20"`
+	DBMaxIdleConnections    int           `envconfig:"DB_MAX_IDLE_CONNECTIONS" default:"2"`
+	DBConnectionMaxLifeTime time.Duration `envconfig:"DB_CONNECTION_MAX_LIFE_TIME" default:"0"`
+	DBConnectionMaxIdleTime time.Duration `envconfig:"DB_CONNECTION_MAX_IDLE_TIME" default:"2m"`
 }
 
 func Use(dataCollector obs.DataCollector, cfg Config, action func(sqlDB *sql.DB) error) error {
@@ -45,6 +49,10 @@ func Use(dataCollector obs.DataCollector, cfg Config, action func(sqlDB *sql.DB)
 	defer sqlDB.Close()
 
 	waitUntilReady(dataCollector, sqlDB)
+	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConnections)
+	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConnections)
+	sqlDB.SetConnMaxLifetime(cfg.DBConnectionMaxLifeTime)
+	sqlDB.SetConnMaxIdleTime(cfg.DBConnectionMaxIdleTime)
 	return action(sqlDB)
 }
 
