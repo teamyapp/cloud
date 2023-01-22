@@ -26,6 +26,8 @@ type App struct {
 	GoogleClientSecret string        `envconfig:"GOOGLE_CLIENT_SECRET" default:""`
 	GitHubClientID     string        `envconfig:"GITHUB_CLIENT_ID" default:""`
 	GitHubClientSecret string        `envconfig:"GITHUB_CLIENT_SECRET" default:""`
+	SlackClientID      string        `envconfig:"SLACK_CLIENT_ID" default:""`
+	SlackClientSecret  string        `envconfig:"SLACK_CLIENT_SECRET" default:""`
 	JWTSigningKey      string        `envconfig:"JWT_SIGNING_KEY" default:""`
 	GenRangeSize       int           `envconfig:"GEN_RANGE_SIZE" default:"100"`
 	S3Endpoint         string        `envconfig:"S3_ENDPOINT" default:""`

@@ -94,6 +94,12 @@ func InitFileAPI(dataCollector obs.DataCollector, env config.Environment, sqlDB 
 	return apiFile, nil
 }
 
+func InitSlackOAuthProvider(dataCollector obs.DataCollector, webAPIBaseURL WebAPIBaseURL, jwtSigningKey JWTSigningKey, clientID ClientID, clientSecret ClientSecret) oauth.Slack {
+	jwtAuthority := newJWTAuthority(dataCollector, jwtSigningKey)
+	slack := newSlackOAuthProvider(dataCollector, jwtAuthority, webAPIBaseURL, clientID, clientSecret)
+	return slack
+}
+
 // wire.go:
 
 type OAuthProviders []oauth.Provider
@@ -117,7 +123,6 @@ type S3AccessKeyID string
 type S3AccessKey string
 
 type S3BucketName string
-
 
 var daoSet = wire.NewSet(wire.Bind(new(dao.UserLink), new(sqldb.UserLink)), wire.Bind(new(dao.AllocatedRange), new(sqldb.AllocatedRange)), wire.Bind(new(dao.SignInSession), new(sqldb.SignInSession)), wire.Bind(new(dao.ServiceAccount), new(sqldb.ServiceAccount)), wire.Bind(new(dao.OperationRelation), new(sqldb.OperationRelation)), wire.Bind(new(dao.Operation), new(sqldb.Operation)), wire.Bind(new(dao.UserGroup), new(sqldb.UserGroup)), wire.Bind(new(dao.UserGroupMember), new(sqldb.UserGroupMember)), wire.Bind(new(dao.Permission), new(sqldb.Permission)), wire.Bind(new(dao.ResourceType), new(sqldb.ResourceType)), wire.Bind(new(dao.Resource), new(sqldb.Resource)), wire.Bind(new(dao.ResourceRelation), new(sqldb.ResourceRelation)), wire.Bind(new(dao.UploadSession), new(sqldb.UploadSession)), wire.Bind(new(dao.FileMetadata), new(sqldb.FileMetadata)), wire.Bind(new(dao.ChunkMetadata), new(sqldb.ChunkMetadata)), sqldb.NewAllocatedRange, sqldb.NewUserLink, sqldb.NewSignInSession, sqldb.NewServiceAccount, sqldb.NewOperationRelation, sqldb.NewOperation, sqldb.NewUserGroup, sqldb.NewUserGroupMember, sqldb.NewPermission, sqldb.NewResourceType, sqldb.NewResource, sqldb.NewResourceRelation, sqldb.NewUploadSession, sqldb.NewFileMetadata, sqldb.NewChunkMetadata)
 
@@ -157,6 +162,16 @@ func InitGitHubOAuthProvider(
 	clientSecret ClientSecret,
 ) oauth.GitHub {
 	return oauth.NewGitHub(dataCollector, string(webAPIBaseURL), string(clientID), string(clientSecret))
+}
+
+func newSlackOAuthProvider(
+	dataCollector obs.DataCollector,
+	jwtAuthority security.JWTAuthority,
+	webAPIBaseURL WebAPIBaseURL,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.Slack {
+	return oauth.NewSlack(dataCollector, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newJWTAuthority(dataCollector obs.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {

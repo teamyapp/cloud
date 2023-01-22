@@ -33,7 +33,6 @@ type S3AccessKeyID string
 type S3AccessKey string
 type S3BucketName string
 
-
 func InitGoogleOAuthProvider(
 	dataCollector obs.DataCollector,
 	webAPIBaseURL WebAPIBaseURL,
@@ -192,6 +191,30 @@ func InitGitHubOAuthProvider(
 	clientSecret ClientSecret,
 ) oauth.GitHub {
 	return oauth.NewGitHub(dataCollector, string(webAPIBaseURL), string(clientID), string(clientSecret))
+}
+
+func InitSlackOAuthProvider(
+	dataCollector obs.DataCollector,
+	webAPIBaseURL WebAPIBaseURL,
+	jwtSigningKey JWTSigningKey,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.Slack {
+	wire.Build(
+		newJWTAuthority,
+		newSlackOAuthProvider,
+	)
+	return oauth.Slack{}
+}
+
+func newSlackOAuthProvider(
+	dataCollector obs.DataCollector,
+	jwtAuthority security.JWTAuthority,
+	webAPIBaseURL WebAPIBaseURL,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.Slack {
+	return oauth.NewSlack(dataCollector, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newJWTAuthority(dataCollector obs.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {
