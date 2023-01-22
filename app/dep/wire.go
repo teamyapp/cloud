@@ -15,8 +15,8 @@ import (
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/app/storage"
-	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/security"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type OAuthProviders []oauth.Provider
@@ -195,6 +195,30 @@ func InitGitHubOAuthProvider(
 
 func newJWTAuthority(dataCollector telemetry.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {
 	return security.NewJWTAuthority(dataCollector, string(signingKey))
+}
+
+func InitSlackOAuthProvider(
+	dataCollector obs.DataCollector,
+	webAPIBaseURL WebAPIBaseURL,
+	jwtSigningKey JWTSigningKey,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.Slack {
+	wire.Build(
+		newJWTAuthority,
+		newSlackOAuthProvider,
+	)
+	return oauth.Slack{}
+}
+
+func newSlackOAuthProvider(
+	dataCollector obs.DataCollector,
+	jwtAuthority security.JWTAuthority,
+	webAPIBaseURL WebAPIBaseURL,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.Slack {
+	return oauth.NewSlack(dataCollector, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newUniqueNumberGenFactory(
