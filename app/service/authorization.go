@@ -425,6 +425,8 @@ func (a Authorization) getParentPermissionQueries(ct context.Context, currQuery 
 		return nil, err
 	}
 
+	// Handle sub resources of the same type
+	// Eg. subtask of a task are both of task resource type
 	for _, resourceRelation := range resourceRelations {
 		if resourceRelation.ParentResourceType == currQuery.ResourceType {
 			newPermissionQuery := entity.PermissionQuery{
@@ -438,6 +440,8 @@ func (a Authorization) getParentPermissionQueries(ct context.Context, currQuery 
 	}
 
 	for _, operationRelation := range operationRelations {
+		// Handle different operations for the same resource type
+		// Eg. If a user can edit a task, the user can also read a task
 		if operationRelation.ParentResourceType == currQuery.ResourceType {
 			newPermissionQuery := entity.PermissionQuery{
 				ResourceID:   currQuery.ResourceID,
@@ -449,6 +453,7 @@ func (a Authorization) getParentPermissionQueries(ct context.Context, currQuery 
 			continue
 		}
 
+		// Handle permission with different resource types
 		for _, resourceRelation := range resourceRelations {
 			if resourceRelation.ParentResourceType != operationRelation.ParentResourceType {
 				continue
