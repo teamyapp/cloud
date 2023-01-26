@@ -106,6 +106,7 @@ func (g GitHub) GetSignInURL(ct context.Context, stateID uint64) (string, error)
 		return "", err
 	}
 
+	// Github app does not require "scopes" in your authorization request
 	query := baseURL.Query()
 	query.Add("client_id", g.clientID)
 	query.Add("redirect_uri", g.redirectURI)
