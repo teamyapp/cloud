@@ -16,7 +16,7 @@ import (
 
 const GitHubName = "github"
 
-// https://docs.github.com/en/developers/apps/building-oauth-apps/authorizing-oauth-apps#web-application-flow
+// https://docs.github.com/en/developers/apps/building-github-apps/identifying-and-authorizing-users-for-github-apps
 var githubAuthorizationURL = "https://github.com/login/oauth/authorize"
 var githubAccessTokenURL = "https://github.com/login/oauth/access_token"
 var githubUserURL = "https://api.github.com/user"
@@ -35,22 +35,23 @@ func (g GitHub) GetName() string {
 }
 
 func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, error) {
-	// https://docs.github.com/en/developers/apps/building-oauth-apps/authorizing-
-	// oauth-apps#2-users-are-redirected-back-to-your-site-by-github
+	// https://docs.github.com/en/developers/apps/building-github-apps/identifying-and-authorizing-
+	// users-for-github-apps#2-users-are-redirected-back-to-your-site-by-github
 	accessToken, err := g.getAccessToken(ct, authorizationCode)
 	if err != nil {
 		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.ExternalUser{}, err
 	}
 
-	// https://docs.github.com/en/rest/users/emails#list-email-addresses-for-the-authenticated-user
+	// https://docs.github.com/en/developers/apps/building-github-apps/identifying-and-authorizing-
+	// users-for-github-apps#3-your-github-app-accesses-the-api-with-the-users-access-token
 	req, err := http.NewRequest("GET", githubUserURL, nil)
 	if err != nil {
 		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.ExternalUser{}, err
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", accessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -105,10 +106,10 @@ func (g GitHub) GetSignInURL(ct context.Context, stateID uint64) (string, error)
 		return "", err
 	}
 
+	// Github app does not require "scopes" in your authorization request
 	query := baseURL.Query()
 	query.Add("client_id", g.clientID)
 	query.Add("redirect_uri", g.redirectURI)
-	query.Add("scope", "read:user")
 	query.Add("state", strconv.Itoa(int(stateID)))
 	baseURL.RawQuery = query.Encode()
 	return baseURL.String(), nil
