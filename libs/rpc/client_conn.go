@@ -2,8 +2,11 @@ package rpc
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/teamyapp/cloud/libs/middleware"
+	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/retry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -14,9 +17,10 @@ type ConnectionConfig struct {
 	Port           int
 	ShouldEncrypt  bool
 	GetAccessToken func() string
+	RequestTimeout time.Duration
 }
 
-func NewClientConnection(cfg ConnectionConfig) (*grpc.ClientConn, error) {
+func NewClientConnection(dataCollector obs.DataCollector, cfg ConnectionConfig, retry retry.Retry) (*grpc.ClientConn, error) {
 	var cred credentials.TransportCredentials
 	if cfg.ShouldEncrypt {
 		cred = credentials.NewTLS(nil)
@@ -27,5 +31,10 @@ func NewClientConnection(cfg ConnectionConfig) (*grpc.ClientConn, error) {
 	return grpc.Dial(
 		fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		grpc.WithTransportCredentials(cred),
-		grpc.WithUnaryInterceptor(middleware.ClientWithGRPCIdentity(cfg.GetAccessToken)))
+		grpc.WithChainUnaryInterceptor(
+			middleware.ClientGRPCWithRetry(retry),
+			middleware.ClientGRPCWithRequestID(dataCollector),
+			middleware.ClientGRPCWithTimout(cfg.RequestTimeout),
+			middleware.ClientGRPCWithIdentity(cfg.GetAccessToken),
+		))
 }

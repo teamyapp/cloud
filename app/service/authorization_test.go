@@ -1,110 +1,113 @@
 package service
 
 import (
-	"testing"
+	"context"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/teamyapp/cloud/app/dao/dao_test"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/app/gen"
+	"github.com/teamyapp/cloud/libs/obs"
+	"testing"
 )
 
 func TestAuthorization_HasPermission(t *testing.T) {
-	fakeResourceRelationDao := []entity.ResourceRelation{
+	resourceRelations := []entity.ResourceRelation{
 		{
-			ChileResourceID:   1,
+			ChildResourceID:   1,
 			ChildResourceType: "team",
 		},
 		{
-			ChileResourceID:   2,
+			ChildResourceID:   2,
 			ChildResourceType: "team",
 		},
 		{
-			ChileResourceID:    11,
+			ChildResourceID:    11,
 			ChildResourceType:  "project",
 			ParentResourceID:   1,
 			ParentResourceType: "team",
 		},
 		{
-			ChileResourceID:    12,
+			ChildResourceID:    12,
 			ChildResourceType:  "project",
 			ParentResourceID:   1,
 			ParentResourceType: "team",
 		},
 		{
-			ChileResourceID:    21,
+			ChildResourceID:    21,
 			ChildResourceType:  "sprint",
 			ParentResourceID:   1,
 			ParentResourceType: "team",
 		},
 		{
-			ChileResourceID:    1,
+			ChildResourceID:    1,
 			ChildResourceType:  "invitation",
 			ParentResourceID:   1,
 			ParentResourceType: "team",
 		},
 		{
-			ChileResourceID:    23,
+			ChildResourceID:    23,
 			ChildResourceType:  "project",
 			ParentResourceID:   2,
 			ParentResourceType: "team",
 		},
 		{
-			ChileResourceID:    4,
+			ChildResourceID:    4,
 			ChildResourceType:  "task",
 			ParentResourceID:   2,
 			ParentResourceType: "team",
 		},
 		{
-			ChileResourceID:    2,
+			ChildResourceID:    2,
 			ChildResourceType:  "invitation",
 			ParentResourceID:   2,
 			ParentResourceType: "team",
 		},
 		{
-			ChileResourceID:    1,
+			ChildResourceID:    1,
 			ChildResourceType:  "task",
 			ParentResourceID:   11,
 			ParentResourceType: "project",
 		},
 		{
-			ChileResourceID:    1,
+			ChildResourceID:    1,
 			ChildResourceType:  "task",
 			ParentResourceID:   21,
 			ParentResourceType: "sprint",
 		},
 		{
-			ChileResourceID:    1,
+			ChildResourceID:    1,
 			ChildResourceType:  "task",
 			ParentResourceID:   12,
 			ParentResourceType: "project",
 		},
 		{
-			ChileResourceID:    2,
+			ChildResourceID:    2,
 			ChildResourceType:  "task",
 			ParentResourceID:   12,
 			ParentResourceType: "project",
 		},
 		{
-			ChileResourceID:    3,
+			ChildResourceID:    3,
 			ChildResourceType:  "task",
 			ParentResourceID:   23,
 			ParentResourceType: "project",
 		},
 		{
-			ChileResourceID:    6,
+			ChildResourceID:    6,
 			ChildResourceType:  "task",
 			ParentResourceID:   11,
 			ParentResourceType: "project",
 		},
 		{
-			ChileResourceID:    5,
+			ChildResourceID:    5,
 			ChildResourceType:  "task",
 			ParentResourceID:   2,
 			ParentResourceType: "task",
 		},
 	}
 
-	fakeUserGroupMemberDao := []entity.UserGroupMember{
+	userGroupMembers := []entity.UserGroupMember{
 		{
 			GroupID: 1,
 			UserID:  1,
@@ -135,7 +138,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		},
 	}
 
-	fakePermissionDao := []entity.Permission{
+	permissions := []entity.Permission{
 		{
 			ResourceType: "project",
 			ResourceID:   11,
@@ -228,7 +231,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		},
 	}
 
-	fakeOperationRelationDao := []entity.OperationRelation{
+	operationRelations := []entity.OperationRelation{
 		{
 			ChildResourceType: "team",
 			ChildOperation:    "addUserTo",
@@ -341,6 +344,14 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		},
 	}
 
+	allocatedRanges := []entity.AllocatedRange{
+		{
+			Key:        "userGroupID",
+			RangeEnd:   0,
+			NextNumber: 1,
+		},
+	}
+
 	testCases := []struct {
 		name                  string
 		resourceType          string
@@ -350,7 +361,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		expectedHasPermission bool
 	}{
 		{
-			name:                  "Case 0: has permission by traversing permission table",
+			name:                  "current permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -358,7 +369,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Case 0: has no permission by traversing permission table",
+			name:                  "current permission not found but parent permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -366,7 +377,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: false,
 		},
 		{
-			name:                  "Case 1: both operation and resource type change happy case",
+			name:                  "operation and resource type of parent permission change and permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -374,7 +385,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Case 1: both operation and resource type change failed case",
+			name:                  "operation and resource type of parent permission change but no permission found",
 			resourceType:          "task",
 			resourceID:            6,
 			operation:             "update",
@@ -382,15 +393,15 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: false,
 		},
 		{
-			name:                  "Case 2: operation and resource type do not change ",
+			name:                  "operation and resource type is same and one resource is parent of other resource and permission found",
 			resourceType:          "task",
-			resourceID:            2,
+			resourceID:            5,
 			operation:             "read",
 			userID:                5,
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Case 3: one resource type has multiple same level parent resource types happy case",
+			name:                  "one resource type has multiple same level parent resource types and permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -398,7 +409,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Case 3: one resource type has multiple same level parent resource types failed case",
+			name:                  "one resource type has multiple same level parent resource types but no permission found",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "update",
@@ -406,7 +417,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: false,
 		},
 		{
-			name:                  "Case 4: owner group",
+			name:                  "permission found for user who is in a owner group",
 			resourceType:          "team",
 			resourceID:            1,
 			operation:             "read",
@@ -414,7 +425,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: true,
 		},
 		{
-			name:                  "Case 5: cross team",
+			name:                  "no permission for user who is outside of a owner group",
 			resourceType:          "task",
 			resourceID:            1,
 			operation:             "read",
@@ -422,20 +433,36 @@ func TestAuthorization_HasPermission(t *testing.T) {
 			expectedHasPermission: false,
 		},
 	}
-
+	ct := context.Background()
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
 			mockAuthorization := Authorization{
-				permissionDao:        dao_test.NewPermission(fakePermissionDao),
-				userGroupMemberDao:   dao_test.NewUserGroupMember(fakeUserGroupMemberDao),
-				operationRelationDao: dao_test.NewOperationRelation(fakeOperationRelationDao),
-				resourceRelationDao:  dao_test.NewResourceRelation(fakeResourceRelationDao),
+				permissionDao:        dao_test.NewPermission(permissions),
+				userGroupMemberDao:   dao_test.NewUserGroupMember(userGroupMembers),
+				operationRelationDao: dao_test.NewOperationRelation(operationRelations),
+				resourceRelationDao:  dao_test.NewResourceRelation(resourceRelations),
 			}
 
-			hasPermission, err := mockAuthorization.HasPermission(testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)
+			mockLogger := obs.NewRawLogger(obs.Info)
+			mockDataCollector := obs.NewDataCollector(mockLogger)
+			mockAllocatedRange := dao_test.NewAllocatedRange(allocatedRanges)
+			mockAuthorization, err := NewAuthorization(
+				obs.NewDataCollector(obs.NewRawLogger(obs.Info)),
+				dao_test.NewResourceRelation(resourceRelations),
+				dao_test.NewUserGroupMember(userGroupMembers),
+				dao_test.NewPermission(permissions),
+				dao_test.NewOperationRelation(operationRelations),
+				dao_test.NewOperation(make([]entity.Operation, 0)),
+				dao_test.NewResourceType(make([]entity.ResourceType, 0)),
+				dao_test.NewResource(make([]entity.Resource, 0)),
+				dao_test.NewUserGroup(make([]entity.UserGroup, 0)),
+				gen.NewUniqueNumberFactory(mockDataCollector, mockAllocatedRange, 0),
+			)
+
+			hasPermission, err := mockAuthorization.HasPermission(ct, testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)
 			assert.Nil(t, err)
 			assert.Equal(t, hasPermission, testCase.expectedHasPermission)
 		})

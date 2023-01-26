@@ -5,84 +5,64 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"log"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/teamyapp/cloud/libs/ctx"
+	"github.com/teamyapp/cloud/libs/obs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
 const gRPCAuthorizationKey = "Authorization"
 
-func withIdentity(
+func ServerHTTPWithIdentity(
+	dataCollector obs.DataCollector,
 	identityAPIEndpoint string,
-	handlerFunc http.HandlerFunc,
-	getBearerToken func(request *http.Request) (string, error),
-) http.HandlerFunc {
-	verifyTokenURL := fmt.Sprintf("%s/verify-token", identityAPIEndpoint)
-	return func(writer http.ResponseWriter, request *http.Request) {
-		token, err := getBearerToken(request)
-		if err != nil {
-			log.Println(err)
-			writer.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
-		if len(token) > 0 {
-			ct, err := ctxWithUserID(request.Context(), verifyTokenURL, token)
-			if err != nil {
-				log.Println(err)
-				writer.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-
-			request = request.WithContext(ct)
-		}
-
-		handlerFunc(writer, request)
-	}
-}
-
-func ServerWithWebIdentity(
-	identityAPIEndpoint string,
-	handlerFunc http.HandlerFunc,
-) http.HandlerFunc {
-	return withIdentity(identityAPIEndpoint, handlerFunc, func(request *http.Request) (string, error) {
+) Middleware[http.HandlerFunc] {
+	return withIdentity(dataCollector, identityAPIEndpoint, func(request *http.Request) (string, error) {
 		value := request.Header.Get("Authorization")
 		if len(value) == 0 {
 			return "", nil
 		}
 
+		ct := request.Context()
 		parts := strings.Split(value, " ")
 		if len(parts) != 2 {
-			err := fmt.Errorf("invalid Authorization header format: %s\n", value)
-			log.Println(err)
+			err := errors.New("invalid Authorization header format")
+			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
+				obs.CauseProp: err,
+				obs.MessageProp: obs.Props{
+					"Format": value,
+				},
+			})
 			return "", err
 		}
 
 		if parts[0] != "Bearer" {
-			err := fmt.Errorf("invalid Authorization header format: %v\n", parts)
-			log.Println(err)
+			err := errors.New("invalid Authorization header format")
+			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
+				obs.CauseProp: err,
+				"Format":      value,
+			})
 			return "", err
 		}
 		return parts[1], nil
 	})
 }
 
-func ServerWithWebSocketIdentity(
+func ServerWebSocketWithIdentity(
+	dataCollector obs.DataCollector,
 	identityAPIEndpoint string,
-	handlerFunc http.HandlerFunc,
-) http.HandlerFunc {
-	return withIdentity(identityAPIEndpoint, handlerFunc, func(request *http.Request) (string, error) {
+) Middleware[http.HandlerFunc] {
+	return withIdentity(dataCollector, identityAPIEndpoint, func(request *http.Request) (string, error) {
 		return request.URL.Query().Get("accessToken"), nil
 	})
 }
 
-func ServerWithGRPCIdentity(identityAPIEndpoint string) grpc.UnaryServerInterceptor {
+func ServerGRPCWithIdentity(dataCollector obs.DataCollector, identityAPIEndpoint string) grpc.UnaryServerInterceptor {
 	verifyTokenURL := fmt.Sprintf("%s/verify-token", identityAPIEndpoint)
 	return func(ct context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		md, ok := metadata.FromIncomingContext(ct)
@@ -93,10 +73,11 @@ func ServerWithGRPCIdentity(identityAPIEndpoint string) grpc.UnaryServerIntercep
 		values := md.Get(gRPCAuthorizationKey)
 		if len(values) > 0 {
 			accessToken := values[0]
-			ct, err = ctxWithUserID(ct, verifyTokenURL, accessToken)
+			updatedCt, err := ctxWithUserID(dataCollector, ct, verifyTokenURL, accessToken)
 			if err != nil {
-				log.Println(err)
-				return nil, err
+				dataCollector.Logger.LogWithContext(ct, obs.Warning, obs.Props{obs.CauseProp: err})
+			} else {
+				ct = updatedCt
 			}
 		}
 
@@ -104,39 +85,78 @@ func ServerWithGRPCIdentity(identityAPIEndpoint string) grpc.UnaryServerIntercep
 	}
 }
 
-func ClientWithGRPCIdentity(getAccessToken func() string) grpc.UnaryClientInterceptor {
+func ClientGRPCWithIdentity(getAccessToken func() string) grpc.UnaryClientInterceptor {
 	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		if getAccessToken != nil {
-			ct = metadata.AppendToOutgoingContext(ct, gRPCAuthorizationKey, getAccessToken())
+			accessToken := getAccessToken()
+			if len(accessToken) > 0 {
+				ct = metadata.AppendToOutgoingContext(ct, gRPCAuthorizationKey, accessToken)
+			}
 		}
 
 		return invoker(ct, method, req, reply, cc, opts...)
 	}
 }
 
-func ctxWithUserID(ct context.Context, verifyTokenURL string, accessToken string) (context.Context, error) {
+func withIdentity(
+	dataCollector obs.DataCollector,
+	identityAPIEndpoint string,
+	getBearerToken func(request *http.Request) (string, error),
+) Middleware[http.HandlerFunc] {
+	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
+		verifyTokenURL := fmt.Sprintf("%s/verify-token", identityAPIEndpoint)
+		return func(writer http.ResponseWriter, request *http.Request) {
+			ct := request.Context()
+			token, err := getBearerToken(request)
+			if err != nil {
+				dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+				writer.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			if len(token) > 0 {
+				updatedCt, err := ctxWithUserID(dataCollector, request.Context(), verifyTokenURL, token)
+				if err != nil {
+					dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+					writer.WriteHeader(http.StatusUnauthorized)
+				} else {
+					ct = updatedCt
+				}
+
+				request = request.WithContext(ct)
+			}
+
+			handlerFunc(writer, request)
+		}
+	}
+}
+
+func ctxWithUserID(dataCollector obs.DataCollector, ct context.Context, verifyTokenURL string, accessToken string) (context.Context, error) {
 	res, err := http.Post(
 		verifyTokenURL,
 		"text/plain",
 		bytes.NewReader([]byte(accessToken)))
 	if err != nil {
+		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
 	if res.StatusCode == http.StatusUnauthorized {
-		return nil, errors.New("invalid access token")
+		err = errors.New("invalid access token")
+		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return nil, err
 	}
 
-	buf, err := ioutil.ReadAll(res.Body)
+	buf, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
 
 	userID, err := strconv.ParseUint(string(buf), 10, 64)
 	if err != nil {
-		log.Println(err)
+		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
-	return ctx.NewContextWithUserID(ct, userID), err
+	return ctx.NewContextWithUserID(ct, userID), nil
 }

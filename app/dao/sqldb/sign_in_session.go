@@ -1,21 +1,24 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type SignInSession struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.SignInSession = (*SignInSession)(nil)
 
-func (s SignInSession) FindSignInSessionByID(sessionID uint64) (entity.SignInSession, error) {
+func (s SignInSession) FindSignInSessionByID(ct context.Context, sessionID uint64) (entity.SignInSession, error) {
 	row := s.db.QueryRow(`
 	SELECT 
 	    id,
@@ -39,10 +42,14 @@ func (s SignInSession) FindSignInSessionByID(sessionID uint64) (entity.SignInSes
 			sessionID))
 	}
 
+	if err != nil {
+		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return signInSession, err
 }
 
-func (s SignInSession) CreateSignInSession(session entity.SignInSession) error {
+func (s SignInSession) CreateSignInSession(ct context.Context, session entity.SignInSession) error {
 	_, err := s.db.Exec(`
 	INSERT INTO identity_sign_in_session 
 	(
@@ -57,10 +64,15 @@ func (s SignInSession) CreateSignInSession(session entity.SignInSession) error {
 		session.RedirectURL,
 		session.Type,
 		session.InternalUserID)
+
+	if err != nil {
+		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func (s SignInSession) UpdateSignInSession(session entity.SignInSession) error {
+func (s SignInSession) UpdateSignInSession(ct context.Context, session entity.SignInSession) error {
 	_, err := s.db.Exec(`
 	UPDATE identity_sign_in_session
 	SET 
@@ -73,20 +85,31 @@ func (s SignInSession) UpdateSignInSession(session entity.SignInSession) error {
 		session.Type,
 		session.InternalUserID,
 		session.ID)
+
+	if err != nil {
+		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func (s SignInSession) DeleteSignInSession(sessionID uint64) error {
+func (s SignInSession) DeleteSignInSession(ct context.Context, sessionID uint64) error {
 	_, err := s.db.Exec(`
 	DELETE 
 	FROM identity_sign_in_session
 	WHERE id = $1;`,
 		sessionID)
+
+	if err != nil {
+		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewSignInSession(sqlDB *sql.DB) SignInSession {
+func NewSignInSession(dataCollector obs.DataCollector, sqlDB *sql.DB) SignInSession {
 	return SignInSession{
-		db: sqlDB,
+		dataCollector: dataCollector,
+		db:            sqlDB,
 	}
 }

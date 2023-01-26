@@ -1,22 +1,24 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type FileMetadata struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.FileMetadata = (*FileMetadata)(nil)
 
-func (f FileMetadata) FindMetadataByFileID(fileID uint64) (entity.FileMetadata, error) {
+func (f FileMetadata) FindMetadataByFileID(ct context.Context, fileID uint64) (entity.FileMetadata, error) {
 	fileMetadata := entity.FileMetadata{}
 	var chunkIDsString string
 	err := f.db.QueryRow(`
@@ -46,19 +48,21 @@ func (f FileMetadata) FindMetadataByFileID(fileID uint64) (entity.FileMetadata, 
 	}
 
 	if err != nil {
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.FileMetadata{}, err
 	}
 
-	chunkIDs, err := parseIDs(chunkIDsString)
+	chunkIDs, err := parseIDs(ct, f.dataCollector, chunkIDsString)
 	if err != nil {
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.FileMetadata{}, err
 	}
 
 	fileMetadata.ChunkIDs = chunkIDs
-	return fileMetadata, err
+	return fileMetadata, nil
 }
 
-func (f FileMetadata) CreateFileMetadata(metadata entity.FileMetadata) error {
+func (f FileMetadata) CreateFileMetadata(ct context.Context, metadata entity.FileMetadata) error {
 	_, err := f.db.Exec(`
 	INSERT INTO file_metadata
 	(
@@ -80,13 +84,13 @@ func (f FileMetadata) CreateFileMetadata(metadata entity.FileMetadata) error {
 		metadata.LastModifiedAt,
 	)
 	if err != nil {
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
 }
 
-func (f FileMetadata) UpdateFileMetadata(metadata entity.FileMetadata) error {
+func (f FileMetadata) UpdateFileMetadata(ct context.Context, metadata entity.FileMetadata) error {
 	_, err := f.db.Exec(`
 	UPDATE file_metadata
 	SET
@@ -107,9 +111,14 @@ func (f FileMetadata) UpdateFileMetadata(metadata entity.FileMetadata) error {
 		metadata.CreatedAt,
 		metadata.LastModifiedAt,
 	)
+
+	if err != nil {
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewFileMetadata(sqlDB *sql.DB) FileMetadata {
-	return FileMetadata{db: sqlDB}
+func NewFileMetadata(dataCollector obs.DataCollector, sqlDB *sql.DB) FileMetadata {
+	return FileMetadata{dataCollector: dataCollector, db: sqlDB}
 }

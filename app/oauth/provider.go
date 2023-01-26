@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/teamyapp/cloud/app/entity"
@@ -8,8 +9,8 @@ import (
 
 type Provider interface {
 	GetName() string
-	GetUser(authorizationCode string) (entity.ExternalUser, error)
+	GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, error)
 	GetStateID(request *http.Request) (uint64, error)
 	GetAuthorizationCode(request *http.Request) string
-	GetSignInURL(stateID uint64) (string, error)
+	GetSignInURL(ct context.Context, stateID uint64) (string, error)
 }

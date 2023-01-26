@@ -2,14 +2,16 @@ package oauth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 	"github.com/teamyapp/cloud/libs/security"
 )
 
@@ -20,10 +22,11 @@ var googleAuthURLString = "https://accounts.google.com/o/oauth2/v2/auth"
 var googleTokenURLString = "https://oauth2.googleapis.com/token"
 
 type Google struct {
-	jwtAuthority security.JWTAuthority
-	clientID     string
-	clientSecret string
-	redirectURI  string
+	dataCollector obs.DataCollector
+	jwtAuthority  security.JWTAuthority
+	clientID      string
+	clientSecret  string
+	redirectURI   string
 }
 
 var _ Provider = (*Google)(nil)
@@ -32,10 +35,11 @@ func (g Google) GetName() string {
 	return GoogleName
 }
 
-func (g Google) GetUser(authorizationCode string) (entity.ExternalUser, error) {
+func (g Google) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, error) {
 	// https://developers.google.com/identity/protocols/oauth2/openid-connect#exchangecode
-	idToken, err := g.getIDToken(authorizationCode)
+	idToken, err := g.getIDToken(ct, authorizationCode)
 	if err != nil {
+		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.ExternalUser{}, err
 	}
 
@@ -49,7 +53,11 @@ func (g Google) GetUser(authorizationCode string) (entity.ExternalUser, error) {
 		EmailVerified  bool   `json:"email_verified"`
 	}{}
 
-	err = g.jwtAuthority.DecodeUnverifiedToken(idToken, &tokenPayload)
+	err = g.jwtAuthority.DecodeUnverifiedToken(ct, idToken, &tokenPayload)
+	if err != nil {
+		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return entity.ExternalUser{
 		ID:    tokenPayload.UserID,
 		Label: tokenPayload.Email,
@@ -64,9 +72,10 @@ func (g Google) GetAuthorizationCode(request *http.Request) string {
 	return request.URL.Query().Get("code")
 }
 
-func (g Google) GetSignInURL(stateID uint64) (string, error) {
+func (g Google) GetSignInURL(ct context.Context, stateID uint64) (string, error) {
 	baseURL, err := url.Parse(googleAuthURLString)
 	if err != nil {
+		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
@@ -80,7 +89,7 @@ func (g Google) GetSignInURL(stateID uint64) (string, error) {
 	return baseURL.String(), nil
 }
 
-func (g Google) getIDToken(authorizationCode string) (string, error) {
+func (g Google) getIDToken(ct context.Context, authorizationCode string) (string, error) {
 	tokenBody := struct {
 		ClientID     string `json:"client_id"`
 		ClientSecret string `json:"client_secret"`
@@ -97,20 +106,31 @@ func (g Google) getIDToken(authorizationCode string) (string, error) {
 
 	buf, err := json.Marshal(tokenBody)
 	if err != nil {
+		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
 	res, err := http.Post(googleTokenURLString, "application/json", bytes.NewReader(buf))
 	if err != nil {
+		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
 	if res.StatusCode > 300 || res.StatusCode < 200 {
-		return "", fmt.Errorf("fail to obtain %s access token", g.GetName())
+		err = fmt.Errorf("fail to obtain %s access token", g.GetName())
+		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
+			obs.CauseProp: err,
+			obs.MessageProp: obs.Props{
+				"OauthProviderName": g.GetName(),
+				"HttpStatusCode":    res.StatusCode,
+			},
+		})
+		return "", err
 	}
 
-	buf, err = ioutil.ReadAll(res.Body)
+	buf, err = io.ReadAll(res.Body)
 	if err != nil {
+		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
@@ -123,19 +143,25 @@ func (g Google) getIDToken(authorizationCode string) (string, error) {
 		RefreshToken string `json:"refresh_token"`
 	}{}
 	err = json.Unmarshal(buf, &body)
+	if err != nil {
+		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return body.IDToken, err
 }
 
 func NewGoogle(
+	dataCollector obs.DataCollector,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL string,
 	clientID string,
 	clientSecret string,
 ) Google {
 	return Google{
-		jwtAuthority: jwtAuthority,
-		clientID:     clientID,
-		clientSecret: clientSecret,
-		redirectURI:  fmt.Sprintf("%s/identity/sign-in/oauth/%s/finish", webAPIBaseURL, GoogleName),
+		dataCollector: dataCollector,
+		jwtAuthority:  jwtAuthority,
+		clientID:      clientID,
+		clientSecret:  clientSecret,
+		redirectURI:   fmt.Sprintf("%s/identity/sign-in/oauth/%s/finish", webAPIBaseURL, GoogleName),
 	}
 }

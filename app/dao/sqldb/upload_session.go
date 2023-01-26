@@ -1,22 +1,24 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 type UploadSession struct {
-	db *sql.DB
+	dataCollector obs.DataCollector
+	db            *sql.DB
 }
 
 var _ dao.UploadSession = (*UploadSession)(nil)
 
-func (u UploadSession) FindUploadSessionByID(uploadSessionID uint64) (entity.UploadSession, error) {
+func (u UploadSession) FindUploadSessionByID(ct context.Context, uploadSessionID uint64) (entity.UploadSession, error) {
 	uploadSession := entity.UploadSession{}
 	var chunkIDsString string
 	err := u.db.QueryRow(`
@@ -62,19 +64,21 @@ func (u UploadSession) FindUploadSessionByID(uploadSessionID uint64) (entity.Upl
 	}
 
 	if err != nil {
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
-	chunkIDs, err := parseIDs(chunkIDsString)
+	chunkIDs, err := parseIDs(ct, u.dataCollector, chunkIDsString)
 	if err != nil {
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
 	uploadSession.ChunkIDs = chunkIDs
-	return uploadSession, err
+	return uploadSession, nil
 }
 
-func (u UploadSession) CreateUploadSession(uploadSession entity.UploadSession) error {
+func (u UploadSession) CreateUploadSession(ct context.Context, uploadSession entity.UploadSession) error {
 	_, err := u.db.Exec(`
 	INSERT INTO file_upload_session
 	(
@@ -112,13 +116,13 @@ func (u UploadSession) CreateUploadSession(uploadSession entity.UploadSession) e
 		uploadSession.UpdatedAt,
 	)
 	if err != nil {
-		log.Println(err)
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 	}
 
 	return err
 }
 
-func (u UploadSession) UpdateUploadSession(uploadSession entity.UploadSession) error {
+func (u UploadSession) UpdateUploadSession(ct context.Context, uploadSession entity.UploadSession) error {
 	_, err := u.db.Exec(`
 	UPDATE file_upload_session
 	SET
@@ -156,11 +160,17 @@ func (u UploadSession) UpdateUploadSession(uploadSession entity.UploadSession) e
 		uploadSession.UpdatedAt,
 		uploadSession.ID,
 	)
+
+	if err != nil {
+		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
 	return err
 }
 
-func NewUploadSession(sqlDB *sql.DB) UploadSession {
+func NewUploadSession(dataCollector obs.DataCollector, sqlDB *sql.DB) UploadSession {
 	return UploadSession{
-		db: sqlDB,
+		dataCollector: dataCollector,
+		db:            sqlDB,
 	}
 }

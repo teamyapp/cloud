@@ -1,4 +1,7 @@
 package api
 
-const identityPathPrefix = "/identity"
-const filePathPrefix = "/file"
+const (
+	identityPathPrefix  = "/identity"
+	filePathPrefix      = "/file"
+	telemetryPathPrefix = "/telemetry"
+)

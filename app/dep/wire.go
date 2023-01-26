@@ -10,13 +10,12 @@ import (
 	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao"
-	"github.com/teamyapp/cloud/app/dao/dao_test"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
-	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/app/storage"
+	"github.com/teamyapp/cloud/libs/obs"
 	"github.com/teamyapp/cloud/libs/security"
 )
 
@@ -29,7 +28,14 @@ type WebAPIBaseURL string
 type ClientID string
 type ClientSecret string
 
+type S3Endpoint string
+type S3AccessKeyID string
+type S3AccessKey string
+type S3BucketName string
+
+
 func InitGoogleOAuthProvider(
+	dataCollector obs.DataCollector,
 	webAPIBaseURL WebAPIBaseURL,
 	jwtSigningKey JWTSigningKey,
 	clientID ClientID,
@@ -47,10 +53,14 @@ var daoSet = wire.NewSet(
 	wire.Bind(new(dao.AllocatedRange), new(sqldb.AllocatedRange)),
 	wire.Bind(new(dao.SignInSession), new(sqldb.SignInSession)),
 	wire.Bind(new(dao.ServiceAccount), new(sqldb.ServiceAccount)),
-	wire.Bind(new(dao.OperationRelation), new(dao_test.OperationRelation)),
-	wire.Bind(new(dao.ResourceRelation), new(dao_test.ResourceRelation)),
-	wire.Bind(new(dao.UserGroupMember), new(dao_test.UserGroupMember)),
-	wire.Bind(new(dao.Permission), new(dao_test.Permission)),
+	wire.Bind(new(dao.OperationRelation), new(sqldb.OperationRelation)),
+	wire.Bind(new(dao.Operation), new(sqldb.Operation)),
+	wire.Bind(new(dao.UserGroup), new(sqldb.UserGroup)),
+	wire.Bind(new(dao.UserGroupMember), new(sqldb.UserGroupMember)),
+	wire.Bind(new(dao.Permission), new(sqldb.Permission)),
+	wire.Bind(new(dao.ResourceType), new(sqldb.ResourceType)),
+	wire.Bind(new(dao.Resource), new(sqldb.Resource)),
+	wire.Bind(new(dao.ResourceRelation), new(sqldb.ResourceRelation)),
 	wire.Bind(new(dao.UploadSession), new(sqldb.UploadSession)),
 	wire.Bind(new(dao.FileMetadata), new(sqldb.FileMetadata)),
 	wire.Bind(new(dao.ChunkMetadata), new(sqldb.ChunkMetadata)),
@@ -58,10 +68,14 @@ var daoSet = wire.NewSet(
 	sqldb.NewUserLink,
 	sqldb.NewSignInSession,
 	sqldb.NewServiceAccount,
-	newOperationRelation,
-	newResourceRelation,
-	newUserGroupMember,
-	newPermission,
+	sqldb.NewOperationRelation,
+	sqldb.NewOperation,
+	sqldb.NewUserGroup,
+	sqldb.NewUserGroupMember,
+	sqldb.NewPermission,
+	sqldb.NewResourceType,
+	sqldb.NewResource,
+	sqldb.NewResourceRelation,
 	sqldb.NewUploadSession,
 	sqldb.NewFileMetadata,
 	sqldb.NewChunkMetadata,
@@ -72,7 +86,15 @@ var storageSet = wire.NewSet(
 	newS3Bucket,
 )
 
+func InitTelemetryAPI(dataCollector obs.DataCollector) *api.Telemetry {
+	wire.Build(
+		api.NewTelemetry,
+	)
+	return nil
+}
+
 func InitIdentityAPI(
+	dataCollector obs.DataCollector,
 	sqlDB *sql.DB,
 	oauthProviders OAuthProviders,
 	accessTokenTTL AccessTokenTTL,
@@ -90,6 +112,7 @@ func InitIdentityAPI(
 }
 
 func InitGeneratorAPI(
+	dataCollector obs.DataCollector,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
 ) (api.Generator, error) {
@@ -102,10 +125,13 @@ func InitGeneratorAPI(
 }
 
 func InitAuthorizationAPI(
+	dataCollector obs.DataCollector,
 	sqlDB *sql.DB,
+	genRangeSize GenRangeSize,
 ) (api.Authorization, error) {
 	wire.Build(
 		daoSet,
+		newUniqueNumberGenFactory,
 		api.NewAuthorization,
 		service.NewAuthorization,
 	)
@@ -113,6 +139,7 @@ func InitAuthorizationAPI(
 }
 
 func InitFileAPI(
+	dataCollector obs.DataCollector,
 	env config.Environment,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
@@ -131,47 +158,55 @@ func InitFileAPI(
 	return api.File{}, nil
 }
 
-type S3Endpoint string
-type S3AccessKeyID string
-type S3AccessKey string
-type S3BucketName string
-
 func newS3Bucket(
+	dataCollector obs.DataCollector,
 	s3Endpoint S3Endpoint,
 	s3AccessKeyID S3AccessKeyID,
 	s3AccessKey S3AccessKey,
 	s3BucketName S3BucketName,
 	env config.Environment,
 ) (storage.S3Bucket, error) {
-	return storage.NewS3Bucket(string(s3Endpoint), string(s3AccessKeyID), string(s3AccessKey), env, string(s3BucketName))
+	return storage.NewS3Bucket(
+		dataCollector,
+		string(s3Endpoint),
+		string(s3AccessKeyID),
+		string(s3AccessKey),
+		env,
+		string(s3BucketName))
 }
 
 func newGoogleOAuthProvider(
+	dataCollector obs.DataCollector,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.Google {
-	return oauth.NewGoogle(jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewGoogle(dataCollector, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func InitGitHubOAuthProvider(
+	dataCollector obs.DataCollector,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.GitHub {
-	return oauth.NewGitHub(string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewGitHub(dataCollector, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
-func newJWTAuthority(signingKey JWTSigningKey) security.JWTAuthority {
-	return security.NewJWTAuthority(string(signingKey))
+func newJWTAuthority(dataCollector obs.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {
+	return security.NewJWTAuthority(dataCollector, string(signingKey))
 }
 
-func newUniqueNumberGenFactory(allocatedRangeDao dao.AllocatedRange, genRangeSize GenRangeSize) gen.UniqueNumberFactory {
-	return gen.NewUniqueNumberFactory(allocatedRangeDao, uint64(genRangeSize))
+func newUniqueNumberGenFactory(
+	dataCollector obs.DataCollector,
+	allocatedRangeDao dao.AllocatedRange,
+	genRangeSize GenRangeSize) gen.UniqueNumberFactory {
+	return gen.NewUniqueNumberFactory(dataCollector, allocatedRangeDao, uint64(genRangeSize))
 }
 
 func newIdentityService(
+	dataCollector obs.DataCollector,
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
@@ -181,6 +216,7 @@ func newIdentityService(
 	accessTokenTLL AccessTokenTTL,
 ) (service.Identity, error) {
 	return service.NewIdentity(
+		dataCollector,
 		signInSessionDao,
 		userLinkDao,
 		serviceAccountDao,
@@ -189,28 +225,3 @@ func newIdentityService(
 		oauthProviders,
 		time.Duration(accessTokenTLL))
 }
-
-func newOperationRelation() dao_test.OperationRelation {
-	return dao_test.NewOperationRelation(fakeOperationRelationDao)
-}
-
-func newResourceRelation() dao_test.ResourceRelation {
-	return dao_test.NewResourceRelation(fakeResourceRelationDao)
-}
-
-func newUserGroupMember() dao_test.UserGroupMember {
-	return dao_test.NewUserGroupMember(fakeUserGroupMemberDao)
-}
-
-func newPermission() dao_test.Permission {
-	return dao_test.NewPermission(fakePermissionDao)
-}
-
-// TODO: replace with sqldb
-var fakeOperationRelationDao = []entity.OperationRelation{}
-
-var fakeResourceRelationDao = []entity.ResourceRelation{}
-
-var fakeUserGroupMemberDao = []entity.UserGroupMember{}
-
-var fakePermissionDao = []entity.Permission{}

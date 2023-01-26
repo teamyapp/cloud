@@ -2,23 +2,11 @@ package ctx
 
 import (
 	"context"
-	"fmt"
-	"log"
 )
 
-type key int
-
-const userIDKey key = 0
-
-func UserIDFromContext(ctx context.Context) (uint64, error) {
+func UserIDFromContext(ctx context.Context) (uint64, bool) {
 	userID, ok := ctx.Value(userIDKey).(uint64)
-	if !ok {
-		err := fmt.Errorf("userID not found")
-		log.Println(err)
-		return 0, err
-	}
-
-	return userID, nil
+	return userID, ok
 }
 
 func NewContextWithUserID(ctx context.Context, userID uint64) context.Context {

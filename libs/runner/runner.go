@@ -2,14 +2,15 @@ package runner
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/libs/middleware"
+	"github.com/teamyapp/cloud/libs/obs"
 	"google.golang.org/grpc"
 )
 
@@ -20,16 +21,17 @@ type WebRoute struct {
 }
 
 type ServiceRunnerConfig struct {
-	WebServerPort       int    `envconfig:"SERVICE_RUNNER_WEB_SERVER_PORT" default:"9011"`
-	GRPCServerPort      int    `envconfig:"SERVICE_RUNNER_GRPC_SERVER_PORT" default:"9012"`
-	IdentityAPIEndpoint string `envconfig:"SERVICE_RUNNER_IDENTITY_API_ENDPOINT" default:"http://localhost:9500/identity"`
+	WebServerPort       int           `envconfig:"SERVICE_RUNNER_WEB_SERVER_PORT" default:"9011"`
+	GRPCServerPort      int           `envconfig:"SERVICE_RUNNER_GRPC_SERVER_PORT" default:"9012"`
+	IdentityAPIEndpoint string        `envconfig:"SERVICE_RUNNER_IDENTITY_API_ENDPOINT" default:"http://localhost:9500/identity"`
+	RequestTimeout      time.Duration `envconfig:"REQUEST_TIMEOUT" default:"10s"`
 }
 
-func ServiceRunnerConfigFromEnv() (ServiceRunnerConfig, error) {
+func ServiceRunnerConfigFromEnv(dataCollector obs.DataCollector) (ServiceRunnerConfig, error) {
 	cfg := ServiceRunnerConfig{}
-	err := config.FromEnv(&cfg)
+	err := config.FromEnv(dataCollector, &cfg)
 	if err != nil {
-		log.Println(err)
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return ServiceRunnerConfig{}, err
 	}
 
@@ -37,16 +39,18 @@ func ServiceRunnerConfigFromEnv() (ServiceRunnerConfig, error) {
 }
 
 type ServiceRunner struct {
-	config     ServiceRunnerConfig
-	webRouter  *mux.Router
-	gRPCServer *grpc.Server
-	services   []Service
+	dataCollector obs.DataCollector
+	config        ServiceRunnerConfig
+	webRouter     *mux.Router
+	gRPCServer    *grpc.Server
+	services      []Service
 }
 
 func (s *ServiceRunner) Start() {
 	for _, service := range s.services {
 		err := service.Start(s)
 		if err != nil {
+			s.dataCollector.Logger.Log(obs.Fatal, obs.Props{obs.CauseProp: err})
 			panic(err)
 		}
 	}
@@ -67,13 +71,22 @@ func (s *ServiceRunner) Start() {
 }
 
 func (s *ServiceRunner) startWebServer() {
-	log.Printf("Service runner Web server started at port %d\n", s.config.WebServerPort)
+	s.dataCollector.Logger.Log(obs.Info, obs.Props{
+		obs.MessageProp: obs.Props{
+			"Summary": "service runner Web server started",
+			"Port":    s.config.WebServerPort,
+		},
+	})
 	serveMux := http.NewServeMux()
-	handlerFunc := middleware.EnableCORS(
-		middleware.ServerWithWebIdentity(
-			s.config.IdentityAPIEndpoint,
-			middleware.ServerWithWebSocketIdentity(s.config.IdentityAPIEndpoint,
-				s.webRouter.ServeHTTP)))
+	middlewares := []middleware.Middleware[http.HandlerFunc]{
+		middleware.ServerHTTPEnableCORS,
+		middleware.ServerHTTPWithRequestID(s.dataCollector),
+		middleware.ServerHTTPWithTimeout(s.config.RequestTimeout),
+		middleware.ServerHTTPLogRequest(s.dataCollector),
+		middleware.ServerHTTPWithIdentity(s.dataCollector, s.config.IdentityAPIEndpoint),
+		middleware.ServerWebSocketWithIdentity(s.dataCollector, s.config.IdentityAPIEndpoint),
+	}
+	handlerFunc := middleware.WithMiddlewares[http.HandlerFunc](s.webRouter.ServeHTTP, middlewares)
 	serveMux.HandleFunc("/", handlerFunc)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.WebServerPort), serveMux); err != nil {
 		panic(err)
@@ -81,14 +94,20 @@ func (s *ServiceRunner) startWebServer() {
 }
 
 func (s *ServiceRunner) startGRPCServer() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(fmt.Sprintf(":%d", s.config.GRPCServerPort)))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.config.GRPCServerPort))
 	if err != nil {
 		panic(err)
 	}
 
-	log.Printf("Service runner gRPC server started at port %d\n", s.config.GRPCServerPort)
+	s.dataCollector.Logger.Log(obs.Info, obs.Props{
+		obs.MessageProp: obs.Props{
+			"Summary": "service runner gRPC server started",
+			"Port":    s.config.GRPCServerPort,
+		},
+	})
 	err = s.gRPCServer.Serve(lis)
 	if err != nil {
+		s.dataCollector.Logger.Log(obs.Fatal, obs.Props{obs.CauseProp: err})
 		panic(err)
 	}
 }
@@ -103,13 +122,18 @@ func (s *ServiceRunner) WithGRPCServer(withGRPCServer func(server *grpc.Server))
 	withGRPCServer(s.gRPCServer)
 }
 
-func NewServiceRunner(config ServiceRunnerConfig, services []Service) ServiceRunner {
+func NewServiceRunner(dataCollector obs.DataCollector, config ServiceRunnerConfig, services []Service) ServiceRunner {
 	return ServiceRunner{
-		config:    config,
-		webRouter: mux.NewRouter(),
+		dataCollector: dataCollector,
+		config:        config,
+		webRouter:     mux.NewRouter(),
 		gRPCServer: grpc.NewServer(
-			grpc.UnaryInterceptor(
-				middleware.ServerWithGRPCIdentity(config.IdentityAPIEndpoint))),
+			grpc.ChainUnaryInterceptor(
+				middleware.ServerGRPCWithTimeout(config.RequestTimeout),
+				middleware.ServerGRPCWithRequestID(dataCollector),
+				middleware.ServerGRPCLogRequest(dataCollector),
+				middleware.ServerGRPCWithIdentity(dataCollector, config.IdentityAPIEndpoint),
+			)),
 		services: services,
 	}
 }

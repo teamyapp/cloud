@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"log"
 	"time"
 
 	"github.com/teamyapp/cloud/app/dao"
@@ -16,11 +15,13 @@ import (
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/lang"
 	"github.com/teamyapp/cloud/app/storage"
+	"github.com/teamyapp/cloud/libs/obs"
 )
 
 const chunksBufferSize = 10
 
 type File struct {
+	dataCollector      obs.DataCollector
 	mapBackend         storage.MapBackend
 	uploadSessionDao   dao.UploadSession
 	fileMetadataDao    dao.FileMetadata
@@ -31,13 +32,13 @@ type File struct {
 }
 
 func (f File) GetUploadSession(ct context.Context, uploadSessionID uint64) (entity.UploadSession, error) {
-	return f.uploadSessionDao.FindUploadSessionByID(uploadSessionID)
+	return f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
 }
 
 func (f File) CreateUploadSession(ct context.Context) (uint64, error) {
-	chunkID, err := f.uploadSessionIDGen.GenerateUniqueNumber()
+	chunkID, err := f.uploadSessionIDGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return 0, err
 	}
 
@@ -46,7 +47,13 @@ func (f File) CreateUploadSession(ct context.Context) (uint64, error) {
 		Status:    entity.CreatedUploadSessionStatus,
 		CreatedAt: time.Now(),
 	}
-	return chunkID, f.uploadSessionDao.CreateUploadSession(uploadSession)
+
+	err = f.uploadSessionDao.CreateUploadSession(ct, uploadSession)
+	if err != nil {
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+	}
+
+	return chunkID, err
 }
 
 func (f File) InitUploadSession(
@@ -58,9 +65,9 @@ func (f File) InitUploadSession(
 	totalSizeInBytes uint64,
 	totalNumOfChunks int,
 ) (entity.UploadSession, error) {
-	uploadSession, err := f.uploadSessionDao.FindUploadSessionByID(uploadSessionID)
+	uploadSession, err := f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
 	if err != nil {
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
@@ -74,7 +81,7 @@ func (f File) InitUploadSession(
 	hashBuffer := sha256.New()
 	hashState, err := hashBuffer.(encoding.BinaryMarshaler).MarshalBinary()
 	if err != nil {
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
@@ -87,15 +94,15 @@ func (f File) InitUploadSession(
 	now := time.Now()
 	uploadSession.HashState = hashState
 	uploadSession.UpdatedAt = &now
-	err = f.uploadSessionDao.UpdateUploadSession(uploadSession)
+	err = f.uploadSessionDao.UpdateUploadSession(ct, uploadSession)
 	uploadSession.HashState = nil
-	return uploadSession, err
+	return uploadSession, nil
 }
 
 func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []byte) (entity.UploadSession, error) {
-	uploadSession, err := f.uploadSessionDao.FindUploadSessionByID(uploadSessionID)
+	uploadSession, err := f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
 	if err != nil {
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
@@ -106,15 +113,15 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 		return entity.UploadSession{}, errors.New("upload session it not initialized")
 	}
 
-	chunkID, err := f.chunkIDGen.GenerateUniqueNumber()
+	chunkID, err := f.chunkIDGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
 	err = saveChunk(f.mapBackend, chunkID, chunkData)
 	if err != nil {
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
@@ -124,28 +131,28 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 		SizeInBytes: uint64(len(chunkData)),
 		CreatedAt:   now,
 	}
-	err = f.chunkDao.CreateChunkMetadata(chunkMetadata)
+	err = f.chunkDao.CreateChunkMetadata(ct, chunkMetadata)
 	if err != nil {
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
 	hashBuffer := sha256.New()
 	err = hashBuffer.(encoding.BinaryUnmarshaler).UnmarshalBinary(uploadSession.HashState)
 	if err != nil {
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
 	_, err = hashBuffer.Write(chunkData)
 	if err != nil {
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
 	hashState, err := hashBuffer.(encoding.BinaryMarshaler).MarshalBinary()
 	if err != nil {
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
@@ -157,32 +164,32 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 	if uploadSession.NextChunkIndexToUpload < uploadSession.TotalNumOfChunks {
 		uploadSession.Status = entity.UploadingChunksUploadSessionStatus
 	} else {
-		uploadSession, err = f.FinishFileUpload(uploadSession, hashBuffer)
+		uploadSession, err = f.FinishFileUpload(ct, uploadSession, hashBuffer)
 		if err != nil {
-			log.Println(err)
+			f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 			return entity.UploadSession{}, err
 		}
 	}
 
-	err = f.uploadSessionDao.UpdateUploadSession(uploadSession)
+	err = f.uploadSessionDao.UpdateUploadSession(ct, uploadSession)
 	uploadSession.HashState = nil
-	return uploadSession, err
+	return uploadSession, nil
 }
 
-func (f File) FinishFileUpload(uploadSession entity.UploadSession, hashBuffer hash.Hash) (entity.UploadSession, error) {
+func (f File) FinishFileUpload(ct context.Context, uploadSession entity.UploadSession, hashBuffer hash.Hash) (entity.UploadSession, error) {
 	uploadSession.Status = entity.CompletedUploadSessionStatus
 	actualHash := hashBuffer.Sum(nil)
 	actualHashString := hex.EncodeToString(actualHash)
 	if actualHashString != uploadSession.ExpectedContentHash {
 		err := fmt.Errorf("sha256 hash not match: actualHash=%v, expectedHash=%v", actualHashString, uploadSession.ExpectedContentHash)
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
 	uploadSession.ActualContentHash = actualHashString
-	fileID, err := f.fileIDGen.GenerateUniqueNumber()
+	fileID, err := f.fileIDGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
@@ -195,28 +202,28 @@ func (f File) FinishFileUpload(uploadSession entity.UploadSession, hashBuffer ha
 		CreatedAt:   uploadSession.CreatedAt,
 	}
 	uploadSession.FileID = fileID
-	return uploadSession, f.fileMetadataDao.CreateFileMetadata(fileMetadata)
+	return uploadSession, f.fileMetadataDao.CreateFileMetadata(ct, fileMetadata)
 }
 
 func (f File) GetFileMetadata(ct context.Context, fileID uint64) (entity.FileMetadata, error) {
-	return f.fileMetadataDao.FindMetadataByFileID(fileID)
+	return f.fileMetadataDao.FindMetadataByFileID(ct, fileID)
 }
 
 func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, error) {
 	metadata, err := f.GetFileMetadata(ct, fileID)
 	if err != nil {
-		log.Println(err)
+		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.File{}, err
 	}
 
-	chunksIterator := newChunksIterator(f.mapBackend, metadata.ChunkIDs)
+	chunksIterator := newChunksIterator(f.dataCollector, f.mapBackend, metadata.ChunkIDs)
 	chunksBuffer := make(chan lang.Result[[]byte], chunksBufferSize)
 	go func() {
 		defer close(chunksBuffer)
 		for {
 			hasNext, err := chunksIterator.HasNext()
 			if err != nil {
-				log.Println(err)
+				f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 				chunksBuffer <- lang.Result[[]byte]{
 					Error: err,
 				}
@@ -227,9 +234,9 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, error) {
 				return
 			}
 
-			data, err := chunksIterator.Next()
+			data, err := chunksIterator.Next(ct)
 			if err != nil {
-				log.Println(err)
+				f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 				chunksBuffer <- lang.Result[[]byte]{
 					Error: err,
 				}
@@ -252,6 +259,7 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, error) {
 }
 
 func NewFile(
+	dataCollector obs.DataCollector,
 	mapBackend storage.MapBackend,
 	uniqueNumberFactory gen.UniqueNumberFactory,
 	uploadSessionDao dao.UploadSession,
@@ -260,20 +268,24 @@ func NewFile(
 ) (File, error) {
 	uploadSessionIDGen, err := uniqueNumberFactory.MakeUniqueNumber("uploadSessionID")
 	if err != nil {
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return File{}, err
 	}
 
 	chunkIDGen, err := uniqueNumberFactory.MakeUniqueNumber("chunkID")
 	if err != nil {
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return File{}, err
 	}
 
 	fileIDGen, err := uniqueNumberFactory.MakeUniqueNumber("fileID")
 	if err != nil {
+		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return File{}, err
 	}
 
 	return File{
+		dataCollector:      dataCollector,
 		mapBackend:         mapBackend,
 		uploadSessionDao:   uploadSessionDao,
 		fileMetadataDao:    fileMetadataDao,

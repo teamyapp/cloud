@@ -1,8 +1,8 @@
 package entity
 
 type PermissionQuery struct {
-	ResourceID   uint64
 	ResourceType string
+	ResourceID   uint64
 	Operation    string
 	GroupID      uint64
 }
