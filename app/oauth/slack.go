@@ -6,14 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/security"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
-
-	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
-	"github.com/teamyapp/cloud/libs/security"
 )
 
 const SlackName = "slack"
@@ -115,6 +114,14 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 		return "", err
 	}
 
+	//data := url.Values{}
+	//data.Set("client_id", s.clientID)
+	//data.Set("client_secret", s.clientSecret)
+	//data.Add("code", authorizationCode)
+	//data.Add("grant_type", "authorization_code")
+	//data.Add("redirect_uri", s.redirectURI)
+	//encodedData := data.Encode()
+
 	req, err := http.NewRequest("POST", slackTokenURLString, bytes.NewReader(buf))
 	if err != nil {
 		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
@@ -158,7 +165,7 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 	}
 	if !body.Ok {
 		err = errors.New(body.Error)
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err.Error()})
 	}
 
 	return body.IDToken, err
