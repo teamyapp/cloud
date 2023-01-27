@@ -8,11 +8,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type FileMetadata struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	db            *sql.DB
 }
 
@@ -48,13 +48,13 @@ func (f FileMetadata) FindMetadataByFileID(ct context.Context, fileID uint64) (e
 	}
 
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return entity.FileMetadata{}, err
 	}
 
 	chunkIDs, err := parseIDs(ct, f.dataCollector, chunkIDsString)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return entity.FileMetadata{}, err
 	}
 
@@ -84,7 +84,7 @@ func (f FileMetadata) CreateFileMetadata(ct context.Context, metadata entity.Fil
 		metadata.LastModifiedAt,
 	)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -113,12 +113,12 @@ func (f FileMetadata) UpdateFileMetadata(ct context.Context, metadata entity.Fil
 	)
 
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
 }
 
-func NewFileMetadata(dataCollector obs.DataCollector, sqlDB *sql.DB) FileMetadata {
+func NewFileMetadata(dataCollector telemetry.DataCollector, sqlDB *sql.DB) FileMetadata {
 	return FileMetadata{dataCollector: dataCollector, db: sqlDB}
 }

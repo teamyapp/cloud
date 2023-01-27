@@ -8,11 +8,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type ChunkMetadata struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	db            *sql.DB
 }
 
@@ -40,7 +40,7 @@ func (c ChunkMetadata) FindChunkMetadataID(ct context.Context, chunkID uint64) (
 	}
 
 	if err != nil {
-		c.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return chunkMetadata, err
@@ -61,7 +61,7 @@ func (c ChunkMetadata) CreateChunkMetadata(ct context.Context, metadata entity.C
 	)
 
 	if err != nil {
-		c.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -83,13 +83,13 @@ func (c ChunkMetadata) UpdateChunkMetadata(ct context.Context, metadata entity.C
 	)
 
 	if err != nil {
-		c.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
 }
 
-func NewChunkMetadata(dataCollector obs.DataCollector, sqlDB *sql.DB) ChunkMetadata {
+func NewChunkMetadata(dataCollector telemetry.DataCollector, sqlDB *sql.DB) ChunkMetadata {
 	return ChunkMetadata{
 		dataCollector: dataCollector,
 		db:            sqlDB,

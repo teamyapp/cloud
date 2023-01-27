@@ -7,7 +7,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type Repo struct {
@@ -34,32 +34,32 @@ type App struct {
 	S3BucketName       string        `envconfig:"S3_BUCKET_NAME" default:"teamyapp"`
 }
 
-func AppFromEnv(dataCollector obs.DataCollector) (App, error) {
+func AppFromEnv(dataCollector telemetry.DataCollector) (App, error) {
 	cfg := App{}
 	err := FromEnv(dataCollector, &cfg)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return App{}, err
 	}
 	return cfg, nil
 }
 
-func FromEnv(dataCollector obs.DataCollector, config interface{}) error {
+func FromEnv(dataCollector telemetry.DataCollector, config interface{}) error {
 	err := autoLoadEnv(".env")
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 
 	err = autoLoadEnv(".repo.env")
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 
 	err = envconfig.Process("", config)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 

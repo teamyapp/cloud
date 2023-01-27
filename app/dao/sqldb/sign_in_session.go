@@ -8,11 +8,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type SignInSession struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	db            *sql.DB
 }
 
@@ -43,7 +43,7 @@ func (s SignInSession) FindSignInSessionByID(ct context.Context, sessionID uint6
 	}
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return signInSession, err
@@ -66,7 +66,7 @@ func (s SignInSession) CreateSignInSession(ct context.Context, session entity.Si
 		session.InternalUserID)
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -87,7 +87,7 @@ func (s SignInSession) UpdateSignInSession(ct context.Context, session entity.Si
 		session.ID)
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -101,13 +101,13 @@ func (s SignInSession) DeleteSignInSession(ct context.Context, sessionID uint64)
 		sessionID)
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
 }
 
-func NewSignInSession(dataCollector obs.DataCollector, sqlDB *sql.DB) SignInSession {
+func NewSignInSession(dataCollector telemetry.DataCollector, sqlDB *sql.DB) SignInSession {
 	return SignInSession{
 		dataCollector: dataCollector,
 		db:            sqlDB,

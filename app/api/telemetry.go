@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/runner"
 )
 
 type Telemetry struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 }
 
 var _ runner.Service = (*Telemetry)(nil)
@@ -33,7 +33,7 @@ func (t *Telemetry) uploadLog(w http.ResponseWriter, r *http.Request) {
 	ct := r.Context()
 	buf, err := io.ReadAll(r.Body)
 	if err != nil {
-		t.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		t.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -41,7 +41,7 @@ func (t *Telemetry) uploadLog(w http.ResponseWriter, r *http.Request) {
 	logEntries := []string{}
 	err = json.Unmarshal(buf, &logEntries)
 	if err != nil {
-		t.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		t.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -53,7 +53,7 @@ func (t *Telemetry) uploadLog(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func NewTelemetry(dataCollector obs.DataCollector) *Telemetry {
+func NewTelemetry(dataCollector telemetry.DataCollector) *Telemetry {
 	return &Telemetry{
 		dataCollector: dataCollector,
 	}

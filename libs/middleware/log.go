@@ -11,22 +11,22 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
-func ServerHTTPLogRequest(dataCollector obs.DataCollector) Middleware[http.HandlerFunc] {
+func ServerHTTPLogRequest(dataCollector telemetry.DataCollector) Middleware[http.HandlerFunc] {
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		return func(writer http.ResponseWriter, request *http.Request) {
 			ct := request.Context()
 			buf, err := io.ReadAll(request.Body)
 			if err != nil {
-				dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+				dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 				return
 			}
 
-			requestLogProps := obs.Props{
+			requestLogProps := telemetry.Props{
 				"Protocol": "web",
 				"Stage":    "begin",
 				"Host":     request.URL.Host,
@@ -40,13 +40,13 @@ func ServerHTTPLogRequest(dataCollector obs.DataCollector) Middleware[http.Handl
 			}
 
 			request.Body = io.NopCloser(bytes.NewReader(buf))
-			dataCollector.Logger.LogWithContext(ct, obs.Info, requestLogProps)
+			dataCollector.Logger.LogWithContext(ct, telemetry.Info, requestLogProps)
 			loggableWriter := newLoggableResponseWriter(dataCollector, writer, ct)
 
 			// Process request
 			handlerFunc(loggableWriter, request)
 
-			responseLogProps := obs.Props{
+			responseLogProps := telemetry.Props{
 				"Protocol": "web",
 				"Stage":    "end",
 				"Method":   request.Method,
@@ -58,12 +58,12 @@ func ServerHTTPLogRequest(dataCollector obs.DataCollector) Middleware[http.Handl
 				responseLogProps["Body"] = string(loggableWriter.responseBody)
 			}
 
-			dataCollector.Logger.LogWithContext(ct, obs.Info, responseLogProps)
+			dataCollector.Logger.LogWithContext(ct, telemetry.Info, responseLogProps)
 		}
 	}
 }
 
-func ServerGRPCLogRequest(dataCollector obs.DataCollector) grpc.UnaryServerInterceptor {
+func ServerGRPCLogRequest(dataCollector telemetry.DataCollector) grpc.UnaryServerInterceptor {
 	return func(
 		ct context.Context,
 		req interface{},
@@ -71,7 +71,7 @@ func ServerGRPCLogRequest(dataCollector obs.DataCollector) grpc.UnaryServerInter
 		handler grpc.UnaryHandler,
 	) (resp interface{}, err error) {
 		requestBody := fmt.Sprintf("%v", req)
-		requestLogProps := obs.Props{
+		requestLogProps := telemetry.Props{
 			"Protocol": "gRPC",
 			"Stage":    "begin",
 			"Method":   info.FullMethod,
@@ -84,26 +84,26 @@ func ServerGRPCLogRequest(dataCollector obs.DataCollector) grpc.UnaryServerInter
 			requestLogProps["Metadata"] = fmt.Sprintf("%v", md)
 		}
 
-		dataCollector.Logger.LogWithContext(ct, obs.Info, requestLogProps)
+		dataCollector.Logger.LogWithContext(ct, telemetry.Info, requestLogProps)
 
 		// Process request
 		res, err := handler(ct, req)
 
 		responseBody := fmt.Sprintf("%v", res)
-		responseLogProps := obs.Props{
+		responseLogProps := telemetry.Props{
 			"Protocol": "gRPC",
 			"Stage":    "end",
 			"Method":   info.FullMethod,
 			"Body":     responseBody,
 			"BodySize": len(responseBody),
 		}
-		dataCollector.Logger.LogWithContext(ct, obs.Info, responseLogProps)
+		dataCollector.Logger.LogWithContext(ct, telemetry.Info, responseLogProps)
 		return res, err
 	}
 }
 
 type LoggableResponseWriter struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	http.ResponseWriter
 	ct           context.Context
 	responseBody []byte
@@ -122,7 +122,7 @@ func (l *LoggableResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	hijacker, ok := l.ResponseWriter.(http.Hijacker)
 	if !ok {
 		err := errors.New("response does not implement http.Hijacker")
-		l.dataCollector.Logger.LogWithContext(l.ct, obs.Error, obs.Props{obs.CauseProp: err})
+		l.dataCollector.Logger.LogWithContext(l.ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, nil, err
 	}
 
@@ -133,7 +133,7 @@ func (l *LoggableResponseWriter) Flush() {
 	flusher, ok := l.ResponseWriter.(http.Flusher)
 	if !ok {
 		err := "response does not implement http.Flusher"
-		l.dataCollector.Logger.LogWithContext(l.ct, obs.Error, obs.Props{obs.CauseProp: err})
+		l.dataCollector.Logger.LogWithContext(l.ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return
 	}
 
@@ -141,7 +141,7 @@ func (l *LoggableResponseWriter) Flush() {
 }
 
 func newLoggableResponseWriter(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	writer http.ResponseWriter,
 	ct context.Context) *LoggableResponseWriter {
 	return &LoggableResponseWriter{

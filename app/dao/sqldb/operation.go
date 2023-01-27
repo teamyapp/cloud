@@ -8,11 +8,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type Operation struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	db            *sql.DB
 }
 
@@ -43,7 +43,7 @@ func (o Operation) FindOperation(ct context.Context, resourceTypeName string, op
 	}
 
 	if err != nil {
-		o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return operation, err
@@ -59,7 +59,7 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, er
 		FROM operation;
 	`)
 	if err != nil {
-		o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -74,7 +74,7 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, er
 			&operation.CreatorUserID,
 		)
 		if err != nil {
-			o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			continue
 		}
 
@@ -101,7 +101,7 @@ func (o Operation) CreateOperation(ct context.Context, operation entity.Operatio
 	)
 
 	if err != nil {
-		o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -115,12 +115,12 @@ func (o Operation) DeleteOperation(ct context.Context, resourceTypeName string, 
 		resourceTypeName, operationName)
 
 	if err != nil {
-		o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
 }
 
-func NewOperation(dataCollector obs.DataCollector, sqlDB *sql.DB) Operation {
+func NewOperation(dataCollector telemetry.DataCollector, sqlDB *sql.DB) Operation {
 	return Operation{dataCollector: dataCollector, db: sqlDB}
 }

@@ -6,11 +6,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/teamyapp/cloud/libs/ctx"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
 )
 
-func ServerHTTPWithRequestID(dataCollector obs.DataCollector) Middleware[http.HandlerFunc] {
+func ServerHTTPWithRequestID(dataCollector telemetry.DataCollector) Middleware[http.HandlerFunc] {
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		return func(writer http.ResponseWriter, request *http.Request) {
 			ct := request.Context()
@@ -23,7 +23,7 @@ func ServerHTTPWithRequestID(dataCollector obs.DataCollector) Middleware[http.Ha
 	}
 }
 
-func ServerGRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryServerInterceptor {
+func ServerGRPCWithRequestID(dataCollector telemetry.DataCollector) grpc.UnaryServerInterceptor {
 	return func(
 		ct context.Context,
 		req interface{},
@@ -37,7 +37,7 @@ func ServerGRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryServerIn
 	}
 }
 
-func ClientGRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryClientInterceptor {
+func ClientGRPCWithRequestID(dataCollector telemetry.DataCollector) grpc.UnaryClientInterceptor {
 	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		requestID := ctx.GetRequestIDGRPC(ct)
 		requestID = generateRequestIdIfNot(dataCollector, ct, requestID)
@@ -46,13 +46,13 @@ func ClientGRPCWithRequestID(dataCollector obs.DataCollector) grpc.UnaryClientIn
 	}
 }
 
-func generateRequestIdIfNot(dataCollector obs.DataCollector, ct context.Context, requestID string) string {
+func generateRequestIdIfNot(dataCollector telemetry.DataCollector, ct context.Context, requestID string) string {
 	if len(requestID) == 0 {
 		// it's okay to have conflicts for request ID
 		randomID := uuid.New()
 		requestID = randomID.String()
-		dataCollector.Logger.LogWithContext(ct, obs.Info, obs.Props{
-			obs.MessageProp: obs.Props{
+		dataCollector.Logger.LogWithContext(ct, telemetry.Info, telemetry.Props{
+			telemetry.MessageProp: telemetry.Props{
 				"Summary":   "generate request ID",
 				"RequestID": requestID,
 			},

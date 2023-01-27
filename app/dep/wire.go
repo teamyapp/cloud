@@ -15,7 +15,7 @@ import (
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/app/storage"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/security"
 )
 
@@ -33,9 +33,8 @@ type S3AccessKeyID string
 type S3AccessKey string
 type S3BucketName string
 
-
 func InitGoogleOAuthProvider(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	webAPIBaseURL WebAPIBaseURL,
 	jwtSigningKey JWTSigningKey,
 	clientID ClientID,
@@ -86,7 +85,7 @@ var storageSet = wire.NewSet(
 	newS3Bucket,
 )
 
-func InitTelemetryAPI(dataCollector obs.DataCollector) *api.Telemetry {
+func InitTelemetryAPI(dataCollector telemetry.DataCollector) *api.Telemetry {
 	wire.Build(
 		api.NewTelemetry,
 	)
@@ -94,7 +93,7 @@ func InitTelemetryAPI(dataCollector obs.DataCollector) *api.Telemetry {
 }
 
 func InitIdentityAPI(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	sqlDB *sql.DB,
 	oauthProviders OAuthProviders,
 	accessTokenTTL AccessTokenTTL,
@@ -112,7 +111,7 @@ func InitIdentityAPI(
 }
 
 func InitGeneratorAPI(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
 ) (api.Generator, error) {
@@ -125,7 +124,7 @@ func InitGeneratorAPI(
 }
 
 func InitAuthorizationAPI(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
 ) (api.Authorization, error) {
@@ -139,7 +138,7 @@ func InitAuthorizationAPI(
 }
 
 func InitFileAPI(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	env config.Environment,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
@@ -159,7 +158,7 @@ func InitFileAPI(
 }
 
 func newS3Bucket(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	s3Endpoint S3Endpoint,
 	s3AccessKeyID S3AccessKeyID,
 	s3AccessKey S3AccessKey,
@@ -176,7 +175,7 @@ func newS3Bucket(
 }
 
 func newGoogleOAuthProvider(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
@@ -186,7 +185,7 @@ func newGoogleOAuthProvider(
 }
 
 func InitGitHubOAuthProvider(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
@@ -194,19 +193,19 @@ func InitGitHubOAuthProvider(
 	return oauth.NewGitHub(dataCollector, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
-func newJWTAuthority(dataCollector obs.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {
+func newJWTAuthority(dataCollector telemetry.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {
 	return security.NewJWTAuthority(dataCollector, string(signingKey))
 }
 
 func newUniqueNumberGenFactory(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	allocatedRangeDao dao.AllocatedRange,
 	genRangeSize GenRangeSize) gen.UniqueNumberFactory {
 	return gen.NewUniqueNumberFactory(dataCollector, allocatedRangeDao, uint64(genRangeSize))
 }
 
 func newIdentityService(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
