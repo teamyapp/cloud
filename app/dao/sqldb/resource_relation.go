@@ -8,11 +8,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type ResourceRelation struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	db            *sql.DB
 }
 
@@ -53,7 +53,7 @@ func (r ResourceRelation) FindResourceRelation(
 	}
 
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return resourceRelation, err
@@ -72,7 +72,7 @@ func (r ResourceRelation) FindResourceRelations(ct context.Context, childResourc
 		WHERE child_resource_type = $1 AND child_resource_id = $2;`,
 		childResourceType, childResourceID)
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -89,7 +89,7 @@ func (r ResourceRelation) FindResourceRelations(ct context.Context, childResourc
 			&resourceRelation.CreatorUserID,
 		)
 		if err != nil {
-			r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			continue
 		}
 
@@ -111,7 +111,7 @@ func (r ResourceRelation) FindAllResourceRelations(ct context.Context) ([]entity
 		FROM resource_relation;
 	`)
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -128,7 +128,7 @@ func (r ResourceRelation) FindAllResourceRelations(ct context.Context) ([]entity
 			&resourceRelation.CreatorUserID,
 		)
 		if err != nil {
-			r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			continue
 		}
 
@@ -159,7 +159,7 @@ func (r ResourceRelation) CreateResourceRelation(ct context.Context, resourceRel
 	)
 
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -183,12 +183,12 @@ func (r ResourceRelation) DeleteResourceRelation(
 		childResourceType, childResourceID, parentResourceType, parentResourceID)
 
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
 }
 
-func NewResourceRelation(dataCollector obs.DataCollector, sqlDB *sql.DB) ResourceRelation {
+func NewResourceRelation(dataCollector telemetry.DataCollector, sqlDB *sql.DB) ResourceRelation {
 	return ResourceRelation{dataCollector: dataCollector, db: sqlDB}
 }

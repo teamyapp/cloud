@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/service"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/web"
 	"google.golang.org/grpc"
@@ -22,7 +22,7 @@ import (
 )
 
 type File struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	fileService   service.File
 	proto.UnimplementedFileServer
 }
@@ -73,7 +73,7 @@ func (f File) Start(rn *runner.ServiceRunner) error {
 func (f File) CreateUploadSession(ct context.Context, empty *emptypb.Empty) (*proto.CreateUploadSessionResponse, error) {
 	uploadSessionID, err := f.fileService.CreateUploadSession(ct)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -85,7 +85,7 @@ func (f File) CreateUploadSession(ct context.Context, empty *emptypb.Empty) (*pr
 func (f File) FindUploadSession(ct context.Context, req *proto.FindUploadSessionRequest) (*proto.UploadSession, error) {
 	uploadSession, err := f.fileService.GetUploadSession(ct, req.UploadSessionId)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return &proto.UploadSession{}, err
 	}
 
@@ -112,14 +112,14 @@ func (f File) webGetUploadSession(writer http.ResponseWriter, request *http.Requ
 	uploadSessionIDParam := mux.Vars(request)["uploadSessionId"]
 	uploadSessionID, err := strconv.ParseUint(uploadSessionIDParam, 10, 64)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	uploadSession, err := f.fileService.GetUploadSession(request.Context(), uploadSessionID)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -132,14 +132,14 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 	uploadSessionIDParam := mux.Vars(request)["uploadSessionId"]
 	uploadSessionID, err := strconv.ParseUint(uploadSessionIDParam, 10, 64)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -153,7 +153,7 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 	}
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -167,7 +167,7 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 		body.TotalSizeInBytes,
 		body.TotalNumOfChunks)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -184,21 +184,21 @@ func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 	uploadSessionIDParam := mux.Vars(request)["uploadSessionId"]
 	uploadSessionID, err := strconv.ParseUint(uploadSessionIDParam, 10, 64)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	data, err := io.ReadAll(request.Body)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	uploadSession, err := f.fileService.AddChunk(request.Context(), uploadSessionID, data)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -211,14 +211,14 @@ func (f File) webGetFileMetadata(writer http.ResponseWriter, request *http.Reque
 	fileIDParam := mux.Vars(request)["fileId"]
 	fileID, err := strconv.ParseUint(fileIDParam, 10, 64)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	fileMetadata, err := f.fileService.GetFileMetadata(request.Context(), fileID)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -231,14 +231,14 @@ func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 	fileIDParam := mux.Vars(request)["fileId"]
 	fileID, err := strconv.ParseUint(fileIDParam, 10, 64)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	file, err := f.fileService.GetFile(request.Context(), fileID)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -252,21 +252,21 @@ func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 	flusher, ok := writer.(http.Flusher)
 	if !ok {
 		err = errors.New("writer must be http.Flusher")
-		f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	for chunkResult := range file.ChunksBuffer {
 		if chunkResult.Error != nil {
-			f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			writer.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		_, err = writer.Write(chunkResult.Value)
 		if err != nil {
-			f.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			writer.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -275,7 +275,7 @@ func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 	}
 }
 
-func NewFile(dataCollector obs.DataCollector, fileService service.File) File {
+func NewFile(dataCollector telemetry.DataCollector, fileService service.File) File {
 	return File{
 		dataCollector: dataCollector,
 		fileService:   fileService,

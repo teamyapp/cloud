@@ -7,7 +7,7 @@ import (
 	"github.com/teamyapp/cloud/app/dao/dao_test"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/gen"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"testing"
 )
 
@@ -446,11 +446,11 @@ func TestAuthorization_HasPermission(t *testing.T) {
 				resourceRelationDao:  dao_test.NewResourceRelation(resourceRelations),
 			}
 
-			mockLogger := obs.NewRawLogger(obs.Info)
-			mockDataCollector := obs.NewDataCollector(mockLogger)
+			mockLogger := telemetry.NewRawLogger(telemetry.Info)
+			mockDataCollector := telemetry.NewDataCollector(mockLogger)
 			mockAllocatedRange := dao_test.NewAllocatedRange(allocatedRanges)
 			mockAuthorization, err := NewAuthorization(
-				obs.NewDataCollector(obs.NewRawLogger(obs.Info)),
+				telemetry.NewDataCollector(telemetry.NewRawLogger(telemetry.Info)),
 				dao_test.NewResourceRelation(resourceRelations),
 				dao_test.NewUserGroupMember(userGroupMembers),
 				dao_test.NewPermission(permissions),

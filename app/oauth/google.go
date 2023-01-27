@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/security"
 )
 
@@ -22,7 +22,7 @@ var googleAuthURLString = "https://accounts.google.com/o/oauth2/v2/auth"
 var googleTokenURLString = "https://oauth2.googleapis.com/token"
 
 type Google struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	jwtAuthority  security.JWTAuthority
 	clientID      string
 	clientSecret  string
@@ -39,7 +39,7 @@ func (g Google) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 	// https://developers.google.com/identity/protocols/oauth2/openid-connect#exchangecode
 	idToken, err := g.getIDToken(ct, authorizationCode)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return entity.ExternalUser{}, err
 	}
 
@@ -55,7 +55,7 @@ func (g Google) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 
 	err = g.jwtAuthority.DecodeUnverifiedToken(ct, idToken, &tokenPayload)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return entity.ExternalUser{
@@ -75,7 +75,7 @@ func (g Google) GetAuthorizationCode(request *http.Request) string {
 func (g Google) GetSignInURL(ct context.Context, stateID uint64) (string, error) {
 	baseURL, err := url.Parse(googleAuthURLString)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
 
@@ -106,21 +106,21 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 
 	buf, err := json.Marshal(tokenBody)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
 
 	res, err := http.Post(googleTokenURLString, "application/json", bytes.NewReader(buf))
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
 
 	if res.StatusCode > 300 || res.StatusCode < 200 {
 		err = fmt.Errorf("fail to obtain %s access token", g.GetName())
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-			obs.CauseProp: err,
-			obs.MessageProp: obs.Props{
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
+			telemetry.CauseProp: err,
+			telemetry.MessageProp: telemetry.Props{
 				"OauthProviderName": g.GetName(),
 				"HttpStatusCode":    res.StatusCode,
 			},
@@ -130,7 +130,7 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 
 	buf, err = io.ReadAll(res.Body)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
 
@@ -144,14 +144,14 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 	}{}
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return body.IDToken, err
 }
 
 func NewGoogle(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL string,
 	clientID string,

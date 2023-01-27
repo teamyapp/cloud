@@ -9,14 +9,14 @@ import (
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
 	"github.com/teamyapp/cloud/libs/io"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 var dbName string
 var migrationFileName string
 var migrationSteps int
 var seedFilePath string
-var dataCollector = obs.NewDataCollector(obs.NewRawLogger(obs.Info))
+var dataCollector = telemetry.NewDataCollector(telemetry.NewRawLogger(telemetry.Info))
 
 const migrationTemplate = `
 -- +migrate Up
@@ -127,10 +127,10 @@ func addDBCmd() {
 	rootCmd.AddCommand(dbCmd)
 }
 
-func useSQLDB(dataCollector obs.DataCollector, action func(sqlDB *sql.DB) error) error {
+func useSQLDB(dataCollector telemetry.DataCollector, action func(sqlDB *sql.DB) error) error {
 	cfg, err := config.AppFromEnv(dataCollector)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 

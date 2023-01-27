@@ -7,11 +7,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type AllocatedRange struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	db            *sql.DB
 }
 
@@ -34,7 +34,7 @@ func (a AllocatedRange) FindAllocatedRangeByKey(key string) (entity.AllocatedRan
 	}
 
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return allocatedRange, err
@@ -48,7 +48,7 @@ func (a AllocatedRange) CreateAllocatedRange(allocatedRange entity.AllocatedRang
 		allocatedRange.Key,
 		allocatedRange.RangeEnd)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -63,13 +63,13 @@ func (a AllocatedRange) UpdateAllocatedRange(allocatedRange entity.AllocatedRang
 		allocatedRange.RangeEnd,
 		allocatedRange.Key)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
 }
 
-func NewAllocatedRange(dataCollector obs.DataCollector, sqlDB *sql.DB) AllocatedRange {
+func NewAllocatedRange(dataCollector telemetry.DataCollector, sqlDB *sql.DB) AllocatedRange {
 	return AllocatedRange{
 		dataCollector: dataCollector,
 		db:            sqlDB,

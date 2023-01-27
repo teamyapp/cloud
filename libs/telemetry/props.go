@@ -1,4 +1,4 @@
-package obs
+package telemetry
 
 const (
 	CauseProp      string = "Cause"

@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/teamyapp/cloud/libs/ctx"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -19,7 +19,7 @@ import (
 const gRPCAuthorizationKey = "Authorization"
 
 func ServerHTTPWithIdentity(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	identityAPIEndpoint string,
 ) Middleware[http.HandlerFunc] {
 	return withIdentity(dataCollector, identityAPIEndpoint, func(request *http.Request) (string, error) {
@@ -32,9 +32,9 @@ func ServerHTTPWithIdentity(
 		parts := strings.Split(value, " ")
 		if len(parts) != 2 {
 			err := errors.New("invalid Authorization header format")
-			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-				obs.CauseProp: err,
-				obs.MessageProp: obs.Props{
+			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
+				telemetry.CauseProp: err,
+				telemetry.MessageProp: telemetry.Props{
 					"Format": value,
 				},
 			})
@@ -43,9 +43,9 @@ func ServerHTTPWithIdentity(
 
 		if parts[0] != "Bearer" {
 			err := errors.New("invalid Authorization header format")
-			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-				obs.CauseProp: err,
-				"Format":      value,
+			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
+				telemetry.CauseProp: err,
+				"Format":            value,
 			})
 			return "", err
 		}
@@ -54,7 +54,7 @@ func ServerHTTPWithIdentity(
 }
 
 func ServerWebSocketWithIdentity(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	identityAPIEndpoint string,
 ) Middleware[http.HandlerFunc] {
 	return withIdentity(dataCollector, identityAPIEndpoint, func(request *http.Request) (string, error) {
@@ -62,7 +62,7 @@ func ServerWebSocketWithIdentity(
 	})
 }
 
-func ServerGRPCWithIdentity(dataCollector obs.DataCollector, identityAPIEndpoint string) grpc.UnaryServerInterceptor {
+func ServerGRPCWithIdentity(dataCollector telemetry.DataCollector, identityAPIEndpoint string) grpc.UnaryServerInterceptor {
 	verifyTokenURL := fmt.Sprintf("%s/verify-token", identityAPIEndpoint)
 	return func(ct context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		md, ok := metadata.FromIncomingContext(ct)
@@ -75,7 +75,7 @@ func ServerGRPCWithIdentity(dataCollector obs.DataCollector, identityAPIEndpoint
 			accessToken := values[0]
 			updatedCt, err := ctxWithUserID(dataCollector, ct, verifyTokenURL, accessToken)
 			if err != nil {
-				dataCollector.Logger.LogWithContext(ct, obs.Warning, obs.Props{obs.CauseProp: err})
+				dataCollector.Logger.LogWithContext(ct, telemetry.Warning, telemetry.Props{telemetry.CauseProp: err})
 			} else {
 				ct = updatedCt
 			}
@@ -99,7 +99,7 @@ func ClientGRPCWithIdentity(getAccessToken func() string) grpc.UnaryClientInterc
 }
 
 func withIdentity(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	identityAPIEndpoint string,
 	getBearerToken func(request *http.Request) (string, error),
 ) Middleware[http.HandlerFunc] {
@@ -109,7 +109,7 @@ func withIdentity(
 			ct := request.Context()
 			token, err := getBearerToken(request)
 			if err != nil {
-				dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+				dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 				writer.WriteHeader(http.StatusUnauthorized)
 				return
 			}
@@ -117,7 +117,7 @@ func withIdentity(
 			if len(token) > 0 {
 				updatedCt, err := ctxWithUserID(dataCollector, request.Context(), verifyTokenURL, token)
 				if err != nil {
-					dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+					dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 					writer.WriteHeader(http.StatusUnauthorized)
 				} else {
 					ct = updatedCt
@@ -131,19 +131,19 @@ func withIdentity(
 	}
 }
 
-func ctxWithUserID(dataCollector obs.DataCollector, ct context.Context, verifyTokenURL string, accessToken string) (context.Context, error) {
+func ctxWithUserID(dataCollector telemetry.DataCollector, ct context.Context, verifyTokenURL string, accessToken string) (context.Context, error) {
 	res, err := http.Post(
 		verifyTokenURL,
 		"text/plain",
 		bytes.NewReader([]byte(accessToken)))
 	if err != nil {
-		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
 	if res.StatusCode == http.StatusUnauthorized {
 		err = errors.New("invalid access token")
-		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -154,7 +154,7 @@ func ctxWithUserID(dataCollector obs.DataCollector, ct context.Context, verifyTo
 
 	userID, err := strconv.ParseUint(string(buf), 10, 64)
 	if err != nil {
-		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 

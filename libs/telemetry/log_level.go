@@ -1,4 +1,4 @@
-package obs
+package telemetry
 
 type LogLevel string
 

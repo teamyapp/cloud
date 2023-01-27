@@ -8,11 +8,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type ResourceType struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	db            *sql.DB
 }
 
@@ -41,7 +41,7 @@ func (r ResourceType) FindResourceType(ct context.Context, resourceTypeName stri
 	}
 
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return resourceTypeEntity, err
@@ -56,7 +56,7 @@ func (r ResourceType) FindAllResourceTypes(ct context.Context) ([]entity.Resourc
 	FROM resource_type;
 `)
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -70,7 +70,7 @@ func (r ResourceType) FindAllResourceTypes(ct context.Context) ([]entity.Resourc
 			&resourceTypeEntity.CreatorUserID,
 		)
 		if err != nil {
-			r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			continue
 		}
 
@@ -103,12 +103,12 @@ func (r ResourceType) DeleteResourceType(ct context.Context, resourceTypeName st
 		`,
 		resourceTypeName)
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
 }
 
-func NewResourceType(dataCollector obs.DataCollector, sqlDB *sql.DB) ResourceType {
+func NewResourceType(dataCollector telemetry.DataCollector, sqlDB *sql.DB) ResourceType {
 	return ResourceType{dataCollector: dataCollector, db: sqlDB}
 }

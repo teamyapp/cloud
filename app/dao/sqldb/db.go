@@ -13,7 +13,7 @@ import (
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"
 	"github.com/teamyapp/cloud/libs/io"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 const dbType = "postgres"
@@ -41,7 +41,7 @@ type Config struct {
 	DBConnectionMaxIdleTime time.Duration `envconfig:"DB_CONNECTION_MAX_IDLE_TIME" default:"2m"`
 }
 
-func Use(dataCollector obs.DataCollector, cfg Config, action func(sqlDB *sql.DB) error) error {
+func Use(dataCollector telemetry.DataCollector, cfg Config, action func(sqlDB *sql.DB) error) error {
 	sqlDB, err := connect(cfg)
 	if err != nil {
 		return err
@@ -56,15 +56,15 @@ func Use(dataCollector obs.DataCollector, cfg Config, action func(sqlDB *sql.DB)
 	return action(sqlDB)
 }
 
-func MigrateUp(dataCollector obs.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) error {
+func MigrateUp(dataCollector telemetry.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) error {
 	return migrateDB(dataCollector, sqlDB, migrationRoot, migrate.Up, steps)
 }
 
-func MigrateDown(dataCollector obs.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) error {
+func MigrateDown(dataCollector telemetry.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) error {
 	return migrateDB(dataCollector, sqlDB, migrationRoot, migrate.Down, steps)
 }
 
-func NewMigration(dataCollector obs.DataCollector, migrationDir string, fileName string) (string, error) {
+func NewMigration(dataCollector telemetry.DataCollector, migrationDir string, fileName string) (string, error) {
 	now := time.Now()
 	prefix := fmt.Sprintf(
 		"%04d%02d%02d%02d%02d%02d_%s",
@@ -78,7 +78,7 @@ func NewMigration(dataCollector obs.DataCollector, migrationDir string, fileName
 
 	err := os.MkdirAll(migrationDir, os.ModePerm)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
 
@@ -86,14 +86,14 @@ func NewMigration(dataCollector obs.DataCollector, migrationDir string, fileName
 	fullFilePath := filepath.Join(migrationDir, fileName)
 	err = io.CreateFileWithLog(fullFilePath)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
 
 	return fullFilePath, nil
 }
 
-func New(dataCollector obs.DataCollector, dbName string) {
+func New(dataCollector telemetry.DataCollector, dbName string) {
 	alphabet := concatenate([]string{
 		lowerCaseLetters,
 		upperCaseLetters,
@@ -104,8 +104,8 @@ func New(dataCollector obs.DataCollector, dbName string) {
 	dbNamePostfix := randString(dbNamePostfixAlphabet, 5)
 	fullDBName := fmt.Sprintf("%s-%s", dbName, dbNamePostfix)
 	password := randString(alphabet, dbPasswordLen)
-	dataCollector.Logger.Log(obs.Info, obs.Props{
-		obs.MessageProp: strings.TrimSpace(fmt.Sprintf(`
+	dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
+		telemetry.MessageProp: strings.TrimSpace(fmt.Sprintf(`
 user: %s
 password: %s
 dbName: %s
@@ -128,51 +128,51 @@ GRANT ALL PRIVILEGES ON DATABASE "%s" TO "%s";
 	})
 }
 
-func ExecSQL(dataCollector obs.DataCollector, sqlDB *sql.DB, sqlFileName string) error {
+func ExecSQL(dataCollector telemetry.DataCollector, sqlDB *sql.DB, sqlFileName string) error {
 	buf, err := os.ReadFile(sqlFileName)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 
 	tx, err := sqlDB.BeginTx(context.Background(), nil)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 
 	_, err = tx.Exec(string(buf))
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 
 	err = tx.Commit()
 	if err == nil {
-		dataCollector.Logger.Log(obs.Info, obs.Props{
-			obs.MessageProp: "successfully seeded DB",
+		dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
+			telemetry.MessageProp: "successfully seeded DB",
 		})
 	}
 
 	return err
 }
 
-func waitUntilReady(dataCollector obs.DataCollector, sqlDB *sql.DB) {
+func waitUntilReady(dataCollector telemetry.DataCollector, sqlDB *sql.DB) {
 	for {
 		err := sqlDB.Ping()
 		if err == nil {
-			dataCollector.Logger.Log(obs.Info, obs.Props{
-				obs.MessageProp: "successfully connected to the DB",
+			dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
+				telemetry.MessageProp: "successfully connected to the DB",
 			})
 			break
 		}
 
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
-		dataCollector.Logger.Log(obs.Warning, obs.Props{
-			obs.MessageProp: "fail to connect to the DB",
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Warning, telemetry.Props{
+			telemetry.MessageProp: "fail to connect to the DB",
 		})
-		dataCollector.Logger.Log(obs.Info, obs.Props{
-			obs.MessageProp: "retry after 5 seconds",
+		dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
+			telemetry.MessageProp: "retry after 5 seconds",
 		})
 		time.Sleep(5 * time.Second)
 	}
@@ -191,7 +191,7 @@ func connect(cfg Config) (*sql.DB, error) {
 }
 
 func migrateDB(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	db *sql.DB,
 	migrationRoot string,
 	migrateDirection migrate.MigrationDirection,
@@ -202,12 +202,12 @@ func migrateDB(
 	}
 	_, err := migrate.ExecMax(db, dbType, migrations, migrateDirection, steps)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 
-	dataCollector.Logger.Log(obs.Info, obs.Props{
-		obs.MessageProp: "migration finished",
+	dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
+		telemetry.MessageProp: "migration finished",
 	})
 	return nil
 }

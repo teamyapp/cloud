@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-var testLogger = obs.NewDataCollector(obs.NewRawLogger(obs.Info))
+var testLogger = telemetry.NewDataCollector(telemetry.NewRawLogger(telemetry.Info))
 
 func TestParse(t *testing.T) {
 	testCases := []struct {
