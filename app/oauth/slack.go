@@ -103,20 +103,21 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
+	
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
+	
 	defer res.Body.Close()
 
 	if res.StatusCode > 300 || res.StatusCode < 200 {
 		err = fmt.Errorf("fail to obtain %s access token", s.GetName())
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
 			telemetry.CauseProp: err,
-			"OauthProviderName": s.GetName(),
+			"OAuthProviderName": s.GetName(),
 			"HttpStatusCode":    res.StatusCode,
 		})
 		return "", err
@@ -129,7 +130,7 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 	}
 
 	body := struct {
-		Ok          bool   `json:"ok"`
+		OK          bool   `json:"ok"`
 		Error       string `json:"error"`
 		AccessToken string `json:"access_token"`
 		IDToken     string `json:"id_token"`
@@ -140,7 +141,8 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
-	if !body.Ok {
+	
+	if !body.OK {
 		err = errors.New(body.Error)
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err.Error()})
 	}
