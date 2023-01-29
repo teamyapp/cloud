@@ -83,7 +83,7 @@ func (s Slack) GetSignInURL(ct context.Context, stateID uint64) (string, error) 
 	query.Add("redirect_uri", s.redirectURI)
 	query.Add("response_type", "code")
 	query.Add("state", strconv.Itoa(int(stateID)))
-	query.Add("scope", "openid email profile")
+	query.Add("scope", "openid email")
 	baseURL.RawQuery = query.Encode()
 	return baseURL.String(), nil
 }
