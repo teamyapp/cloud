@@ -8,11 +8,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type ServiceAccount struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	db            *sql.DB
 }
 
@@ -30,7 +30,7 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 	WHERE owner_user_id = $1;`,
 		accountOwnerID)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 	defer rows.Close()
@@ -46,7 +46,7 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 			&serviceAccount.CreatedAt,
 		)
 		if err != nil {
-			s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			continue
 		}
 
@@ -82,7 +82,7 @@ func (s ServiceAccount) FindServiceAccountByID(ct context.Context, serviceAccoun
 	}
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return serviceAccount, err
@@ -106,7 +106,7 @@ func (s ServiceAccount) CreateServiceAccount(ct context.Context, serviceAccount 
 		serviceAccount.CreatedAt,
 	)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -131,7 +131,7 @@ func (s ServiceAccount) UpdateServiceAccount(ct context.Context, serviceAccount 
 	)
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -145,12 +145,12 @@ func (s ServiceAccount) DeleteServiceAccount(ct context.Context, serviceAccountI
 		serviceAccountID)
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
 }
 
-func NewServiceAccount(dataCollector obs.DataCollector, sqlDB *sql.DB) ServiceAccount {
+func NewServiceAccount(dataCollector telemetry.DataCollector, sqlDB *sql.DB) ServiceAccount {
 	return ServiceAccount{dataCollector: dataCollector, db: sqlDB}
 }

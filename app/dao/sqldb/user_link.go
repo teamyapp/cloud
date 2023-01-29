@@ -8,11 +8,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type UserLink struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	db            *sql.DB
 }
 
@@ -45,7 +45,7 @@ func (u UserLink) FindUserLinkByExternalUserID(ct context.Context, authProvider 
 	}
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return userLink, err
@@ -64,7 +64,7 @@ func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUser
 `,
 		internalUserID)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 	defer rows.Close()
@@ -79,7 +79,7 @@ func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUser
 			&userLink.InternalUserID,
 		)
 		if err != nil {
-			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			continue
 		}
 
@@ -106,7 +106,7 @@ func (u UserLink) CreateUserLink(ct context.Context, userLink entity.UserLink) e
 		userLink.InternalUserID)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -121,13 +121,13 @@ func (u UserLink) DeleteUserLink(ct context.Context, authProvider string, intern
 		internalUserID)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
 }
 
-func NewUserLink(dataCollector obs.DataCollector, sqlDB *sql.DB) UserLink {
+func NewUserLink(dataCollector telemetry.DataCollector, sqlDB *sql.DB) UserLink {
 	return UserLink{
 		dataCollector: dataCollector,
 		db:            sqlDB,

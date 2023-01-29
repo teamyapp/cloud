@@ -8,11 +8,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type Permission struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	db            *sql.DB
 }
 
@@ -47,7 +47,7 @@ func (p Permission) FindPermission(ct context.Context, query entity.PermissionQu
 	}
 
 	if err != nil {
-		p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		p.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return permission, err
@@ -65,7 +65,7 @@ func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission,
 		FROM permission;
 	`)
 	if err != nil {
-		p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		p.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -82,7 +82,7 @@ func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission,
 			&permission.CreatorUserID,
 		)
 		if err != nil {
-			p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			p.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			continue
 		}
 
@@ -113,7 +113,7 @@ func (p Permission) CreatePermission(ct context.Context, permission entity.Permi
 	)
 
 	if err != nil {
-		p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		p.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -126,12 +126,12 @@ func (p Permission) DeletePermission(ct context.Context, resourceType string, re
 		`,
 		resourceType, resourceID, operation, groupID)
 	if err != nil {
-		p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		p.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
 }
 
-func NewPermission(dataCollector obs.DataCollector, sqlDB *sql.DB) Permission {
+func NewPermission(dataCollector telemetry.DataCollector, sqlDB *sql.DB) Permission {
 	return Permission{dataCollector: dataCollector, db: sqlDB}
 }

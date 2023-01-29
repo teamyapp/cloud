@@ -5,13 +5,13 @@ import (
 
 	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/gen"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/runner"
 	"google.golang.org/grpc"
 )
 
 type Generator struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	proto.UnimplementedGeneratorServer
 	uniqueNumberGeneratorFactory gen.UniqueNumberFactory
 	uniqueNumberGenerators       map[string]*gen.UniqueNumber
@@ -37,7 +37,7 @@ func (g Generator) GenerateUniqueNumber(
 		var err error
 		uniqueNumGen, err = g.uniqueNumberGeneratorFactory.MakeUniqueNumber(request.SequenceName)
 		if err != nil {
-			g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			return nil, err
 		}
 
@@ -46,7 +46,7 @@ func (g Generator) GenerateUniqueNumber(
 
 	uniqueNum, err := uniqueNumGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -66,7 +66,7 @@ func (g Generator) GenerateUniqueString(
 			request.Alphabet,
 			g.uniqueNumberGeneratorFactory)
 		if err != nil {
-			g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			return nil, err
 		}
 		uniqueStringGen = &strGen
@@ -75,7 +75,7 @@ func (g Generator) GenerateUniqueString(
 
 	uniqueStr, err := uniqueStringGen.GenerateUniqueString(ct)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -83,7 +83,7 @@ func (g Generator) GenerateUniqueString(
 }
 
 func NewGenerator(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	uniqueNumberGeneratorFactory gen.UniqueNumberFactory,
 ) Generator {
 	return Generator{

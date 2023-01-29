@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/teamyapp/cloud/libs/middleware"
-	"github.com/teamyapp/cloud/libs/obs"
 	"github.com/teamyapp/cloud/libs/retry"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -20,7 +20,7 @@ type ConnectionConfig struct {
 	RequestTimeout time.Duration
 }
 
-func NewClientConnection(dataCollector obs.DataCollector, cfg ConnectionConfig, retry retry.Retry) (*grpc.ClientConn, error) {
+func NewClientConnection(dataCollector telemetry.DataCollector, cfg ConnectionConfig, retry retry.Retry) (*grpc.ClientConn, error) {
 	var cred credentials.TransportCredentials
 	if cfg.ShouldEncrypt {
 		cred = credentials.NewTLS(nil)

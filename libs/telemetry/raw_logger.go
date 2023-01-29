@@ -1,4 +1,4 @@
-package obs
+package telemetry
 
 import (
 	"context"
@@ -44,7 +44,11 @@ func withDefaults(level LogLevel, props Props, skipCallers int) Props {
 
 	newProps := Props{}
 	for key, value := range props {
-		newProps[key] = value
+		if key == CauseProp {
+			newProps[key] = fmt.Sprintf("%v", value)
+		} else {
+			newProps[key] = value
+		}
 	}
 
 	newProps[HappenAtProp] = time.Now().UTC()

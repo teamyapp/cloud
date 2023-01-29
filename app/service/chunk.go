@@ -8,13 +8,13 @@ import (
 
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/storage"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 const chunkKeyPrefix = "chunks"
 
 type ChunksIterator struct {
-	dataCollector  obs.DataCollector
+	dataCollector  telemetry.DataCollector
 	mapBackend     storage.MapBackend
 	chunkIDs       []uint64
 	nextChunkIndex int
@@ -29,16 +29,16 @@ func (c ChunksIterator) HasNext() (bool, error) {
 func (c *ChunksIterator) Next(ct context.Context) ([]byte, error) {
 	hasNext, err := c.HasNext()
 	if err != nil {
-		c.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
 	if !hasNext {
 		err = errors.New("no next chunk")
-		c.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-			obs.CauseProp:    err,
-			"NextChunkIndex": c.nextChunkIndex,
-			"NumOfChunks":    c.chunkIDs,
+		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
+			telemetry.CauseProp: err,
+			"NextChunkIndex":    c.nextChunkIndex,
+			"NumOfChunks":       c.chunkIDs,
 		})
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (c *ChunksIterator) Next(ct context.Context) ([]byte, error) {
 	fullPath := path.Join(chunkKeyPrefix, chunkIDPath)
 	data, err := c.mapBackend.Get(fullPath)
 	if err != nil {
-		c.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -56,7 +56,7 @@ func (c *ChunksIterator) Next(ct context.Context) ([]byte, error) {
 }
 
 func newChunksIterator(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	mapBackend storage.MapBackend,
 	chunkIDs []uint64,
 ) *ChunksIterator {

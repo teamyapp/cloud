@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/libs/middleware"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
 )
 
@@ -27,11 +27,11 @@ type ServiceRunnerConfig struct {
 	RequestTimeout      time.Duration `envconfig:"REQUEST_TIMEOUT" default:"10s"`
 }
 
-func ServiceRunnerConfigFromEnv(dataCollector obs.DataCollector) (ServiceRunnerConfig, error) {
+func ServiceRunnerConfigFromEnv(dataCollector telemetry.DataCollector) (ServiceRunnerConfig, error) {
 	cfg := ServiceRunnerConfig{}
 	err := config.FromEnv(dataCollector, &cfg)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return ServiceRunnerConfig{}, err
 	}
 
@@ -39,7 +39,7 @@ func ServiceRunnerConfigFromEnv(dataCollector obs.DataCollector) (ServiceRunnerC
 }
 
 type ServiceRunner struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	config        ServiceRunnerConfig
 	webRouter     *mux.Router
 	gRPCServer    *grpc.Server
@@ -50,7 +50,7 @@ func (s *ServiceRunner) Start() {
 	for _, service := range s.services {
 		err := service.Start(s)
 		if err != nil {
-			s.dataCollector.Logger.Log(obs.Fatal, obs.Props{obs.CauseProp: err})
+			s.dataCollector.Logger.Log(telemetry.Fatal, telemetry.Props{telemetry.CauseProp: err})
 			panic(err)
 		}
 	}
@@ -71,8 +71,8 @@ func (s *ServiceRunner) Start() {
 }
 
 func (s *ServiceRunner) startWebServer() {
-	s.dataCollector.Logger.Log(obs.Info, obs.Props{
-		obs.MessageProp: obs.Props{
+	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
+		telemetry.MessageProp: telemetry.Props{
 			"Summary": "service runner Web server started",
 			"Port":    s.config.WebServerPort,
 		},
@@ -99,15 +99,15 @@ func (s *ServiceRunner) startGRPCServer() {
 		panic(err)
 	}
 
-	s.dataCollector.Logger.Log(obs.Info, obs.Props{
-		obs.MessageProp: obs.Props{
+	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
+		telemetry.MessageProp: telemetry.Props{
 			"Summary": "service runner gRPC server started",
 			"Port":    s.config.GRPCServerPort,
 		},
 	})
 	err = s.gRPCServer.Serve(lis)
 	if err != nil {
-		s.dataCollector.Logger.Log(obs.Fatal, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.Log(telemetry.Fatal, telemetry.Props{telemetry.CauseProp: err})
 		panic(err)
 	}
 }
@@ -122,7 +122,7 @@ func (s *ServiceRunner) WithGRPCServer(withGRPCServer func(server *grpc.Server))
 	withGRPCServer(s.gRPCServer)
 }
 
-func NewServiceRunner(dataCollector obs.DataCollector, config ServiceRunnerConfig, services []Service) ServiceRunner {
+func NewServiceRunner(dataCollector telemetry.DataCollector, config ServiceRunnerConfig, services []Service) ServiceRunner {
 	return ServiceRunner{
 		dataCollector: dataCollector,
 		config:        config,

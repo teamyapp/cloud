@@ -10,7 +10,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 // format: P[n]Y[n]M[n]W[n]DT[n]H[n]M[n]S
@@ -76,7 +76,7 @@ var timeSymbolInNanos = map[rune]int64{
 	secondSymbol: secondInNanos,
 }
 
-func Parse(ct context.Context, dataCollector obs.DataCollector, input string) (time.Duration, error) {
+func Parse(ct context.Context, dataCollector telemetry.DataCollector, input string) (time.Duration, error) {
 	var sign int64 = 1
 	if len(input) > 0 && input[0] == '-' {
 		sign = -1
@@ -85,9 +85,9 @@ func Parse(ct context.Context, dataCollector obs.DataCollector, input string) (t
 
 	if len(input) == 0 || input[0] != uint8(periodSymbol) {
 		err := fmt.Errorf("duration must start with 'P'")
-		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-			obs.CauseProp: err,
-			"Duration":    input,
+		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
+			telemetry.CauseProp: err,
+			"Duration":          input,
 		})
 		return 0, err
 	}
@@ -116,7 +116,7 @@ func Parse(ct context.Context, dataCollector obs.DataCollector, input string) (t
 		if visitTimeSection {
 			err := validateSymbol(ct, dataCollector, timeSymbolOrder, timeSymbolIndices, seenSymbols, currRune, index)
 			if err != nil {
-				dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+				dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 				return 0, err
 			}
 
@@ -125,7 +125,7 @@ func Parse(ct context.Context, dataCollector obs.DataCollector, input string) (t
 		} else {
 			err := validateSymbol(ct, dataCollector, periodSymbolOrder, periodSymbolIndices, seenSymbols, currRune, index)
 			if err != nil {
-				dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+				dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 				return 0, err
 			}
 
@@ -139,13 +139,13 @@ func Parse(ct context.Context, dataCollector obs.DataCollector, input string) (t
 
 	if !hasPeriod && !hasTime {
 		err := errors.New("must has either period or time")
-		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return 0, err
 	}
 
 	if visitTimeSection && !hasTime {
 		err := errors.New("must remove ending T or have non empty time section")
-		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return 0, err
 	}
 
@@ -210,7 +210,7 @@ func tryWriteNumWithUnit(buffer *bytes.Buffer, num int64, symbol rune) {
 
 func validateSymbol(
 	ct context.Context,
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	symbolOrder []rune,
 	symbolIndices map[rune]int,
 	seenSymbols map[rune]int,
@@ -220,10 +220,10 @@ func validateSymbol(
 	symbolIndex, ok := symbolIndices[currSymbol]
 	if !ok {
 		err := errors.New("unsupported symbol")
-		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-			obs.CauseProp: err,
-			"Index":       currIndex,
-			"Symbol":      currSymbol,
+		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
+			telemetry.CauseProp: err,
+			"Index":             currIndex,
+			"Symbol":            currSymbol,
 		})
 		return err
 	}
@@ -233,11 +233,11 @@ func validateSymbol(
 		seenSymbolIndex, ok := seenSymbols[symbol]
 		if ok {
 			err := errors.New("%c(%v) already showed up before %c(%v)")
-			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-				obs.CauseProp:     err,
-				"SeenSymbolIndex": seenSymbolIndex,
-				"CurrSymbol":      currSymbol,
-				"CurrIndex":       currIndex,
+			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
+				telemetry.CauseProp: err,
+				"SeenSymbolIndex":   seenSymbolIndex,
+				"CurrSymbol":        currSymbol,
+				"CurrIndex":         currIndex,
 			})
 			return err
 		}

@@ -9,34 +9,34 @@ import (
 	"github.com/teamyapp/cloud/app/dao/sqldb"
 	"github.com/teamyapp/cloud/app/dep"
 	"github.com/teamyapp/cloud/app/oauth"
-	"github.com/teamyapp/cloud/libs/obs"
 	"github.com/teamyapp/cloud/libs/runner"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 func main() {
-	logVisibleLevel := obs.LogLevel(getEnv("LOG_VISIBLE_LEVEL", "Info"))
+	logVisibleLevel := telemetry.LogLevel(getEnv("LOG_VISIBLE_LEVEL", "Info"))
 
-	var logger obs.Logger = obs.NewServiceLogger("cloud/backend",
-		obs.NewRequestLogger(
-			obs.NewClientLogger(
-				obs.NewRawLogger(logVisibleLevel))))
+	var logger telemetry.Logger = telemetry.NewServiceLogger("cloud/backend",
+		telemetry.NewRequestLogger(
+			telemetry.NewClientLogger(
+				telemetry.NewRawLogger(logVisibleLevel))))
 
-	dataCollector := obs.NewDataCollector(logger)
+	dataCollector := telemetry.NewDataCollector(logger)
 	cfg, err := config.AppFromEnv(dataCollector)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Fatal, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Fatal, telemetry.Props{telemetry.CauseProp: err})
 		panic(err)
 	}
 
-	logger = obs.NewCommitLogger(cfg.GitLongCommitHash, logger)
-	dataCollector = obs.NewDataCollector(logger)
+	logger = telemetry.NewCommitLogger(cfg.GitLongCommitHash, logger)
+	dataCollector = telemetry.NewDataCollector(logger)
 
 	gitCommitLink := fmt.Sprintf("https://github.com/%s/%s/commit/%s",
 		cfg.GitRepoOwner,
 		cfg.GitRepoName,
 		cfg.GitLongCommitHash)
-	dataCollector.Logger.Log(obs.Info, obs.Props{
-		obs.MessageProp: map[string]interface{}{
+	dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
+		telemetry.MessageProp: map[string]interface{}{
 			"GitCommitLink": gitCommitLink,
 		},
 	})
@@ -44,13 +44,13 @@ func main() {
 	err = sqldb.Use(dataCollector, cfg.Config, func(sqlDB *sql.DB) error {
 		err = sqldb.MigrateUp(dataCollector, sqlDB, sqldb.DefaultMigrationRoot, sqldb.MigrateAll)
 		if err != nil {
-			dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			return err
 		}
 
 		runnerConfig, err := runner.ServiceRunnerConfigFromEnv(dataCollector)
 		if err != nil {
-			dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			return err
 		}
 
@@ -82,19 +82,19 @@ func main() {
 			dep.JWTSigningKey(cfg.JWTSigningKey),
 			dep.GenRangeSize(cfg.GenRangeSize))
 		if err != nil {
-			dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			return err
 		}
 
 		generatorAPI, err := dep.InitGeneratorAPI(dataCollector, sqlDB, dep.GenRangeSize(cfg.GenRangeSize))
 		if err != nil {
-			dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			return err
 		}
 
 		authorizationAPI, err := dep.InitAuthorizationAPI(dataCollector, sqlDB, dep.GenRangeSize(cfg.GenRangeSize))
 		if err != nil {
-			dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			return err
 		}
 
@@ -108,7 +108,7 @@ func main() {
 			dep.S3AccessKey(cfg.S3AccessKey),
 			dep.S3BucketName(cfg.S3BucketName))
 		if err != nil {
-			dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			return err
 		}
 

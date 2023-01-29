@@ -8,11 +8,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type UploadSession struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	db            *sql.DB
 }
 
@@ -64,13 +64,13 @@ func (u UploadSession) FindUploadSessionByID(ct context.Context, uploadSessionID
 	}
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
 	chunkIDs, err := parseIDs(ct, u.dataCollector, chunkIDsString)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return entity.UploadSession{}, err
 	}
 
@@ -116,7 +116,7 @@ func (u UploadSession) CreateUploadSession(ct context.Context, uploadSession ent
 		uploadSession.UpdatedAt,
 	)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -162,13 +162,13 @@ func (u UploadSession) UpdateUploadSession(ct context.Context, uploadSession ent
 	)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
 }
 
-func NewUploadSession(dataCollector obs.DataCollector, sqlDB *sql.DB) UploadSession {
+func NewUploadSession(dataCollector telemetry.DataCollector, sqlDB *sql.DB) UploadSession {
 	return UploadSession{
 		dataCollector: dataCollector,
 		db:            sqlDB,

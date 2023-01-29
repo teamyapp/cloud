@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/retry"
 	"google.golang.org/grpc"
 )
@@ -31,23 +31,23 @@ func (h HttpClientExecuteFunc) Do(req *http.Request) (*http.Response, error) {
 	return h(req)
 }
 
-func ClientHTTPWithRetry(dataCollector obs.DataCollector, retry retry.Retry) Middleware[HttpClientExecutor] {
+func ClientHTTPWithRetry(dataCollector telemetry.DataCollector, retry retry.Retry) Middleware[HttpClientExecutor] {
 	return func(httpClientExecutor HttpClientExecutor) HttpClientExecutor {
 		return (HttpClientExecuteFunc)(func(request *http.Request) (*http.Response, error) {
 			var res *http.Response
 			_, err := retry.WithRetry(func() error {
-                                ct := request.Context()
+				ct := request.Context()
 				var err error
 				res, err = httpClientExecutor.Do(request)
 				if err != nil {
-					
-					dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+
+					dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 					return err
 				}
 
 				if res.StatusCode >= 400 {
 					err = fmt.Errorf("http response error: statusCode=%v", res.StatusCode)
-					dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+					dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 				}
 
 				return err

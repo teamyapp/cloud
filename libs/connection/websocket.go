@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 var WebSocketUpgrader = websocket.Upgrader{
@@ -45,7 +45,7 @@ func (w WebSocket) Close() error {
 	return w.conn.Close()
 }
 
-func NewWebSocket(dataCollector obs.DataCollector, conn *websocket.Conn) WebSocket {
+func NewWebSocket(dataCollector telemetry.DataCollector, conn *websocket.Conn) WebSocket {
 	receiveMessageCh := make(chan []byte)
 	sendMessageCh := make(chan []byte, 500)
 	errorCh := make(chan error)
@@ -79,7 +79,7 @@ func NewWebSocket(dataCollector obs.DataCollector, conn *websocket.Conn) WebSock
 		for message := range sendMessageCh {
 			err := conn.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
-				dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+				dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 				select {
 				case errorCh <- err:
 				default:

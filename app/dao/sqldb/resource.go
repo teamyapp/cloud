@@ -8,11 +8,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type Resource struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	db            *sql.DB
 }
 
@@ -43,7 +43,7 @@ func (r Resource) FindResource(ct context.Context, resourceTypeName string, reso
 	}
 
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return resource, err
@@ -59,7 +59,7 @@ func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, error
 	FROM resource;
 `)
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -74,7 +74,7 @@ func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, error
 			&resource.CreatorUserID,
 		)
 		if err != nil {
-			r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			continue
 		}
 
@@ -101,7 +101,7 @@ func (r Resource) CreateResource(ct context.Context, resource entity.Resource) e
 	)
 
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -114,12 +114,12 @@ func (r Resource) DeleteResource(ct context.Context, resourceTypeName string, re
 		`,
 		resourceTypeName, resourceID)
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
 }
 
-func NewResource(dataCollector obs.DataCollector, sqlDB *sql.DB) Resource {
+func NewResource(dataCollector telemetry.DataCollector, sqlDB *sql.DB) Resource {
 	return Resource{dataCollector: dataCollector, db: sqlDB}
 }

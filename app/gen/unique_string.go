@@ -3,11 +3,11 @@ package gen
 import (
 	"context"
 
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type UniqueString struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	uniqueNumGen  *UniqueNumber
 	stringLen     int
 	alphabet      []rune
@@ -16,7 +16,7 @@ type UniqueString struct {
 func (u UniqueString) GenerateUniqueString(ct context.Context) (string, error) {
 	currNum, err := u.uniqueNumGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
 
@@ -37,7 +37,7 @@ func (u UniqueString) toString(num uint64) string {
 }
 
 func NewUniqueString(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	name string,
 	stringLen int,
 	alphabet string,
@@ -45,7 +45,7 @@ func NewUniqueString(
 ) (UniqueString, error) {
 	numNum, err := uniqueNumFactory.MakeUniqueNumber(name)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return UniqueString{}, err
 	}
 

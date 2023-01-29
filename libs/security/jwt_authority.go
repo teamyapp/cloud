@@ -6,11 +6,11 @@ import (
 	"errors"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type JWTAuthority struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	signingKey    []byte
 }
 
@@ -19,7 +19,7 @@ func (j JWTAuthority) GenerateToken(ct context.Context, payload interface{}) (st
 	jsonBuf, _ := json.Marshal(payload)
 	err := json.Unmarshal(jsonBuf, &payloadMap)
 	if err != nil {
-		j.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		j.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
 
@@ -32,13 +32,13 @@ func (j JWTAuthority) DecodeToken(ct context.Context, jwtToken string, output in
 		return j.signingKey, nil
 	})
 	if err != nil {
-		j.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		j.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 
 	if !token.Valid {
 		err = errors.New("token is invalid")
-		j.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		j.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 
@@ -49,7 +49,7 @@ func (j JWTAuthority) DecodeUnverifiedToken(ct context.Context, jwtToken string,
 	claims := jwt.MapClaims{}
 	_, _, err := new(jwt.Parser).ParseUnverified(jwtToken, &claims)
 	if err != nil {
-		j.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		j.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 
@@ -59,14 +59,14 @@ func (j JWTAuthority) DecodeUnverifiedToken(ct context.Context, jwtToken string,
 func (j JWTAuthority) parseJWTClaims(ct context.Context, claims jwt.Claims, output interface{}) error {
 	buf, err := json.Marshal(claims)
 	if err != nil {
-		j.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		j.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 
 	return json.Unmarshal(buf, output)
 }
 
-func NewJWTAuthority(dataCollector obs.DataCollector, signingKey string) JWTAuthority {
+func NewJWTAuthority(dataCollector telemetry.DataCollector, signingKey string) JWTAuthority {
 	return JWTAuthority{
 		dataCollector: dataCollector,
 		signingKey:    []byte(signingKey),

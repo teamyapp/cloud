@@ -8,11 +8,11 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type UserGroupMember struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	db            *sql.DB
 }
 
@@ -26,7 +26,7 @@ func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64)
 		WHERE user_id = $1;`,
 		userID)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -38,7 +38,7 @@ func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64)
 			&groupID,
 		)
 		if err != nil {
-			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			continue
 		}
 
@@ -59,7 +59,7 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID
 		WHERE user_id = $1;`,
 		userID)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -74,7 +74,7 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			continue
 		}
 
@@ -95,7 +95,7 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, group
 		WHERE group_id = $1;`,
 		groupID)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -110,7 +110,7 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, group
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			continue
 		}
 
@@ -145,7 +145,7 @@ func (u UserGroupMember) FindUserGroupMember(ct context.Context, groupID uint64,
 	}
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return userGroupMember, err
@@ -161,7 +161,7 @@ func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.U
 		FROM user_group_member;
 `)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -176,7 +176,7 @@ func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.U
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			continue
 		}
 
@@ -203,7 +203,7 @@ func (u UserGroupMember) CreateUserGroupMember(ct context.Context, userGroupMemb
 	)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
@@ -217,12 +217,12 @@ func (u UserGroupMember) DeleteUserGroupMember(ct context.Context, groupID uint6
 		groupID, userID)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return err
 }
 
-func NewUserGroupMember(dataCollector obs.DataCollector, sqlDB *sql.DB) UserGroupMember {
+func NewUserGroupMember(dataCollector telemetry.DataCollector, sqlDB *sql.DB) UserGroupMember {
 	return UserGroupMember{dataCollector: dataCollector, db: sqlDB}
 }
