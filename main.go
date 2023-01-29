@@ -67,6 +67,12 @@ func main() {
 				webAPIBaseURL,
 				dep.ClientID(cfg.GitHubClientID),
 				dep.ClientSecret(cfg.GitHubClientSecret)),
+			dep.InitSlackOAuthProvider(
+				dataCollector,
+				webAPIBaseURL,
+				dep.JWTSigningKey(cfg.JWTSigningKey),
+				dep.ClientID(cfg.SlackClientID),
+				dep.ClientSecret(cfg.SlackClientSecret)),
 		}
 		identityAPI, err := dep.InitIdentityAPI(
 			dataCollector,

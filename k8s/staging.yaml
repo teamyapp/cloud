@@ -90,6 +90,16 @@ spec:
                 secretKeyRef:
                   name: cloud
                   key: github-client-secret
+            - name: SLACK_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: slack-client-id
+            - name: SLACK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: slack-client-secret
             - name: ACCESS_TOKEN_TTL
               value: 168h
             - name: GEN_RANGE_SIZE
