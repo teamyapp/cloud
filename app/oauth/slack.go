@@ -1,18 +1,19 @@
 package oauth
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
-	"github.com/teamyapp/cloud/libs/security"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
+
+	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/security"
 )
 
 const SlackName = "slack"
@@ -20,9 +21,6 @@ const SlackName = "slack"
 // https://api.slack.com/authentication/sign-in-with-slack
 var slackAuthURLString = "https://slack.com/openid/connect/authorize"
 var slackTokenURLString = "https://slack.com/api/openid.connect.token"
-
-//var slackAuthURLString = "https://slack.com/oauth/v2/authorize"
-//var slackTokenURLString = "https://slack.com/api/oauth.v2.access"
 
 type Slack struct {
 	dataCollector obs.DataCollector
@@ -39,7 +37,6 @@ func (s Slack) GetName() string {
 }
 
 func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, error) {
-	// https://api.slack.com/methods/openid.connect.token
 	idToken, err := s.getIDToken(ct, authorizationCode)
 	if err != nil {
 		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
@@ -83,8 +80,6 @@ func (s Slack) GetSignInURL(ct context.Context, stateID uint64) (string, error) 
 
 	query := baseURL.Query()
 	query.Add("client_id", s.clientID)
-	// while redirect_uri is optional, it is required if your app passed it as a parameter
-	// to /openid/connect/authorize in the first step of the Sign in with Slack flow.
 	query.Add("redirect_uri", s.redirectURI)
 	query.Add("response_type", "code")
 	query.Add("state", strconv.Itoa(int(stateID)))
@@ -94,46 +89,28 @@ func (s Slack) GetSignInURL(ct context.Context, stateID uint64) (string, error) 
 }
 
 func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string, error) {
-	tokenBody := struct {
-		ClientID     string `json:"client_id"`
-		ClientSecret string `json:"client_secret"`
-		RedirectURI  string `json:"redirect_uri"`
-		Code         string `json:"code"`
-		GrantType    string `json:"grant_type"`
-	}{
-		ClientID:     s.clientID,
-		ClientSecret: s.clientSecret,
-		Code:         authorizationCode,
-		GrantType:    "authorization_code",
-		RedirectURI:  s.redirectURI,
-	}
+	// API accepts request in encoded form data only
+	// https://api.slack.com/methods/openid.connect.token
+	formData := url.Values{}
+	formData.Set("client_id", s.clientID)
+	formData.Set("client_secret", s.clientSecret)
+	formData.Set("code", authorizationCode)
+	formData.Set("grant_type", "authorization_code")
+	formData.Set("redirect_uri", s.redirectURI)
 
-	buf, err := json.Marshal(tokenBody)
+	req, err := http.NewRequest("POST", slackTokenURLString, strings.NewReader(formData.Encode()))
 	if err != nil {
 		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
-
-	//data := url.Values{}
-	//data.Set("client_id", s.clientID)
-	//data.Set("client_secret", s.clientSecret)
-	//data.Add("code", authorizationCode)
-	//data.Add("grant_type", "authorization_code")
-	//data.Add("redirect_uri", s.redirectURI)
-	//encodedData := data.Encode()
-
-	req, err := http.NewRequest("POST", slackTokenURLString, bytes.NewReader(buf))
-	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode > 300 || res.StatusCode < 200 {
 		err = fmt.Errorf("fail to obtain %s access token", s.GetName())
@@ -145,7 +122,7 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 		return "", err
 	}
 
-	buf, err = io.ReadAll(res.Body)
+	buf, err := io.ReadAll(res.Body)
 	if err != nil {
 		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
