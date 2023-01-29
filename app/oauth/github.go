@@ -145,7 +145,7 @@ func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (st
 		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
-	res.Body.Close()
+	defer res.Body.Close()
 
 	if res.StatusCode > 300 || res.StatusCode < 200 {
 		err = fmt.Errorf("fail to obtain %s access token", g.GetName())
