@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
 	"github.com/teamyapp/cloud/libs/security"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 const SlackName = "slack"
@@ -23,7 +23,7 @@ var slackAuthURLString = "https://slack.com/openid/connect/authorize"
 var slackTokenURLString = "https://slack.com/api/openid.connect.token"
 
 type Slack struct {
-	dataCollector obs.DataCollector
+	dataCollector telemetry.DataCollector
 	jwtAuthority  security.JWTAuthority
 	clientID      string
 	clientSecret  string
@@ -39,7 +39,7 @@ func (s Slack) GetName() string {
 func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, error) {
 	idToken, err := s.getIDToken(ct, authorizationCode)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return entity.ExternalUser{}, err
 	}
 
@@ -54,7 +54,7 @@ func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.Ext
 
 	err = s.jwtAuthority.DecodeUnverifiedToken(ct, idToken, &tokenPayload)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
 
 	return entity.ExternalUser{
@@ -74,7 +74,7 @@ func (s Slack) GetAuthorizationCode(request *http.Request) string {
 func (s Slack) GetSignInURL(ct context.Context, stateID uint64) (string, error) {
 	baseURL, err := url.Parse(slackAuthURLString)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
 
@@ -100,22 +100,22 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 
 	req, err := http.NewRequest("POST", slackTokenURLString, strings.NewReader(formData.Encode()))
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode > 300 || res.StatusCode < 200 {
 		err = fmt.Errorf("fail to obtain %s access token", s.GetName())
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-			obs.CauseProp:       err,
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
+			telemetry.CauseProp: err,
 			"OauthProviderName": s.GetName(),
 			"HttpStatusCode":    res.StatusCode,
 		})
@@ -124,7 +124,7 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 
 	buf, err := io.ReadAll(res.Body)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
 
@@ -137,19 +137,19 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 	}{}
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
 	if !body.Ok {
 		err = errors.New(body.Error)
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err.Error()})
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err.Error()})
 	}
 
 	return body.IDToken, err
 }
 
 func NewSlack(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL string,
 	clientID string,
