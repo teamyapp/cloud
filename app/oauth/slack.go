@@ -16,7 +16,7 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-const SlackName = "slack"
+const slackName = "slack"
 
 // https://api.slack.com/authentication/sign-in-with-slack
 const slackAuthorizeURL = "https://slack.com/openid/connect/authorize"
