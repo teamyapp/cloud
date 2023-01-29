@@ -19,7 +19,7 @@ import (
 const SlackName = "slack"
 
 // https://api.slack.com/authentication/sign-in-with-slack
-var slackAuthURLString = "https://slack.com/openid/connect/authorize"
+const slackAuthorizeURL = "https://slack.com/openid/connect/authorize"
 var slackTokenURLString = "https://slack.com/api/openid.connect.token"
 
 type Slack struct {
