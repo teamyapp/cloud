@@ -20,7 +20,7 @@ const slackName = "slack"
 
 // https://api.slack.com/authentication/sign-in-with-slack
 const slackAuthorizeURL = "https://slack.com/openid/connect/authorize"
-var slackTokenURL = "https://slack.com/api/openid.connect.token"
+const slackTokenURL = "https://slack.com/api/openid.connect.token"
 
 type Slack struct {
 	dataCollector telemetry.DataCollector
@@ -33,7 +33,7 @@ type Slack struct {
 var _ Provider = (*Slack)(nil)
 
 func (s Slack) GetName() string {
-	return SlackName
+	return slackName
 }
 
 func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, error) {
@@ -72,7 +72,7 @@ func (s Slack) GetAuthorizationCode(request *http.Request) string {
 }
 
 func (s Slack) GetSignInURL(ct context.Context, stateID uint64) (string, error) {
-	baseURL, err := url.Parse(slackAuthURLString)
+	baseURL, err := url.Parse(slackAuthorizeURL)
 	if err != nil {
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
@@ -98,19 +98,19 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 	formData.Set("grant_type", "authorization_code")
 	formData.Set("redirect_uri", s.redirectURI)
 
-	req, err := http.NewRequest("POST", slackTokenURLString, strings.NewReader(formData.Encode()))
+	req, err := http.NewRequest("POST", slackTokenURL, strings.NewReader(formData.Encode()))
 	if err != nil {
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
-	
+
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
-	
+
 	defer res.Body.Close()
 
 	if res.StatusCode > 300 || res.StatusCode < 200 {
@@ -141,7 +141,7 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
-	
+
 	if !body.OK {
 		err = errors.New(body.Error)
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err.Error()})
@@ -163,6 +163,6 @@ func NewSlack(
 		jwtAuthority:  jwtAuthority,
 		clientID:      clientID,
 		clientSecret:  clientSecret,
-		redirectURI:   fmt.Sprintf("%s/identity/sign-in/oauth/%s/finish", webAPIBaseURL, SlackName),
+		redirectURI:   fmt.Sprintf("%s/identity/sign-in/oauth/%s/finish", webAPIBaseURL, slackName),
 	}
 }
