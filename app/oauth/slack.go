@@ -54,12 +54,13 @@ func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.Ext
 	err = s.jwtAuthority.DecodeUnverifiedToken(ct, idToken, &tokenPayload)
 	if err != nil {
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return entity.ExternalUser{}, err
 	}
 
 	return entity.ExternalUser{
 		ID:    tokenPayload.UserID,
 		Label: tokenPayload.Email,
-	}, err
+	}, nil
 }
 
 func (s Slack) GetStateID(request *http.Request) (uint64, error) {
@@ -144,9 +145,10 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 	if !body.OK {
 		err = errors.New(body.Error)
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err.Error()})
+		return "", err
 	}
 
-	return body.IDToken, err
+	return body.IDToken, nil
 }
 
 func NewSlack(
