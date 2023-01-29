@@ -11,8 +11,8 @@ import (
 	"strconv"
 
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/security"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 const GoogleName = "google"
@@ -115,6 +115,7 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return "", err
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode > 300 || res.StatusCode < 200 {
 		err = fmt.Errorf("fail to obtain %s access token", g.GetName())
