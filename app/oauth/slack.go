@@ -51,7 +51,6 @@ func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.Ext
 		Email          string `json:"email"`
 		EmailVerified  bool   `json:"email_verified"`
 	}{}
-
 	err = s.jwtAuthority.DecodeUnverifiedToken(ct, idToken, &tokenPayload)
 	if err != nil {
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
