@@ -20,7 +20,7 @@ const SlackName = "slack"
 
 // https://api.slack.com/authentication/sign-in-with-slack
 const slackAuthorizeURL = "https://slack.com/openid/connect/authorize"
-var slackTokenURLString = "https://slack.com/api/openid.connect.token"
+var slackTokenURL = "https://slack.com/api/openid.connect.token"
 
 type Slack struct {
 	dataCollector telemetry.DataCollector
