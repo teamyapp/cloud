@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/runner"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type Telemetry struct {

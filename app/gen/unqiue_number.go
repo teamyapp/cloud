@@ -24,7 +24,6 @@ func (u *UniqueNumber) GenerateUniqueNumber(ct context.Context) (uint64, error) 
 		err := u.allocateNewRange()
 		if err != nil {
 			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-
 			return uint64(0), err
 		}
 	}
@@ -56,9 +55,7 @@ func (u *UniqueNumber) allocateNewRange() error {
 
 	u.allocatedRange = newRange
 	u.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
-		telemetry.MessageProp: telemetry.Props{
-			"AllocatedRange": newRange.String(),
-		},
+		telemetry.MessageProp: newRange,
 	})
 	return nil
 }

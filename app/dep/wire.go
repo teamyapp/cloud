@@ -8,13 +8,14 @@ import (
 
 	"github.com/google/wire"
 	"github.com/teamyapp/cloud/app/api"
-	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/app/storage"
+	"github.com/teamyapp/cloud/libs/env"
+	"github.com/teamyapp/cloud/libs/obs"
 	"github.com/teamyapp/cloud/libs/security"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
@@ -139,7 +140,7 @@ func InitAuthorizationAPI(
 
 func InitFileAPI(
 	dataCollector telemetry.DataCollector,
-	env config.Environment,
+	env env.Environment,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
 	s3Endpoint S3Endpoint,
@@ -163,7 +164,7 @@ func newS3Bucket(
 	s3AccessKeyID S3AccessKeyID,
 	s3AccessKey S3AccessKey,
 	s3BucketName S3BucketName,
-	env config.Environment,
+	env env.Environment,
 ) (storage.S3Bucket, error) {
 	return storage.NewS3Bucket(
 		dataCollector,

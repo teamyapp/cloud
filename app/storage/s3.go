@@ -6,7 +6,7 @@ import (
 	"path"
 
 	"github.com/minio/minio-go"
-	"github.com/teamyapp/cloud/app/config"
+	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -15,7 +15,7 @@ const appDataRoot = "appData"
 type S3Bucket struct {
 	dataCollector telemetry.DataCollector
 	client        *minio.Client
-	env           config.Environment
+	env           env.Environment
 	bucketName    string
 }
 
@@ -58,7 +58,7 @@ func NewS3Bucket(
 	endpoint string,
 	accessKeyID string,
 	accessKey string,
-	env config.Environment,
+	env env.Environment,
 	bucketName string,
 ) (S3Bucket, error) {
 	client, err := minio.New(endpoint, accessKeyID, accessKey, true)

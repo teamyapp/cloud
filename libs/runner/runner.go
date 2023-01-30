@@ -29,7 +29,7 @@ type ServiceRunnerConfig struct {
 
 func ServiceRunnerConfigFromEnv(dataCollector telemetry.DataCollector) (ServiceRunnerConfig, error) {
 	cfg := ServiceRunnerConfig{}
-	err := config.FromEnv(dataCollector, &cfg)
+	err := config.FromEnv(&cfg)
 	if err != nil {
 		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return ServiceRunnerConfig{}, err
@@ -72,10 +72,7 @@ func (s *ServiceRunner) Start() {
 
 func (s *ServiceRunner) startWebServer() {
 	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
-		telemetry.MessageProp: telemetry.Props{
-			"Summary": "service runner Web server started",
-			"Port":    s.config.WebServerPort,
-		},
+		telemetry.MessageProp: fmt.Sprintf("service runner Web server started at %v", s.config.WebServerPort),
 	})
 	serveMux := http.NewServeMux()
 	middlewares := []middleware.Middleware[http.HandlerFunc]{
@@ -100,10 +97,7 @@ func (s *ServiceRunner) startGRPCServer() {
 	}
 
 	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
-		telemetry.MessageProp: telemetry.Props{
-			"Summary": "service runner gRPC server started",
-			"Port":    s.config.GRPCServerPort,
-		},
+		telemetry.MessageProp: fmt.Sprintf("service runner gRPC server started at %v", s.config.GRPCServerPort),
 	})
 	err = s.gRPCServer.Serve(lis)
 	if err != nil {

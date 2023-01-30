@@ -3,12 +3,13 @@ package service
 import (
 	"context"
 
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/teamyapp/cloud/app/dao/dao_test"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/libs/telemetry"
-	"testing"
 )
 
 func TestAuthorization_HasPermission(t *testing.T) {

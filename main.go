@@ -3,42 +3,53 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
 	"github.com/teamyapp/cloud/app/dep"
 	"github.com/teamyapp/cloud/app/oauth"
+	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
+const serviceName = "cloud-backend"
+
 func main() {
-	logVisibleLevel := telemetry.LogLevel(getEnv("LOG_VISIBLE_LEVEL", "Info"))
-
-	var logger telemetry.Logger = telemetry.NewServiceLogger("cloud/backend",
-		telemetry.NewRequestLogger(
-			telemetry.NewClientLogger(
-				telemetry.NewRawLogger(logVisibleLevel))))
-
-	dataCollector := telemetry.NewDataCollector(logger)
-	cfg, err := config.AppFromEnv(dataCollector)
+	cfg, err := config.AppFromEnv()
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Fatal, telemetry.Props{telemetry.CauseProp: err})
 		panic(err)
 	}
 
-	logger = telemetry.NewCommitLogger(cfg.GitLongCommitHash, logger)
-	dataCollector = telemetry.NewDataCollector(logger)
+	lineFormatter := newLineFormatter(cfg.Environment)
+	logOutput, err := newLogOutput(cfg.Environment, serviceName)
+	if err != nil {
+		panic(err)
+	}
 
+	defer logOutput.Close()
+	logger := telemetry.NewLogger(
+		lineFormatter,
+		logOutput,
+		cfg.LogVisibleLevel,
+		[]telemetry.LogInterceptor{
+			telemetry.NewCommitLogInterceptor(cfg.GitLongCommitHash),
+			telemetry.NewServiceLogInterceptor(serviceName),
+			telemetry.RequestLogInterceptor,
+			telemetry.ClientLogInterceptor,
+		},
+	)
+
+	dataCollector := telemetry.NewDataCollector(logger)
 	gitCommitLink := fmt.Sprintf("https://github.com/%s/%s/commit/%s",
 		cfg.GitRepoOwner,
 		cfg.GitRepoName,
 		cfg.GitLongCommitHash)
 	dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
-		telemetry.MessageProp: map[string]interface{}{
-			"GitCommitLink": gitCommitLink,
-		},
+		telemetry.MessageProp: gitCommitLink,
 	})
 
 	err = sqldb.Use(dataCollector, cfg.Config, func(sqlDB *sql.DB) error {
@@ -133,4 +144,40 @@ func getEnv(name string, defaultVal string) string {
 	}
 
 	return defaultVal
+}
+
+func newLineFormatter(environment env.Environment) telemetry.LineFormatter {
+	if environment == env.DevelopmentEnv {
+		return telemetry.NewOrderedColumnLineFormatter([]string{
+			telemetry.HappenAtProp,
+			telemetry.SeverityProp,
+			telemetry.FileNameProp,
+			telemetry.LineNumberProp,
+			telemetry.RequestIDProp,
+			telemetry.ClientIDProp,
+			telemetry.CauseProp,
+			telemetry.MessageProp,
+		})
+	}
+
+	return telemetry.NewJSONLineFormatter()
+}
+
+func newLogOutput(environment env.Environment, serviceName string) (io.WriteCloser, error) {
+	if environment == env.DevelopmentEnv {
+		logFileName := fmt.Sprintf("%v.log", serviceName)
+		logFilePath := getEnv("LOG_OUTPUT_FILE", filepath.Join("..", "logs", logFileName))
+		logDir := filepath.Dir(logFilePath)
+
+		// MkdirAll requires at least 700 permission:
+		// https://github.com/golang/go/issues/22323
+		err := os.MkdirAll(logDir, 0744)
+		if err != nil {
+			return nil, err
+		}
+
+		return os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0640)
+	}
+
+	return os.Stdout, nil
 }

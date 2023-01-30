@@ -52,10 +52,8 @@ func generateRequestIdIfNot(dataCollector telemetry.DataCollector, ct context.Co
 		randomID := uuid.New()
 		requestID = randomID.String()
 		dataCollector.Logger.LogWithContext(ct, telemetry.Info, telemetry.Props{
-			telemetry.MessageProp: telemetry.Props{
-				"Summary":   "generate request ID",
-				"RequestID": requestID,
-			},
+			telemetry.RequestIDProp: requestID,
+			telemetry.MessageProp:   "generate request ID",
 		})
 		return requestID
 	}

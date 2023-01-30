@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/retry"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
 )
 

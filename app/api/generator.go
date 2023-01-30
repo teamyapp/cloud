@@ -5,8 +5,8 @@ import (
 
 	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/gen"
-	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/runner"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
 )
 
