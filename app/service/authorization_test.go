@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +11,14 @@ import (
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
+
+var dataCollector = telemetry.NewDataCollector(
+	telemetry.NewLogger(
+		telemetry.NewOrderedColumnLineFormatter([]string{}),
+		os.Stdout,
+		telemetry.Info,
+		[]telemetry.LogInterceptor{},
+	))
 
 func TestAuthorization_HasPermission(t *testing.T) {
 	resourceRelations := []entity.ResourceRelation{
@@ -447,11 +455,9 @@ func TestAuthorization_HasPermission(t *testing.T) {
 				resourceRelationDao:  dao_test.NewResourceRelation(resourceRelations),
 			}
 
-			mockLogger := telemetry.NewRawLogger(telemetry.Info)
-			mockDataCollector := telemetry.NewDataCollector(mockLogger)
 			mockAllocatedRange := dao_test.NewAllocatedRange(allocatedRanges)
 			mockAuthorization, err := NewAuthorization(
-				telemetry.NewDataCollector(telemetry.NewRawLogger(telemetry.Info)),
+				dataCollector,
 				dao_test.NewResourceRelation(resourceRelations),
 				dao_test.NewUserGroupMember(userGroupMembers),
 				dao_test.NewPermission(permissions),
@@ -460,7 +466,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 				dao_test.NewResourceType(make([]entity.ResourceType, 0)),
 				dao_test.NewResource(make([]entity.Resource, 0)),
 				dao_test.NewUserGroup(make([]entity.UserGroup, 0)),
-				gen.NewUniqueNumberFactory(mockDataCollector, mockAllocatedRange, 0),
+				gen.NewUniqueNumberFactory(dataCollector, mockAllocatedRange, 0),
 			)
 
 			hasPermission, err := mockAuthorization.HasPermission(ct, testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)
