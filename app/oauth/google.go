@@ -118,13 +118,9 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 	defer res.Body.Close()
 
 	if res.StatusCode > 300 || res.StatusCode < 200 {
-		err = fmt.Errorf("fail to obtain %s access token", g.GetName())
+		err = fmt.Errorf("fail to obtain access token: OAuthProvider=%v HttpStatusCode=%v", g.GetName(), res.StatusCode)
 		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
 			telemetry.CauseProp: err,
-			telemetry.MessageProp: telemetry.Props{
-				"OauthProviderName": g.GetName(),
-				"HttpStatusCode":    res.StatusCode,
-			},
 		})
 		return "", err
 	}

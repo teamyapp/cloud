@@ -1,12 +1,16 @@
 package telemetry
 
 const (
-	CauseProp      string = "Cause"
-	MessageProp    string = "Message"
-	HappenAtProp   string = "HappenAt"
-	SeverityProp   string = "Severity"
-	FileNameProp   string = "FileName"
-	LineNumberProp string = "LineNumber"
+	CauseProp       string = "Cause"
+	MessageProp     string = "Message"
+	HappenAtProp    string = "HappenAt"
+	SeverityProp    string = "Severity"
+	FileNameProp    string = "FileName"
+	LineNumberProp  string = "LineNumber"
+	RequestIDProp   string = "RequestId"
+	ClientIDProp    string = "ClientId"
+	ServiceNameProp string = "ServiceName"
+	CommitProp      string = "Commit"
 )
 
 type Props = map[string]interface{}

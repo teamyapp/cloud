@@ -31,12 +31,9 @@ func ServerHTTPWithIdentity(
 		ct := request.Context()
 		parts := strings.Split(value, " ")
 		if len(parts) != 2 {
-			err := errors.New("invalid Authorization header format")
+			err := fmt.Errorf("invalid Authorization header format: format=%v", value)
 			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
 				telemetry.CauseProp: err,
-				telemetry.MessageProp: telemetry.Props{
-					"Format": value,
-				},
 			})
 			return "", err
 		}

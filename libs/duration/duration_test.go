@@ -2,6 +2,7 @@ package duration
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -9,7 +10,13 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-var testLogger = telemetry.NewDataCollector(telemetry.NewRawLogger(telemetry.Info))
+var dataCollector = telemetry.NewDataCollector(
+	telemetry.NewLogger(
+		telemetry.NewOrderedColumnLineFormatter([]string{}),
+		os.Stdout,
+		telemetry.Info,
+		[]telemetry.LogInterceptor{},
+	))
 
 func TestParse(t *testing.T) {
 	testCases := []struct {
@@ -153,7 +160,7 @@ func TestParse(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			duration, err := Parse(ct, testLogger, testCase.input)
+			duration, err := Parse(ct, dataCollector, testCase.input)
 			if testCase.expectedHasErr {
 				assert.NotNil(t, err)
 				return
@@ -317,7 +324,7 @@ func TestFormat(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.input, func(t *testing.T) {
 			t.Parallel()
-			duration, err := Parse(ct, testLogger, testCase.input)
+			duration, err := Parse(ct, dataCollector, testCase.input)
 			assert.Nil(t, err)
 			if err != nil {
 				return

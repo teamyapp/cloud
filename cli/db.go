@@ -16,7 +16,31 @@ var dbName string
 var migrationFileName string
 var migrationSteps int
 var seedFilePath string
-var dataCollector = telemetry.NewDataCollector(telemetry.NewRawLogger(telemetry.Info))
+var dataCollector telemetry.DataCollector
+
+func init() {
+	lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{
+		telemetry.HappenAtProp,
+		telemetry.SeverityProp,
+		telemetry.FileNameProp,
+		telemetry.LineNumberProp,
+		telemetry.RequestIDProp,
+		telemetry.ClientIDProp,
+		telemetry.CauseProp,
+		telemetry.MessageProp,
+	})
+	logger := telemetry.NewLogger(
+		lineFormatter,
+		os.Stdout,
+		telemetry.Info,
+		[]telemetry.LogInterceptor{
+			telemetry.RequestLogInterceptor,
+			telemetry.ClientLogInterceptor,
+		},
+	)
+
+	dataCollector = telemetry.NewDataCollector(logger)
+}
 
 const migrationTemplate = `
 -- +migrate Up
@@ -128,9 +152,8 @@ func addDBCmd() {
 }
 
 func useSQLDB(dataCollector telemetry.DataCollector, action func(sqlDB *sql.DB) error) error {
-	cfg, err := config.AppFromEnv(dataCollector)
+	cfg, err := config.AppFromEnv()
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 

@@ -12,9 +12,9 @@ import (
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/libs/collect"
-	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/randgen"
 	"github.com/teamyapp/cloud/libs/security"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type tokenPayload struct {
@@ -115,9 +115,7 @@ func (i Identity) generateSignInURL(ct context.Context, authProviderName string,
 	}
 
 	i.dataCollector.Logger.LogWithContext(ct, telemetry.Info, telemetry.Props{
-		telemetry.MessageProp: telemetry.Props{
-			"SignInURL": signInURL,
-		},
+		telemetry.MessageProp: fmt.Sprintf("SignInURL=%v", signInURL),
 	})
 	return signInURL, nil
 }
@@ -125,12 +123,9 @@ func (i Identity) generateSignInURL(ct context.Context, authProviderName string,
 func (i Identity) GetOAuthProvider(ct context.Context, authProviderName string) (oauth.Provider, error) {
 	provider, ok := i.oauthProviders[authProviderName]
 	if !ok {
-		err := fmt.Errorf("authProvider not found")
+		err := fmt.Errorf("authProvider not found: AuthProvider=%v", provider)
 		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
 			telemetry.CauseProp: err,
-			telemetry.MessageProp: telemetry.Props{
-				"AuthProvider": provider,
-			},
 		})
 		return nil, err
 	}

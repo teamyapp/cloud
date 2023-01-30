@@ -7,6 +7,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
+	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -16,10 +17,15 @@ type Repo struct {
 	GitRepoName       string `envconfig:"GIT_REPO_NAME"`
 }
 
+type Service struct {
+	Environment     env.Environment    `json:"ENVIRONMENT" default:"development"`
+	LogVisibleLevel telemetry.LogLevel `envconfig:"LOG_VISIBLE_LEVEL" default:"Info"`
+}
+
 type App struct {
 	Repo
 	sqldb.Config
-	Environment        Environment   `json:"ENVIRONMENT" default:"development"`
+	Service
 	WebAPIBaseURL      string        `envconfig:"WEB_API_BASE_URL" default:""`
 	AccessTokenTTL     time.Duration `envconfig:"ACCESS_TOKEN_TTL" default:""`
 	GoogleClientID     string        `envconfig:"GOOGLE_CLIENT_ID" default:""`
@@ -36,32 +42,29 @@ type App struct {
 	S3BucketName       string        `envconfig:"S3_BUCKET_NAME" default:"teamyapp"`
 }
 
-func AppFromEnv(dataCollector telemetry.DataCollector) (App, error) {
+func AppFromEnv() (App, error) {
 	cfg := App{}
-	err := FromEnv(dataCollector, &cfg)
+	err := FromEnv(&cfg)
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return App{}, err
 	}
+
 	return cfg, nil
 }
 
-func FromEnv(dataCollector telemetry.DataCollector, config interface{}) error {
+func FromEnv(config interface{}) error {
 	err := autoLoadEnv(".env")
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 
 	err = autoLoadEnv(".repo.env")
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 
 	err = envconfig.Process("", config)
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
 	}
 
