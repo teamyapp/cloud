@@ -15,7 +15,6 @@ import (
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/app/storage"
 	"github.com/teamyapp/cloud/libs/env"
-	"github.com/teamyapp/cloud/libs/obs"
 	"github.com/teamyapp/cloud/libs/security"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
@@ -195,7 +194,7 @@ func InitGitHubOAuthProvider(
 }
 
 func InitSlackOAuthProvider(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	webAPIBaseURL WebAPIBaseURL,
 	jwtSigningKey JWTSigningKey,
 	clientID ClientID,
@@ -209,7 +208,7 @@ func InitSlackOAuthProvider(
 }
 
 func newSlackOAuthProvider(
-	dataCollector obs.DataCollector,
+	dataCollector telemetry.DataCollector,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
