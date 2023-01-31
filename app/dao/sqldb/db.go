@@ -25,7 +25,7 @@ const MigrateAll = 0
 const lowerCaseLetters = "abcdefghijklmnopqrstuvwxyz"
 const upperCaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const digits = "0123456789"
-const specialChars = "!@#$%^&*()-+=?[]"
+const specialChars = "!@$%^&*()-+=?[]"
 const dbPasswordLen = 20
 
 type Config struct {
