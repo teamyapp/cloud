@@ -6,17 +6,19 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
 	"github.com/teamyapp/cloud/app/dep"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/libs/env"
+	"github.com/teamyapp/cloud/libs/middleware"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-const serviceName = "cloud-backend"
+var serviceLabels = []string{"cloud", "backend"}
 
 func main() {
 	cfg, err := config.AppFromEnv()
@@ -25,19 +27,21 @@ func main() {
 	}
 
 	lineFormatter := newLineFormatter(cfg.Environment)
-	logOutput, err := newLogOutput(cfg.Environment, serviceName)
+	logOutput, err := newLogOutput(cfg.Environment, strings.Join(serviceLabels, "-"))
 	if err != nil {
 		panic(err)
 	}
 
 	defer logOutput.Close()
+	serviceLabelsWithEnv := append([]string{}, serviceLabels...)
+	serviceLabelsWithEnv = append(serviceLabelsWithEnv, strings.ToLower(string(cfg.Environment)))
 	logger := telemetry.NewLogger(
 		lineFormatter,
 		logOutput,
 		cfg.LogVisibleLevel,
 		[]telemetry.LogInterceptor{
 			telemetry.NewCommitLogInterceptor(cfg.GitLongCommitHash),
-			telemetry.NewServiceLogInterceptor(serviceName),
+			telemetry.NewServiceLogInterceptor(strings.Join(serviceLabelsWithEnv, "/")),
 			telemetry.RequestLogInterceptor,
 			telemetry.ClientLogInterceptor,
 		},
@@ -155,6 +159,15 @@ func newLineFormatter(environment env.Environment) telemetry.LineFormatter {
 			telemetry.LineNumberProp,
 			telemetry.RequestIDProp,
 			telemetry.ClientIDProp,
+			middleware.ProtocolProp,
+			middleware.StageProp,
+			middleware.HostProp,
+			middleware.MethodProp,
+			middleware.PathProp,
+			middleware.HeadersProp,
+			middleware.MetadataProp,
+			middleware.BodySizeProp,
+			middleware.BodyProp,
 			telemetry.CauseProp,
 			telemetry.MessageProp,
 		})
