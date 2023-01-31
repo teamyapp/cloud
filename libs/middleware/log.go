@@ -16,6 +16,18 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const (
+	ProtocolProp = "Protocol"
+	StageProp    = "Stage"
+	HostProp     = "Host"
+	MethodProp   = "Method"
+	PathProp     = "Path"
+	HeadersProp  = "Headers"
+	MetadataProp = "Metadata"
+	BodyProp     = "Body"
+	BodySizeProp = "BodySize"
+)
+
 func ServerHTTPLogRequest(dataCollector telemetry.DataCollector) Middleware[http.HandlerFunc] {
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		return func(writer http.ResponseWriter, request *http.Request) {
@@ -27,16 +39,16 @@ func ServerHTTPLogRequest(dataCollector telemetry.DataCollector) Middleware[http
 			}
 
 			requestLogProps := telemetry.Props{
-				"Protocol": "web",
-				"Stage":    "begin",
-				"Host":     request.URL.Host,
-				"Method":   request.Method,
-				"Path":     request.URL.Path,
-				"Headers":  request.Header,
-				"BodySize": len(buf),
+				ProtocolProp: "web",
+				StageProp:    "begin",
+				HostProp:     request.Host,
+				MethodProp:   request.Method,
+				PathProp:     request.URL.Path,
+				HeadersProp:  request.Header,
+				BodySizeProp: len(buf),
 			}
 			if hasReadableBody(request.Header) {
-				requestLogProps["Body"] = string(buf)
+				requestLogProps[BodyProp] = string(buf)
 			}
 
 			request.Body = io.NopCloser(bytes.NewReader(buf))
@@ -47,15 +59,16 @@ func ServerHTTPLogRequest(dataCollector telemetry.DataCollector) Middleware[http
 			handlerFunc(loggableWriter, request)
 
 			responseLogProps := telemetry.Props{
-				"Protocol": "web",
-				"Stage":    "end",
-				"Method":   request.Method,
-				"Path":     request.URL.Path,
-				"Headers":  writer.Header(),
-				"BodySize": len(loggableWriter.responseBody),
+				ProtocolProp: "web",
+				StageProp:    "end",
+				HostProp:     request.Host,
+				MethodProp:   request.Method,
+				PathProp:     request.URL.Path,
+				HeadersProp:  writer.Header(),
+				BodySizeProp: len(loggableWriter.responseBody),
 			}
 			if hasReadableBody(writer.Header()) {
-				responseLogProps["Body"] = string(loggableWriter.responseBody)
+				responseLogProps[BodyProp] = string(loggableWriter.responseBody)
 			}
 
 			dataCollector.Logger.LogWithContext(ct, telemetry.Info, responseLogProps)
@@ -72,16 +85,16 @@ func ServerGRPCLogRequest(dataCollector telemetry.DataCollector) grpc.UnaryServe
 	) (resp interface{}, err error) {
 		requestBody := fmt.Sprintf("%v", req)
 		requestLogProps := telemetry.Props{
-			"Protocol": "gRPC",
-			"Stage":    "begin",
-			"Method":   info.FullMethod,
-			"Body":     requestBody,
-			"BodySize": len(requestBody),
+			ProtocolProp: "gRPC",
+			StageProp:    "begin",
+			MethodProp:   info.FullMethod,
+			BodySizeProp: len(requestBody),
+			BodyProp:     requestBody,
 		}
 
 		md, ok := metadata.FromIncomingContext(ct)
 		if ok {
-			requestLogProps["Metadata"] = fmt.Sprintf("%v", md)
+			requestLogProps[MetadataProp] = fmt.Sprintf("%v", md)
 		}
 
 		dataCollector.Logger.LogWithContext(ct, telemetry.Info, requestLogProps)
@@ -91,11 +104,11 @@ func ServerGRPCLogRequest(dataCollector telemetry.DataCollector) grpc.UnaryServe
 
 		responseBody := fmt.Sprintf("%v", res)
 		responseLogProps := telemetry.Props{
-			"Protocol": "gRPC",
-			"Stage":    "end",
-			"Method":   info.FullMethod,
-			"Body":     responseBody,
-			"BodySize": len(responseBody),
+			ProtocolProp: "gRPC",
+			StageProp:    "end",
+			MethodProp:   info.FullMethod,
+			BodyProp:     responseBody,
+			BodySizeProp: len(responseBody),
 		}
 		dataCollector.Logger.LogWithContext(ct, telemetry.Info, responseLogProps)
 		return res, err

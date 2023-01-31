@@ -42,7 +42,7 @@ func (o OrderedColumnLineFormatter) FormatLine(props Props) (string, error) {
 			continue
 		}
 
-		pairs = append(pairs, fmt.Sprintf("%+v", val))
+		pairs = append(pairs, fmt.Sprintf("(%v:%+v)", column, val))
 	}
 
 	return strings.Join(pairs, " "), nil
