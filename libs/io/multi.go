@@ -8,6 +8,8 @@ type MultiWriteCloser struct {
 	writeClosers []io.WriteCloser
 }
 
+var _ io.WriteCloser = (*MultiWriteCloser)(nil)
+
 func (m MultiWriteCloser) Write(p []byte) (n int, err error) {
 	for _, writeCloser := range m.writeClosers {
 		n, err = writeCloser.Write(p)
@@ -20,17 +22,16 @@ func (m MultiWriteCloser) Write(p []byte) (n int, err error) {
 }
 
 func (m MultiWriteCloser) Close() error {
+	var err error
 	for _, writeCloser := range m.writeClosers {
-		err := writeCloser.Close()
-		if err != nil {
-			return err
+		newErr := writeCloser.Close()
+		if err == nil {
+			err = newErr
 		}
 	}
 
-	return nil
+	return err
 }
-
-var _ io.WriteCloser = (*MultiWriteCloser)(nil)
 
 func NewMultiWriteCloser(writeClosers ...io.WriteCloser) MultiWriteCloser {
 	return MultiWriteCloser{
