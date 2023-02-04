@@ -6,7 +6,6 @@
 
 ```
 # prevent download GO modules from public github.com
-
 go env -w "GOPRIVATE=github.com/teamyapp/*" 
 ```
 
