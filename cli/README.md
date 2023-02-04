@@ -2,7 +2,7 @@
 
 - [Go v1.18](https://golang.org/dl)
 
-## Set GO env variable
+## Download internal private go modules
 
 ```
 # prevent download GO modules from public github.com
