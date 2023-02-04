@@ -2,6 +2,12 @@
 
 - [Go v1.18](https://golang.org/dl)
 
+## Download internal private go modules
+
+```
+go env -w "GOPRIVATE=github.com/teamyapp/*" 
+```
+
 ## Install CLI
 
 ```
