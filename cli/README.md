@@ -2,6 +2,14 @@
 
 - [Go v1.18](https://golang.org/dl)
 
+## Set GO env variable
+
+```
+# Do not download from public GO modules
+
+go env -w "GOPRIVATE=github.com/teamyapp/*" 
+```
+
 ## Install CLI
 
 ```
