@@ -49,7 +49,7 @@ func (w WebSocket) Close() *errs.Error {
 	}
 
 	return &errs.Error{
-		Code:     errs.IO,
+		Code:     ConnErr,
 		EmbedErr: err,
 	}
 }
