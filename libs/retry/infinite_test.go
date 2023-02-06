@@ -13,12 +13,10 @@ import (
 func TestInfinite(t *testing.T) {
 	testCases := []struct {
 		name    string
-		count   int
 		retries int
 	}{
 		{
 			name:    "Should retry until succeed",
-			count:   0,
 			retries: 10,
 		},
 	}
@@ -33,9 +31,10 @@ func TestInfinite(t *testing.T) {
 				beforeThreadSleepChan <- true
 			})
 
+			count := 0
 			execute := func() *errs.Error {
-				prevCount := testCase.count
-				testCase.count++
+				prevCount := count
+				count++
 				if prevCount < testCase.retries {
 					return &errs.Error{
 						Code: errs.Unknown,
@@ -56,7 +55,7 @@ func TestInfinite(t *testing.T) {
 			retry := 1
 			for retry <= testCase.retries {
 				<-beforeThreadSleepChan
-				assert.Equal(t, testCase.count, retry)
+				assert.Equal(t, count, retry)
 				runtime.Awake()
 				retry++
 			}
