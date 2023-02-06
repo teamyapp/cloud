@@ -9,7 +9,6 @@ import (
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
-	"github.com/teamyapp/teamy-backend/core/api/gql"
 )
 
 type Service struct {
@@ -48,7 +47,7 @@ func (s Service) Start(rn *runner.ServiceRunner) *errs.Error {
 func NewService(
 	dataCollector telemetry.DataCollector,
 	schema string,
-	resolver gql.Resolver,
+	resolver interface{},
 	pathPrefix string,
 ) Service {
 	return Service{
