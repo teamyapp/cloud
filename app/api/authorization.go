@@ -7,6 +7,7 @@ import (
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/libs/collect"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/runner"
 
 	"google.golang.org/grpc"
@@ -434,7 +435,7 @@ func (a Authorization) RemovePermission(ct context.Context, request *proto.Remov
 	return &emptypb.Empty{}, err
 }
 
-func (a Authorization) Start(rn *runner.ServiceRunner) error {
+func (a Authorization) Start(rn *runner.ServiceRunner) *errs.Error {
 	rn.WithGRPCServer(func(server *grpc.Server) {
 		proto.RegisterAuthorizationServer(server, a)
 	})

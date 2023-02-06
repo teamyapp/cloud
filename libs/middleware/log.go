@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -34,7 +35,11 @@ func ServerHTTPLogRequest(dataCollector telemetry.DataCollector) Middleware[http
 			ct := request.Context()
 			buf, err := io.ReadAll(request.Body)
 			if err != nil {
-				dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+				internalErr := &errs.Error{
+					Code:     errs.IO,
+					EmbedErr: err,
+				}
+				dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
 				return
 			}
 
@@ -145,7 +150,7 @@ func (l *LoggableResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 func (l *LoggableResponseWriter) Flush() {
 	flusher, ok := l.ResponseWriter.(http.Flusher)
 	if !ok {
-		err := "response does not implement http.Flusher"
+		err := errors.New("response does not implement http.Flusher")
 		l.dataCollector.Logger.LogWithContext(l.ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return
 	}

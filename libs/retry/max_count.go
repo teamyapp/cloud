@@ -1,6 +1,7 @@
 package retry
 
 import (
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime"
 )
@@ -13,8 +14,8 @@ type MaxCount struct {
 
 var _ Retry = (*MaxCount)(nil)
 
-func (m MaxCount) WithRetry(execute func() error) (int, error) {
-	var err error
+func (m MaxCount) WithRetry(execute func() *errs.Error) (int, *errs.Error) {
+	var err *errs.Error
 	for retry := 0; retry < m.maxCount; retry++ {
 		err = execute()
 		if err == nil {

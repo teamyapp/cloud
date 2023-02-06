@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
 )
@@ -38,12 +39,15 @@ func TestMaxCount(t *testing.T) {
 				beforeThreadSleepChan <- true
 			})
 			count := 0
-			execute := func() error {
+			execute := func() *errs.Error {
 				prevCount := count
 				count++
 				if prevCount < 2 {
-					return errors.New("some error")
+					return &errs.Error{
+						Code: errs.Unknown,
+					}
 				}
+
 				return nil
 			}
 

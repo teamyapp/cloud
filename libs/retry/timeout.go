@@ -3,6 +3,7 @@ package retry
 import (
 	"time"
 
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime"
 )
@@ -17,10 +18,10 @@ type Timeout struct {
 
 var _ Retry = (*Timeout)(nil)
 
-func (t Timeout) WithRetry(execute func() error) (int, error) {
+func (t Timeout) WithRetry(execute func() *errs.Error) (int, *errs.Error) {
 	timeoutAt := t.clock.Now().Add(t.timeout)
 	var retryCount int
-	var err error
+	var err *errs.Error
 	for {
 		err = execute()
 		if err == nil {

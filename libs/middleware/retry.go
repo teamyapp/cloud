@@ -2,9 +2,9 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/retry"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
@@ -12,8 +12,8 @@ import (
 
 func ClientGRPCWithRetry(retry retry.Retry) grpc.UnaryClientInterceptor {
 	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		_, err := retry.WithRetry(func() error {
-			return invoker(ct, method, req, reply, cc, opts...)
+		_, err := retry.WithRetry(func() *errs.Error {
+			return errs.FromGRPCErr(invoker(ct, method, req, reply, cc, opts...))
 		})
 		return err
 	}
@@ -35,22 +35,25 @@ func ClientHTTPWithRetry(dataCollector telemetry.DataCollector, retry retry.Retr
 	return func(httpClientExecutor HttpClientExecutor) HttpClientExecutor {
 		return (HttpClientExecuteFunc)(func(request *http.Request) (*http.Response, error) {
 			var res *http.Response
-			_, err := retry.WithRetry(func() error {
+			_, err := retry.WithRetry(func() *errs.Error {
 				ct := request.Context()
 				var err error
 				res, err = httpClientExecutor.Do(request)
 				if err != nil {
-
-					dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-					return err
+					internalErr := &errs.Error{
+						Code:     errs.Unknown,
+						EmbedErr: err,
+					}
+					dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+					return internalErr
 				}
 
-				if res.StatusCode >= 400 {
-					err = fmt.Errorf("http response error: statusCode=%v", res.StatusCode)
-					dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+				internalErr := errs.GetFromHTTPErr(res)
+				if internalErr != nil {
+					dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
 				}
 
-				return err
+				return internalErr
 			})
 
 			return res, err

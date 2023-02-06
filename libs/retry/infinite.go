@@ -1,6 +1,7 @@
 package retry
 
 import (
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime"
 )
@@ -12,7 +13,7 @@ type Infinite struct {
 
 var _ Retry = (*Infinite)(nil)
 
-func (i Infinite) WithRetry(execute func() error) (int, error) {
+func (i Infinite) WithRetry(execute func() *errs.Error) (int, *errs.Error) {
 	var retries int
 	for {
 		err := execute()

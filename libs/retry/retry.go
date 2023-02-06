@@ -1,5 +1,9 @@
 package retry
 
+import (
+	"github.com/teamyapp/cloud/libs/errs"
+)
+
 type Retry interface {
-	WithRetry(execute func() error) (int, error)
+	WithRetry(execute func() *errs.Error) (int, *errs.Error)
 }

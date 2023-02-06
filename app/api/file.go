@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/service"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
@@ -30,7 +31,7 @@ type File struct {
 var _ runner.Service = (*File)(nil)
 var _ proto.FileServer = (*File)(nil)
 
-func (f File) Start(rn *runner.ServiceRunner) error {
+func (f File) Start(rn *runner.ServiceRunner) *errs.Error {
 	rn.RegisterWebRoutes([]runner.WebRoute{
 		{
 			Path:        path.Join(filePathPrefix, "upload-sessions", "{uploadSessionId}"),

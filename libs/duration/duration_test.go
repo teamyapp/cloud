@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -23,43 +24,53 @@ func TestParse(t *testing.T) {
 		input            string
 		expectedDuration time.Duration
 		expectedHasErr   bool
+		expectedErrCode  errs.ErrorCode
 	}{
 		{
-			input:          "",
-			expectedHasErr: true,
+			input:           "",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "P",
-			expectedHasErr: true,
+			input:           "P",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "PT",
-			expectedHasErr: true,
+			input:           "PT",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "PT2H1H",
-			expectedHasErr: true,
+			input:           "PT2H1H",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "PT2H1S3H",
-			expectedHasErr: true,
+			input:           "PT2H1S3H",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "P2HT1S",
-			expectedHasErr: true,
+			input:           "P2HT1S",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "P2D3MT1S",
-			expectedHasErr: true,
+			input:           "P2D3MT1S",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "PT1S2H3M",
-			expectedHasErr: true,
+			input:           "PT1S2H3M",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
 			input:            "P1DT",
 			expectedDuration: dayInNanos,
 			expectedHasErr:   true,
+			expectedErrCode:  errs.InvalidArgument,
 		},
 		{
 			input:            "PT0S",
@@ -163,12 +174,13 @@ func TestParse(t *testing.T) {
 			duration, err := Parse(ct, dataCollector, testCase.input)
 			if testCase.expectedHasErr {
 				assert.NotNil(t, err)
+				assert.Equal(t, testCase.expectedErrCode, err.Code)
 				return
-			} else {
-				assert.Nil(t, err)
-				if err != nil {
-					return
-				}
+			}
+
+			assert.Nil(t, err)
+			if err != nil {
+				return
 			}
 
 			assert.Equal(t, testCase.expectedDuration, duration)
