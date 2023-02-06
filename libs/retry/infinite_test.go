@@ -49,7 +49,7 @@ func TestInfinite(t *testing.T) {
 				retries, err := infiniteExecutor.WithRetry(execute)
 
 				assert.Equal(t, retries, testCase.retries)
-				assert.Equal(t, err, nil)
+				assert.Equal(t, (*errs.Error)(nil), err)
 			}()
 
 			retry := 1
