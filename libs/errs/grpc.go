@@ -44,9 +44,18 @@ func FromGRPCErr(err error) *Error {
 		return nil
 	}
 
+	message := st.Message()
+	gRPCErrCode, ok := fromGRPCErrCode[st.Code()]
+	if !ok {
+		return &Error{
+			Code:    Unknown,
+			Message: message,
+		}
+	}
+
 	return &Error{
-		Code:    fromGRPCErrCode[st.Code()],
-		Message: st.Message(),
+		Code:    gRPCErrCode,
+		Message: message,
 	}
 }
 
