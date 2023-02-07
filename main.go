@@ -64,10 +64,10 @@ func main() {
 			return err
 		}
 
-		runnerConfig, err := runner.ServiceRunnerConfigFromEnv(dataCollector)
-		if err != nil {
-			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-			return err
+		runnerConfig, internalErr := runner.ServiceRunnerConfigFromEnv(dataCollector)
+		if internalErr != nil {
+			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			return internalErr
 		}
 
 		webAPIBaseURL := dep.WebAPIBaseURL(cfg.WebAPIBaseURL)

@@ -15,6 +15,7 @@ import (
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/libs/collect"
 	"github.com/teamyapp/cloud/libs/ctx"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
@@ -30,7 +31,7 @@ type Identity struct {
 var _ runner.Service = (*Identity)(nil)
 var _ proto.IdentityServer = (*Identity)(nil)
 
-func (i Identity) Start(rn *runner.ServiceRunner) error {
+func (i Identity) Start(rn *runner.ServiceRunner) *errs.Error {
 	rn.RegisterWebRoutes([]runner.WebRoute{
 		{
 			Path:        path.Join(identityPathPrefix, "verify-token"),

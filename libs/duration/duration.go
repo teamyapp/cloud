@@ -4,12 +4,12 @@ package duration
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
 	"unicode"
 
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -76,7 +76,7 @@ var timeSymbolInNanos = map[rune]int64{
 	secondSymbol: secondInNanos,
 }
 
-func Parse(ct context.Context, dataCollector telemetry.DataCollector, input string) (time.Duration, error) {
+func Parse(ct context.Context, dataCollector telemetry.DataCollector, input string) (time.Duration, *errs.Error) {
 	var sign int64 = 1
 	if len(input) > 0 && input[0] == '-' {
 		sign = -1
@@ -84,10 +84,12 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 	}
 
 	if len(input) == 0 || input[0] != uint8(periodSymbol) {
-		err := fmt.Errorf("duration must start with 'P'")
+		err := &errs.Error{
+			Code:    errs.InvalidArgument,
+			Message: fmt.Sprintf("duration must start with 'P': duration=%v", input),
+		}
 		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
 			telemetry.CauseProp: err,
-			"Duration":          input,
 		})
 		return 0, err
 	}
@@ -138,14 +140,24 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 	}
 
 	if !hasPeriod && !hasTime {
-		err := errors.New("must has either period or time")
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		err := &errs.Error{
+			Code:    errs.InvalidArgument,
+			Message: fmt.Sprintf("must has either period or time: duration=%v", input),
+		}
+		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
+			telemetry.CauseProp: err,
+		})
 		return 0, err
 	}
 
 	if visitTimeSection && !hasTime {
-		err := errors.New("must remove ending T or have non empty time section")
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		err := &errs.Error{
+			Code:    errs.InvalidArgument,
+			Message: fmt.Sprintf("must remove ending T or have non empty time section: duration=%v", input),
+		}
+		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
+			telemetry.CauseProp: err,
+		})
 		return 0, err
 	}
 
@@ -216,14 +228,15 @@ func validateSymbol(
 	seenSymbols map[rune]int,
 	currSymbol rune,
 	currIndex int,
-) error {
+) *errs.Error {
 	symbolIndex, ok := symbolIndices[currSymbol]
 	if !ok {
-		err := errors.New("unsupported symbol")
+		err := &errs.Error{
+			Code:    errs.InvalidArgument,
+			Message: fmt.Sprintf("unsupported symbol: index=%v, symbol=%v", currIndex, currSymbol),
+		}
 		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
 			telemetry.CauseProp: err,
-			"Index":             currIndex,
-			"Symbol":            currSymbol,
 		})
 		return err
 	}
@@ -232,12 +245,12 @@ func validateSymbol(
 		symbol := symbolOrder[index]
 		seenSymbolIndex, ok := seenSymbols[symbol]
 		if ok {
-			err := errors.New("%c(%v) already showed up before %c(%v)")
+			err := &errs.Error{
+				Code:    errs.InvalidArgument,
+				Message: fmt.Sprintf("%c already showed up before %c(%v)", seenSymbolIndex, currSymbol, currIndex),
+			}
 			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
 				telemetry.CauseProp: err,
-				"SeenSymbolIndex":   seenSymbolIndex,
-				"CurrSymbol":        currSymbol,
-				"CurrIndex":         currIndex,
 			})
 			return err
 		}

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -18,14 +19,14 @@ var WebSocketUpgrader = websocket.Upgrader{
 type WebSocket struct {
 	receiveMessageCh chan []byte
 	sendMessageChan  chan []byte
-	errorCh          chan error
+	errorCh          chan errs.Error
 	disconnectCh     chan bool
 	conn             *websocket.Conn
 }
 
 var _ Connection = (*WebSocket)(nil)
 
-func (w WebSocket) OnErrors() <-chan error {
+func (w WebSocket) OnErrors() <-chan errs.Error {
 	return w.errorCh
 }
 
@@ -41,14 +42,22 @@ func (w WebSocket) OnClientDisconnect() <-chan bool {
 	return w.disconnectCh
 }
 
-func (w WebSocket) Close() error {
-	return w.conn.Close()
+func (w WebSocket) Close() *errs.Error {
+	err := w.conn.Close()
+	if err == nil {
+		return nil
+	}
+
+	return &errs.Error{
+		Code:     ConnErr,
+		EmbedErr: err,
+	}
 }
 
 func NewWebSocket(dataCollector telemetry.DataCollector, conn *websocket.Conn) WebSocket {
 	receiveMessageCh := make(chan []byte)
 	sendMessageCh := make(chan []byte, 500)
-	errorCh := make(chan error)
+	errorCh := make(chan errs.Error)
 	disconnectCh := make(chan bool)
 	conn.SetCloseHandler(func(code int, text string) error {
 		disconnectCh <- true
@@ -58,8 +67,12 @@ func NewWebSocket(dataCollector telemetry.DataCollector, conn *websocket.Conn) W
 		for {
 			mt, message, err := conn.ReadMessage()
 			if err != nil {
+				internalErr := errs.Error{
+					Code:     errs.IO,
+					EmbedErr: err,
+				}
 				select {
-				case errorCh <- err:
+				case errorCh <- internalErr:
 				default:
 				}
 				return
@@ -79,9 +92,13 @@ func NewWebSocket(dataCollector telemetry.DataCollector, conn *websocket.Conn) W
 		for message := range sendMessageCh {
 			err := conn.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
+				internalErr := errs.Error{
+					Code:     errs.IO,
+					EmbedErr: err,
+				}
 				dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 				select {
-				case errorCh <- err:
+				case errorCh <- internalErr:
 				default:
 				}
 				return

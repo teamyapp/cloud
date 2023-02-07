@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/middleware"
 	"github.com/teamyapp/cloud/libs/retry"
 	"github.com/teamyapp/cloud/libs/telemetry"
@@ -11,6 +12,8 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+const ConnectionErr errs.ErrorCode = "Connection"
 
 type ConnectionConfig struct {
 	Host           string

@@ -1,11 +1,11 @@
 package retry
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/randgen/randgen_test"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
@@ -16,7 +16,7 @@ func TestTimeout(t *testing.T) {
 	testCases := []struct {
 		name             string
 		timeout          time.Duration
-		err              error
+		err              *errs.Error
 		awaits           int
 		randomInts       []int
 		minDelay         time.Duration
@@ -41,7 +41,7 @@ func TestTimeout(t *testing.T) {
 		{
 			name:             "Should get error when reaching timeout",
 			timeout:          18,
-			err:              errors.New("some error"),
+			err:              &errs.Error{Code: errs.Serialization},
 			awaits:           1,
 			randomInts:       []int{1},
 			minDelay:         2,
@@ -72,11 +72,13 @@ func TestTimeout(t *testing.T) {
 				beforeThreadSleepChan <- true
 			})
 			count := 0
-			execute := func() error {
+			execute := func() *errs.Error {
 				prevCount := count
 				count++
 				if prevCount < 2 {
-					return errors.New("some error")
+					return &errs.Error{
+						Code: errs.Serialization,
+					}
 				}
 
 				return nil
@@ -88,13 +90,13 @@ func TestTimeout(t *testing.T) {
 			go func() {
 				retries, err := timeoutExecutor.WithRetry(execute)
 
-				assert.Equal(t, retries, 2)
-				assert.Equal(t, err, testCase.err)
+				assert.Equal(t, 2, retries)
+				assert.Equal(t, testCase.err, err)
 			}()
 
 			for await := 0; await < testCase.awaits; await++ {
 				<-beforeThreadSleepChan
-				assert.Equal(t, count, await+1)
+				assert.Equal(t, await+1, count)
 				builtinRuntime.Awake()
 			}
 		})

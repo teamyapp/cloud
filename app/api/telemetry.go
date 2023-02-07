@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
@@ -17,7 +18,7 @@ type Telemetry struct {
 
 var _ runner.Service = (*Telemetry)(nil)
 
-func (t *Telemetry) Start(rn *runner.ServiceRunner) error {
+func (t *Telemetry) Start(rn *runner.ServiceRunner) *errs.Error {
 	rn.RegisterWebRoutes([]runner.WebRoute{
 		{
 			Path:        path.Join(telemetryPathPrefix, "upload-log"),

@@ -1,11 +1,11 @@
 package retry
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
 )
@@ -13,12 +13,10 @@ import (
 func TestInfinite(t *testing.T) {
 	testCases := []struct {
 		name    string
-		count   int
 		retries int
 	}{
 		{
 			name:    "Should retry until succeed",
-			count:   0,
 			retries: 10,
 		},
 	}
@@ -33,11 +31,14 @@ func TestInfinite(t *testing.T) {
 				beforeThreadSleepChan <- true
 			})
 
-			execute := func() error {
-				prevCount := testCase.count
-				testCase.count++
+			count := 0
+			execute := func() *errs.Error {
+				prevCount := count
+				count++
 				if prevCount < testCase.retries {
-					return errors.New("some error")
+					return &errs.Error{
+						Code: errs.Unknown,
+					}
 				}
 
 				return nil
@@ -48,13 +49,13 @@ func TestInfinite(t *testing.T) {
 				retries, err := infiniteExecutor.WithRetry(execute)
 
 				assert.Equal(t, retries, testCase.retries)
-				assert.Equal(t, err, nil)
+				assert.Equal(t, (*errs.Error)(nil), err)
 			}()
 
 			retry := 1
 			for retry <= testCase.retries {
 				<-beforeThreadSleepChan
-				assert.Equal(t, testCase.count, retry)
+				assert.Equal(t, count, retry)
 				runtime.Awake()
 				retry++
 			}

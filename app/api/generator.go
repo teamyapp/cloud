@@ -5,6 +5,7 @@ import (
 
 	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/gen"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
@@ -21,7 +22,7 @@ type Generator struct {
 var _ proto.GeneratorServer = (*Generator)(nil)
 var _ runner.Service = (*Generator)(nil)
 
-func (g Generator) Start(runner *runner.ServiceRunner) error {
+func (g Generator) Start(runner *runner.ServiceRunner) *errs.Error {
 	runner.WithGRPCServer(func(server *grpc.Server) {
 		proto.RegisterGeneratorServer(server, g)
 	})

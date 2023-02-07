@@ -9,10 +9,13 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/teamyapp/cloud/app/config"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/middleware"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
 )
+
+const EnvConfigErr errs.ErrorCode = "EnvConfig"
 
 type WebRoute struct {
 	Path        string
@@ -27,12 +30,16 @@ type ServiceRunnerConfig struct {
 	RequestTimeout      time.Duration `envconfig:"REQUEST_TIMEOUT" default:"10s"`
 }
 
-func ServiceRunnerConfigFromEnv(dataCollector telemetry.DataCollector) (ServiceRunnerConfig, error) {
+func ServiceRunnerConfigFromEnv(dataCollector telemetry.DataCollector) (ServiceRunnerConfig, *errs.Error) {
 	cfg := ServiceRunnerConfig{}
 	err := config.FromEnv(&cfg)
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return ServiceRunnerConfig{}, err
+		internalErr := &errs.Error{
+			Code:     EnvConfigErr,
+			EmbedErr: err,
+		}
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return ServiceRunnerConfig{}, internalErr
 	}
 
 	return cfg, nil

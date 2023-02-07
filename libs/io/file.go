@@ -24,6 +24,7 @@ func CreateFileWithLog(filePath string) error {
 	if err == nil {
 		fmt.Printf("File created at: %s\n", filePath)
 	}
+
 	return err
 }
 

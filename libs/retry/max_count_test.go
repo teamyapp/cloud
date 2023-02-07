@@ -1,11 +1,11 @@
 package retry
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
 )
@@ -14,7 +14,7 @@ func TestMaxCount(t *testing.T) {
 	testCases := []struct {
 		name     string
 		maxCount int
-		err      error
+		err      *errs.Error
 	}{
 		{
 			name:     "Succeed before reaching max count",
@@ -24,7 +24,7 @@ func TestMaxCount(t *testing.T) {
 		{
 			name:     "Not exceed max count retries",
 			maxCount: 2,
-			err:      errors.New("some error"),
+			err:      &errs.Error{Code: errs.Serialization},
 		},
 	}
 
@@ -38,12 +38,15 @@ func TestMaxCount(t *testing.T) {
 				beforeThreadSleepChan <- true
 			})
 			count := 0
-			execute := func() error {
+			execute := func() *errs.Error {
 				prevCount := count
 				count++
 				if prevCount < 2 {
-					return errors.New("some error")
+					return &errs.Error{
+						Code: errs.Serialization,
+					}
 				}
+
 				return nil
 			}
 
@@ -52,8 +55,8 @@ func TestMaxCount(t *testing.T) {
 			go func() {
 				retries, err := maxCountExecutor.WithRetry(execute)
 
-				assert.Equal(t, retries, 2)
-				assert.Equal(t, err, testCase.err)
+				assert.Equal(t, 2, retries)
+				assert.Equal(t, testCase.err, err)
 			}()
 
 			<-beforeThreadSleepChan

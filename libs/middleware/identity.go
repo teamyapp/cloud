@@ -3,7 +3,6 @@ package middleware
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/teamyapp/cloud/libs/ctx"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -23,29 +23,36 @@ func ServerHTTPWithIdentity(
 	identityAPIEndpoint string,
 ) Middleware[http.HandlerFunc] {
 	return withIdentity(dataCollector, identityAPIEndpoint, func(request *http.Request) (string, error) {
+		ct := request.Context()
 		value := request.Header.Get("Authorization")
 		if len(value) == 0 {
-			return "", nil
+			internalErr := &errs.Error{
+				Code:    errs.NotFound,
+				Message: "authorization header not found",
+			}
+			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			return "", internalErr
 		}
 
-		ct := request.Context()
 		parts := strings.Split(value, " ")
 		if len(parts) != 2 {
-			err := fmt.Errorf("invalid Authorization header format: format=%v", value)
-			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-				telemetry.CauseProp: err,
-			})
-			return "", err
+			internalErr := &errs.Error{
+				Code:    errs.InvalidFormat,
+				Message: fmt.Sprintf("authotization header must have 2 parts: header=%v", value),
+			}
+			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			return "", internalErr
 		}
 
 		if parts[0] != "Bearer" {
-			err := errors.New("invalid Authorization header format")
-			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-				telemetry.CauseProp: err,
-				"Format":            value,
-			})
-			return "", err
+			internalErr := &errs.Error{
+				Code:    errs.InvalidFormat,
+				Message: fmt.Sprintf("missing beginning Bearer: header=%v", value),
+			}
+			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			return "", internalErr
 		}
+
 		return parts[1], nil
 	})
 }
@@ -107,20 +114,13 @@ func withIdentity(
 			token, err := getBearerToken(request)
 			if err != nil {
 				dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-				writer.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-
-			if len(token) > 0 {
+			} else {
 				updatedCt, err := ctxWithUserID(dataCollector, request.Context(), verifyTokenURL, token)
 				if err != nil {
 					dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-					writer.WriteHeader(http.StatusUnauthorized)
 				} else {
-					ct = updatedCt
+					request = request.WithContext(updatedCt)
 				}
-
-				request = request.WithContext(ct)
 			}
 
 			handlerFunc(writer, request)
@@ -128,31 +128,45 @@ func withIdentity(
 	}
 }
 
-func ctxWithUserID(dataCollector telemetry.DataCollector, ct context.Context, verifyTokenURL string, accessToken string) (context.Context, error) {
+func ctxWithUserID(dataCollector telemetry.DataCollector, ct context.Context, verifyTokenURL string, accessToken string) (context.Context, *errs.Error) {
 	res, err := http.Post(
 		verifyTokenURL,
 		"text/plain",
 		bytes.NewReader([]byte(accessToken)))
 	if err != nil {
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return nil, err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return nil, internalErr
 	}
 
-	if res.StatusCode == http.StatusUnauthorized {
-		err = errors.New("invalid access token")
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return nil, err
+	internalErr := errs.GetFromHTTPErr(res)
+	if internalErr != nil {
+		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+
+		return nil, internalErr
 	}
 
 	buf, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, err
+		internalErr = &errs.Error{
+			Code:     errs.IO,
+			EmbedErr: err,
+		}
+		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return nil, internalErr
 	}
 
 	userID, err := strconv.ParseUint(string(buf), 10, 64)
 	if err != nil {
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return nil, err
+		internalErr = &errs.Error{
+			Code:     errs.InvalidFormat,
+			EmbedErr: err,
+		}
+		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return nil, internalErr
 	}
 
 	return ctx.NewContextWithUserID(ct, userID), nil
