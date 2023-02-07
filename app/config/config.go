@@ -52,7 +52,7 @@ func AppFromEnv() (App, error) {
 	return cfg, nil
 }
 
-func FromEnv(config interface{}) error {
+func FromEnv[Config any](config Config) error {
 	err := autoLoadEnv(".env")
 	if err != nil {
 		return err

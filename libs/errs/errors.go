@@ -1,5 +1,9 @@
 package errs
 
+import (
+	"fmt"
+)
+
 type ErrorCode string
 
 const (
@@ -31,6 +35,6 @@ type Error struct {
 
 var _ error = (*Error)(nil)
 
-func (i Error) Error() string {
-	return i.Message
+func (e Error) Error() string {
+	return fmt.Sprintf("[Error Code=%v Message=%v EmbedErr=%v]", e.Code, e.Message, e.EmbedErr)
 }
