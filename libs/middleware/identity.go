@@ -145,9 +145,6 @@ func ctxWithUserID(dataCollector telemetry.DataCollector, ct context.Context, ve
 	internalErr := errs.GetFromHTTPErr(res)
 	if internalErr != nil {
 		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
-		if internalErr.Code == errs.Unauthenticated {
-			return ct, nil
-		}
 
 		return nil, internalErr
 	}
