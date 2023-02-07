@@ -1,24 +1,19 @@
 package errs
 
-import (
-	"fmt"
-)
-
 type ResolverError struct {
-	code    ErrorCode
-	message string
+	err *Error
 }
 
 var _ error = (*ResolverError)(nil)
 
 func (r ResolverError) Error() string {
-	return fmt.Sprintf("code=%s, message=%s", r.code, r.message)
+	return r.err.Message
 }
 
 func (r ResolverError) Extensions() map[string]interface{} {
 	return map[string]interface{}{
-		"code":    r.code,
-		"message": r.message,
+		"code":     r.err.Code,
+		"embedErr": r.err.EmbedErr,
 	}
 }
 
@@ -28,7 +23,6 @@ func ToResolverErr(err *Error) *ResolverError {
 	}
 
 	return &ResolverError{
-		code:    err.Code,
-		message: err.Message,
+		err: err,
 	}
 }

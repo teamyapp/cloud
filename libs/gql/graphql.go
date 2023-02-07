@@ -11,17 +11,17 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-type Service struct {
+type Service[Resolver any] struct {
 	dataCollector telemetry.DataCollector
 	schema        string
-	resolver      interface{}
+	resolver      *Resolver
 	pathPrefix    string
 }
 
-var _ runner.Service = (*Service)(nil)
+var _ runner.Service = (*Service[any])(nil)
 
-func (s Service) Start(rn *runner.ServiceRunner) *errs.Error {
-	schema, err := graphql.ParseSchema(s.schema, &s.resolver,
+func (s Service[Resolver]) Start(rn *runner.ServiceRunner) *errs.Error {
+	schema, err := graphql.ParseSchema(s.schema, s.resolver,
 		graphql.UseFieldResolvers(),
 		graphql.UseStringDescriptions())
 	if err != nil {
@@ -44,13 +44,13 @@ func (s Service) Start(rn *runner.ServiceRunner) *errs.Error {
 	return nil
 }
 
-func NewService(
+func NewService[Resolver any](
 	dataCollector telemetry.DataCollector,
 	schema string,
-	resolver interface{},
+	resolver *Resolver,
 	pathPrefix string,
-) Service {
-	return Service{
+) Service[Resolver] {
+	return Service[Resolver]{
 		dataCollector: dataCollector,
 		schema:        schema,
 		resolver:      resolver,

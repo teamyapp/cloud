@@ -49,11 +49,7 @@ func withDefaults(level LogLevel, props Props, skipCallers int) Props {
 
 	newProps := Props{}
 	for key, value := range props {
-		if key == CauseProp {
-			newProps[key] = fmt.Sprintf("%v", value)
-		} else {
-			newProps[key] = value
-		}
+		newProps[key] = value
 	}
 
 	newProps[HappenAtProp] = time.Now().UTC()
