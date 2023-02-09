@@ -95,6 +95,8 @@ func (r ResourceRelation) FindResourceRelations(ct context.Context, childResourc
 	}
 
 	defer rows.Close()
+
+	var internalErr *errs.Error
 	resourceRelations := make([]entity.ResourceRelation, 0)
 	for rows.Next() {
 		resourceRelation := entity.ResourceRelation{}
@@ -107,11 +109,16 @@ func (r ResourceRelation) FindResourceRelations(ct context.Context, childResourc
 			&resourceRelation.CreatorUserID,
 		)
 		if err != nil {
-			internalErr := &errs.Error{
+			newInternalErr := &errs.Error{
 				Code:     errs.Unknown,
 				EmbedErr: err,
 			}
-			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+
+			if internalErr == nil {
+				internalErr = newInternalErr
+			}
+
+			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
 			continue
 		}
 
@@ -142,6 +149,8 @@ func (r ResourceRelation) FindAllResourceRelations(ct context.Context) ([]entity
 	}
 
 	defer rows.Close()
+
+	var internalErr *errs.Error
 	resourceRelations := make([]entity.ResourceRelation, 0)
 	for rows.Next() {
 		resourceRelation := entity.ResourceRelation{}
@@ -154,11 +163,16 @@ func (r ResourceRelation) FindAllResourceRelations(ct context.Context) ([]entity
 			&resourceRelation.CreatorUserID,
 		)
 		if err != nil {
-			internalErr := &errs.Error{
+			newInternalErr := &errs.Error{
 				Code:     errs.Unknown,
 				EmbedErr: err,
 			}
-			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+
+			if internalErr == nil {
+				internalErr = newInternalErr
+			}
+
+			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
 			continue
 		}
 

@@ -80,6 +80,8 @@ func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, *errs
 	}
 
 	defer rows.Close()
+
+	var internalErr *errs.Error
 	resources := make([]entity.Resource, 0)
 	for rows.Next() {
 		resource := entity.Resource{}
@@ -90,11 +92,16 @@ func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, *errs
 			&resource.CreatorUserID,
 		)
 		if err != nil {
-			internalErr := &errs.Error{
+			newInternalErr := &errs.Error{
 				Code:     errs.Unknown,
 				EmbedErr: err,
 			}
-			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+
+			if internalErr == nil {
+				internalErr = newInternalErr
+			}
+
+			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
 			continue
 		}
 

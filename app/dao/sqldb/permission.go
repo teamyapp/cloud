@@ -88,6 +88,8 @@ func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission,
 	}
 
 	defer rows.Close()
+
+	var internalErr *errs.Error
 	permissions := make([]entity.Permission, 0)
 	for rows.Next() {
 		permission := entity.Permission{}
@@ -100,11 +102,16 @@ func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission,
 			&permission.CreatorUserID,
 		)
 		if err != nil {
-			internalErr := &errs.Error{
+			newInternalErr := &errs.Error{
 				Code:     errs.Unknown,
 				EmbedErr: err,
 			}
-			p.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+
+			if internalErr == nil {
+				internalErr = newInternalErr
+			}
+
+			p.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
 			continue
 		}
 
