@@ -468,9 +468,10 @@ func TestAuthorization_HasPermission(t *testing.T) {
 				dao_test.NewUserGroup(make([]entity.UserGroup, 0)),
 				gen.NewUniqueNumberFactory(dataCollector, mockAllocatedRange, 0),
 			)
-
-			hasPermission, err := mockAuthorization.HasPermission(ct, testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)
 			assert.Nil(t, err)
+
+			hasPermission, internalErr := mockAuthorization.HasPermission(ct, testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)
+			assert.Nil(t, internalErr)
 			assert.Equal(t, hasPermission, testCase.expectedHasPermission)
 		})
 	}

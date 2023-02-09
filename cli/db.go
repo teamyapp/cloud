@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/io"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
@@ -68,7 +69,7 @@ var migrateCmd = &cobra.Command{
 var migrateUpCmd = &cobra.Command{
 	Use: "up",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return useSQLDB(dataCollector, func(sqlDB *sql.DB) error {
+		return useSQLDB(dataCollector, func(sqlDB *sql.DB) *errs.Error {
 			return sqldb.MigrateUp(dataCollector, sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
 		})
 	},
@@ -77,7 +78,7 @@ var migrateUpCmd = &cobra.Command{
 var migrateDownCmd = &cobra.Command{
 	Use: "down",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return useSQLDB(dataCollector, func(sqlDB *sql.DB) error {
+		return useSQLDB(dataCollector, func(sqlDB *sql.DB) *errs.Error {
 			return sqldb.MigrateDown(dataCollector, sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
 		})
 	},
@@ -88,7 +89,7 @@ var newMigrationCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fullFilePath, err := sqldb.NewMigration(dataCollector, cliConfig.DBMigrationsDir, migrationFileName)
 		if err != nil {
-			return err
+			return err.ToError()
 		}
 
 		return os.WriteFile(fullFilePath, []byte(strings.TrimPrefix(migrationTemplate, "\n")), 0644)
@@ -98,7 +99,7 @@ var newMigrationCmd = &cobra.Command{
 var seedCmd = &cobra.Command{
 	Use: "seed",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return useSQLDB(dataCollector, func(sqlDB *sql.DB) error {
+		return useSQLDB(dataCollector, func(sqlDB *sql.DB) *errs.Error {
 			return sqldb.ExecSQL(dataCollector, sqlDB, seedFilePath)
 		})
 	},
@@ -151,11 +152,11 @@ func addDBCmd() {
 	rootCmd.AddCommand(dbCmd)
 }
 
-func useSQLDB(dataCollector telemetry.DataCollector, action func(sqlDB *sql.DB) error) error {
+func useSQLDB(dataCollector telemetry.DataCollector, action func(sqlDB *sql.DB) *errs.Error) error {
 	cfg, err := config.AppFromEnv()
 	if err != nil {
-		return err
+		return err.ToError()
 	}
 
-	return sqldb.Use(dataCollector, cfg.Config, action)
+	return sqldb.Use(dataCollector, cfg.Config, action).ToError()
 }
