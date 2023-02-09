@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/teamyapp/cloud/app/gen"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 
 	"github.com/teamyapp/cloud/app/dao"
@@ -26,7 +26,7 @@ type Authorization struct {
 	userGroupIDGenerator *gen.UniqueNumber
 }
 
-func (a Authorization) HasPermission(ct context.Context, resourceType string, resourceID uint64, operation string, userID uint64) (bool, error) {
+func (a Authorization) HasPermission(ct context.Context, resourceType string, resourceID uint64, operation string, userID uint64) (bool, *errs.Error) {
 	// No nested group allowed
 	groupIDs, err := a.userGroupMemberDao.FindGroupIDsByUserID(ct, userID)
 	if err != nil {
@@ -55,7 +55,7 @@ func (a Authorization) HasPermission(ct context.Context, resourceType string, re
 	return false, nil
 }
 
-func (a Authorization) ListResourceTypes(ct context.Context, resourceTypeQuery ResourceTypeQuery) ([]entity.ResourceType, error) {
+func (a Authorization) ListResourceTypes(ct context.Context, resourceTypeQuery ResourceTypeQuery) ([]entity.ResourceType, *errs.Error) {
 	allResourceTypeEntities, err := a.resourceTypeDao.FindAllResourceTypes(ct)
 	if err != nil {
 		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -65,12 +65,15 @@ func (a Authorization) ListResourceTypes(ct context.Context, resourceTypeQuery R
 	return queryResourceTypes(allResourceTypeEntities, resourceTypeQuery), nil
 }
 
-func (a Authorization) RegisterResourceType(ct context.Context, resourceTypeName string) error {
+func (a Authorization) RegisterResourceType(ct context.Context, resourceTypeName string) *errs.Error {
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		err := errors.New("user id not found")
-		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return err
+		internalErr := &errs.Error{
+			Code:    errs.NotFound,
+			Message: "user ID not found",
+		}
+		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
 	resourceTypeEntity := entity.ResourceType{
@@ -82,11 +85,11 @@ func (a Authorization) RegisterResourceType(ct context.Context, resourceTypeName
 	return a.resourceTypeDao.CreateResourceType(ct, resourceTypeEntity)
 }
 
-func (a Authorization) UnregisterResourceType(ct context.Context, resourceTypeName string) error {
+func (a Authorization) UnregisterResourceType(ct context.Context, resourceTypeName string) *errs.Error {
 	return a.resourceTypeDao.DeleteResourceType(ct, resourceTypeName)
 }
 
-func (a Authorization) ListResources(ct context.Context, resourceQuery ResourceQuery) ([]entity.Resource, error) {
+func (a Authorization) ListResources(ct context.Context, resourceQuery ResourceQuery) ([]entity.Resource, *errs.Error) {
 	allResources, err := a.resourceDao.FindAllResources(ct)
 	if err != nil {
 		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -96,12 +99,15 @@ func (a Authorization) ListResources(ct context.Context, resourceQuery ResourceQ
 	return queryResources(allResources, resourceQuery), nil
 }
 
-func (a Authorization) RegisterResource(ct context.Context, resourceTypeName string, resourceID uint64) error {
+func (a Authorization) RegisterResource(ct context.Context, resourceTypeName string, resourceID uint64) *errs.Error {
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		err := errors.New("user id not found")
-		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return err
+		internalErr := &errs.Error{
+			Code:    errs.NotFound,
+			Message: "user ID not found",
+		}
+		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
 	resource := entity.Resource{
@@ -113,11 +119,11 @@ func (a Authorization) RegisterResource(ct context.Context, resourceTypeName str
 	return a.resourceDao.CreateResource(ct, resource)
 }
 
-func (a Authorization) UnregisterResource(ct context.Context, resourceTypeName string, resourceID uint64) error {
+func (a Authorization) UnregisterResource(ct context.Context, resourceTypeName string, resourceID uint64) *errs.Error {
 	return a.resourceDao.DeleteResource(ct, resourceTypeName, resourceID)
 }
 
-func (a Authorization) ListResourceRelations(ct context.Context, resourceRelationQuery ResourceRelationQuery) ([]entity.ResourceRelation, error) {
+func (a Authorization) ListResourceRelations(ct context.Context, resourceRelationQuery ResourceRelationQuery) ([]entity.ResourceRelation, *errs.Error) {
 	allResourceRelationEntities, err := a.resourceRelationDao.FindAllResourceRelations(ct)
 	if err != nil {
 		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -133,12 +139,15 @@ func (a Authorization) AssignParentResource(
 	childResourceID uint64,
 	parentResourceType string,
 	parentResourceID uint64,
-) error {
+) *errs.Error {
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		err := errors.New("user id not found")
-		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return err
+		internalErr := &errs.Error{
+			Code:    errs.NotFound,
+			Message: "user ID not found",
+		}
+		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
 	resourceRelation := entity.ResourceRelation{
@@ -158,7 +167,7 @@ func (a Authorization) UnassignParentResource(
 	childResourceID uint64,
 	parentResourceType string,
 	parentResourceID uint64,
-) error {
+) *errs.Error {
 	return a.resourceRelationDao.DeleteResourceRelation(
 		ct,
 		childResourceType,
@@ -168,7 +177,7 @@ func (a Authorization) UnassignParentResource(
 	)
 }
 
-func (a Authorization) ListOperations(ct context.Context, operationQuery OperationQuery) ([]entity.Operation, error) {
+func (a Authorization) ListOperations(ct context.Context, operationQuery OperationQuery) ([]entity.Operation, *errs.Error) {
 	allOperations, err := a.operationDao.FindAllOperations(ct)
 	if err != nil {
 		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -178,12 +187,15 @@ func (a Authorization) ListOperations(ct context.Context, operationQuery Operati
 	return queryOperations(allOperations, operationQuery), nil
 }
 
-func (a Authorization) RegisterOperation(ct context.Context, resourceTypeName string, operationName string) error {
+func (a Authorization) RegisterOperation(ct context.Context, resourceTypeName string, operationName string) *errs.Error {
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		err := errors.New("user id not found")
-		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return err
+		internalErr := &errs.Error{
+			Code:    errs.NotFound,
+			Message: "user ID not found",
+		}
+		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
 	operation := entity.Operation{
@@ -195,11 +207,11 @@ func (a Authorization) RegisterOperation(ct context.Context, resourceTypeName st
 	return a.operationDao.CreateOperation(ct, operation)
 }
 
-func (a Authorization) UnregisterOperation(ct context.Context, resourceTypeName string, operationName string) error {
+func (a Authorization) UnregisterOperation(ct context.Context, resourceTypeName string, operationName string) *errs.Error {
 	return a.operationDao.DeleteOperation(ct, resourceTypeName, operationName)
 }
 
-func (a Authorization) ListOperationRelations(ct context.Context, operationRelationQuery OperationRelationQuery) ([]entity.OperationRelation, error) {
+func (a Authorization) ListOperationRelations(ct context.Context, operationRelationQuery OperationRelationQuery) ([]entity.OperationRelation, *errs.Error) {
 	allOperationRelations, err := a.operationRelationDao.FindAllOperationRelations(ct)
 	if err != nil {
 		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -215,12 +227,15 @@ func (a Authorization) AssignParentOperation(
 	childOperation string,
 	parentResourceType string,
 	parentOperation string,
-) error {
+) *errs.Error {
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		err := errors.New("user id not found")
-		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return err
+		internalErr := &errs.Error{
+			Code:    errs.NotFound,
+			Message: "user ID not found",
+		}
+		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
 	operationRelation := entity.OperationRelation{
@@ -240,7 +255,7 @@ func (a Authorization) UnassignParentOperation(
 	childOperation string,
 	parentResourceType string,
 	parentOperation string,
-) error {
+) *errs.Error {
 	return a.operationRelationDao.DeleteOperationRelation(
 		ct,
 		childResourceType,
@@ -250,7 +265,7 @@ func (a Authorization) UnassignParentOperation(
 	)
 }
 
-func (a Authorization) ListUserGroups(ct context.Context, query UserGroupQuery) ([]entity.UserGroup, error) {
+func (a Authorization) ListUserGroups(ct context.Context, query UserGroupQuery) ([]entity.UserGroup, *errs.Error) {
 	allGroups, err := a.userGroupDao.FindAllGroups(ct)
 	if err != nil {
 		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -260,12 +275,15 @@ func (a Authorization) ListUserGroups(ct context.Context, query UserGroupQuery) 
 	return queryUserGroups(allGroups, query), nil
 }
 
-func (a Authorization) CreateUserGroup(ct context.Context, name string, description *string) (entity.UserGroup, error) {
+func (a Authorization) CreateUserGroup(ct context.Context, name string, description *string) (entity.UserGroup, *errs.Error) {
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		err := errors.New("user id not found")
-		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.UserGroup{}, err
+		internalErr := &errs.Error{
+			Code:    errs.NotFound,
+			Message: "user ID not found",
+		}
+		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UserGroup{}, internalErr
 	}
 
 	groupID, err := a.userGroupIDGenerator.GenerateUniqueNumber(ct)
@@ -291,7 +309,7 @@ func (a Authorization) CreateUserGroup(ct context.Context, name string, descript
 	return createdUserGroup, nil
 }
 
-func (a Authorization) UpdateUserGroup(ct context.Context, groupID uint64, name *string, description *string) error {
+func (a Authorization) UpdateUserGroup(ct context.Context, groupID uint64, name *string, description *string) *errs.Error {
 	userGroup, err := a.userGroupDao.FindGroupByID(ct, groupID)
 	if err != nil {
 		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -311,11 +329,11 @@ func (a Authorization) UpdateUserGroup(ct context.Context, groupID uint64, name 
 	return a.userGroupDao.UpdateGroup(ct, userGroup)
 }
 
-func (a Authorization) DeleteUserGroup(ct context.Context, groupID uint64) error {
+func (a Authorization) DeleteUserGroup(ct context.Context, groupID uint64) *errs.Error {
 	return a.userGroupDao.DeleteGroup(ct, groupID)
 }
 
-func (a Authorization) ListUserGroupMembers(ct context.Context, query UserGroupMemberQuery) ([]entity.UserGroupMember, error) {
+func (a Authorization) ListUserGroupMembers(ct context.Context, query UserGroupMemberQuery) ([]entity.UserGroupMember, *errs.Error) {
 	allUserGroupMembers, err := a.userGroupMemberDao.FindAllUserGroupMembers(ct)
 	if err != nil {
 		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -326,12 +344,15 @@ func (a Authorization) ListUserGroupMembers(ct context.Context, query UserGroupM
 	return userGroupMembers, nil
 }
 
-func (a Authorization) AddUserGroupMember(ct context.Context, groupID uint64, userID uint64) error {
+func (a Authorization) AddUserGroupMember(ct context.Context, groupID uint64, userID uint64) *errs.Error {
 	creatorUserID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		err := errors.New("user id not found")
-		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return err
+		internalErr := &errs.Error{
+			Code:    errs.NotFound,
+			Message: "user ID not found",
+		}
+		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
 	userGroupMember := entity.UserGroupMember{
@@ -343,11 +364,11 @@ func (a Authorization) AddUserGroupMember(ct context.Context, groupID uint64, us
 	return a.userGroupMemberDao.CreateUserGroupMember(ct, userGroupMember)
 }
 
-func (a Authorization) RemoveUserGroupMember(ct context.Context, groupID uint64, userID uint64) error {
+func (a Authorization) RemoveUserGroupMember(ct context.Context, groupID uint64, userID uint64) *errs.Error {
 	return a.userGroupMemberDao.DeleteUserGroupMember(ct, groupID, userID)
 }
 
-func (a Authorization) ListPermissions(ct context.Context, query PermissionQuery) ([]entity.Permission, error) {
+func (a Authorization) ListPermissions(ct context.Context, query PermissionQuery) ([]entity.Permission, *errs.Error) {
 	allPermissions, err := a.permissionDao.FindAllPermissions(ct)
 	if err != nil {
 		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -358,12 +379,15 @@ func (a Authorization) ListPermissions(ct context.Context, query PermissionQuery
 	return permissions, nil
 }
 
-func (a Authorization) AddPermission(ct context.Context, resourceType string, resourceID uint64, operation string, groupID uint64) error {
+func (a Authorization) AddPermission(ct context.Context, resourceType string, resourceID uint64, operation string, groupID uint64) *errs.Error {
 	creatorUserID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		err := errors.New("user id not found")
-		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return err
+		internalErr := &errs.Error{
+			Code:    errs.NotFound,
+			Message: "user ID not found",
+		}
+		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
 	permission := entity.Permission{
@@ -377,11 +401,11 @@ func (a Authorization) AddPermission(ct context.Context, resourceType string, re
 	return a.permissionDao.CreatePermission(ct, permission)
 }
 
-func (a Authorization) RemovePermission(ct context.Context, resourceType string, resourceID uint64, operation string, groupID uint64) error {
+func (a Authorization) RemovePermission(ct context.Context, resourceType string, resourceID uint64, operation string, groupID uint64) *errs.Error {
 	return a.permissionDao.DeletePermission(ct, resourceType, resourceID, operation, groupID)
 }
 
-func (a Authorization) groupHasPermission(ct context.Context, permissionQuery entity.PermissionQuery) (bool, error) {
+func (a Authorization) groupHasPermission(ct context.Context, permissionQuery entity.PermissionQuery) (bool, *errs.Error) {
 	visited := make(map[entity.PermissionQuery]bool)
 	visited[permissionQuery] = true
 	queries := []entity.PermissionQuery{permissionQuery}
@@ -394,8 +418,7 @@ func (a Authorization) groupHasPermission(ct context.Context, permissionQuery en
 			return true, nil
 		}
 
-		var errNotFound dao.ErrNotFound
-		if !errors.As(err, &errNotFound) {
+		if err.Code != errs.NotFound {
 			a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			continue
 		}
@@ -411,7 +434,7 @@ func (a Authorization) groupHasPermission(ct context.Context, permissionQuery en
 	return false, nil
 }
 
-func (a Authorization) getParentPermissionQueries(ct context.Context, currQuery entity.PermissionQuery, visited map[entity.PermissionQuery]bool) ([]entity.PermissionQuery, error) {
+func (a Authorization) getParentPermissionQueries(ct context.Context, currQuery entity.PermissionQuery, visited map[entity.PermissionQuery]bool) ([]entity.PermissionQuery, *errs.Error) {
 	var parentPermissionQueries []entity.PermissionQuery
 	operationRelations, err := a.operationRelationDao.FindOperationRelations(ct, currQuery.ResourceType, currQuery.Operation)
 	if err != nil {
@@ -497,7 +520,7 @@ func NewAuthorization(
 	userGroupIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("userGroupID")
 	if err != nil {
 		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return Authorization{}, err
+		return Authorization{}, err.ToError()
 	}
 
 	return Authorization{

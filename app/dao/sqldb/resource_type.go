@@ -8,6 +8,7 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -18,8 +19,8 @@ type ResourceType struct {
 
 var _ dao.ResourceType = (*ResourceType)(nil)
 
-func (r ResourceType) FindResourceType(ct context.Context, resourceTypeName string) (entity.ResourceType, error) {
-	resourceTypeEntity := entity.ResourceType{}
+func (r ResourceType) FindResourceType(ct context.Context, resourceTypeName string) (entity.ResourceType, *errs.Error) {
+	resourceType := entity.ResourceType{}
 	err := r.db.QueryRow(`
 		SELECT
 			resource_type,
@@ -29,25 +30,35 @@ func (r ResourceType) FindResourceType(ct context.Context, resourceTypeName stri
 		WHERE resource_type = $1;`,
 		resourceTypeName).
 		Scan(
-			&resourceTypeEntity.ResourceTypeName,
-			&resourceTypeEntity.CreatedAt,
-			&resourceTypeEntity.CreatorUserID,
+			&resourceType.ResourceTypeName,
+			&resourceType.CreatedAt,
+			&resourceType.CreatorUserID,
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.ResourceType{}, dao.ErrNotFound(fmt.Sprintf(
-			"resource type not found: resource_type=%v",
-			resourceTypeName))
+		internalErr := &errs.Error{
+			Code: errs.NotFound,
+			Message: fmt.Sprintf(
+				"resource type not found: resource_type=%v",
+				resourceTypeName),
+		}
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.ResourceType{}, internalErr
 	}
 
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.ResourceType{}, internalErr
 	}
 
-	return resourceTypeEntity, err
+	return resourceType, nil
 }
 
-func (r ResourceType) FindAllResourceTypes(ct context.Context) ([]entity.ResourceType, error) {
+func (r ResourceType) FindAllResourceTypes(ct context.Context) ([]entity.ResourceType, *errs.Error) {
 	rows, err := r.db.Query(`
 	SELECT
 		resource_type,
@@ -56,8 +67,12 @@ func (r ResourceType) FindAllResourceTypes(ct context.Context) ([]entity.Resourc
 	FROM resource_type;
 `)
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return nil, err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return nil, internalErr
 	}
 
 	defer rows.Close()
@@ -70,7 +85,11 @@ func (r ResourceType) FindAllResourceTypes(ct context.Context) ([]entity.Resourc
 			&resourceTypeEntity.CreatorUserID,
 		)
 		if err != nil {
-			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+			internalErr := &errs.Error{
+				Code:     errs.Unknown,
+				EmbedErr: err,
+			}
+			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
 			continue
 		}
 
@@ -80,7 +99,7 @@ func (r ResourceType) FindAllResourceTypes(ct context.Context) ([]entity.Resourc
 	return resourceTypeEntities, nil
 }
 
-func (r ResourceType) CreateResourceType(ct context.Context, resourceTypeEntity entity.ResourceType) error {
+func (r ResourceType) CreateResourceType(ct context.Context, resourceTypeEntity entity.ResourceType) *errs.Error {
 	_, err := r.db.Exec(`
 		INSERT INTO resource_type
 		(
@@ -93,20 +112,35 @@ func (r ResourceType) CreateResourceType(ct context.Context, resourceTypeEntity 
 		resourceTypeEntity.CreatedAt,
 		resourceTypeEntity.CreatorUserID,
 	)
-	return err
+
+	if err != nil {
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
+	}
+
+	return nil
 }
 
-func (r ResourceType) DeleteResourceType(ct context.Context, resourceTypeName string) error {
+func (r ResourceType) DeleteResourceType(ct context.Context, resourceTypeName string) *errs.Error {
 	_, err := r.db.Exec(`
 		DELETE FROM resource_type
 		WHERE resource_type = $1;
 		`,
 		resourceTypeName)
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
 func NewResourceType(dataCollector telemetry.DataCollector, sqlDB *sql.DB) ResourceType {

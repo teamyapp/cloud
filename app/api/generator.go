@@ -35,11 +35,11 @@ func (g Generator) GenerateUniqueNumber(
 ) (*proto.GenerateUniqueNumberResponse, error) {
 	uniqueNumGen, ok := g.uniqueNumberGenerators[request.SequenceName]
 	if !ok {
-		var err error
+		var err *errs.Error
 		uniqueNumGen, err = g.uniqueNumberGeneratorFactory.MakeUniqueNumber(request.SequenceName)
 		if err != nil {
 			g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-			return nil, err
+			return nil, errs.ToGRPCErr(err)
 		}
 
 		g.uniqueNumberGenerators[request.SequenceName] = uniqueNumGen
@@ -48,7 +48,7 @@ func (g Generator) GenerateUniqueNumber(
 	uniqueNum, err := uniqueNumGen.GenerateUniqueNumber(ct)
 	if err != nil {
 		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return nil, err
+		return nil, errs.ToGRPCErr(err)
 	}
 
 	return &proto.GenerateUniqueNumberResponse{UniqueNumber: uniqueNum}, nil
@@ -68,7 +68,7 @@ func (g Generator) GenerateUniqueString(
 			g.uniqueNumberGeneratorFactory)
 		if err != nil {
 			g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-			return nil, err
+			return nil, errs.ToGRPCErr(err)
 		}
 		uniqueStringGen = &strGen
 		g.uniqueStringGenerators[request.SequenceName] = uniqueStringGen
@@ -77,7 +77,7 @@ func (g Generator) GenerateUniqueString(
 	uniqueStr, err := uniqueStringGen.GenerateUniqueString(ct)
 	if err != nil {
 		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return nil, err
+		return nil, errs.ToGRPCErr(err)
 	}
 
 	return &proto.GenerateUniqueStringResponse{UniqueString: uniqueStr}, nil

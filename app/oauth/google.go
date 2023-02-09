@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/security"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
@@ -18,8 +19,8 @@ import (
 const GoogleName = "google"
 
 // https://developers.google.com/identity/protocols/oauth2/web-server#httprest_1
-var googleAuthURLString = "https://accounts.google.com/o/oauth2/v2/auth"
-var googleTokenURLString = "https://oauth2.googleapis.com/token"
+var googleAuthURL = "https://accounts.google.com/o/oauth2/v2/auth"
+var googleTokenURL = "https://oauth2.googleapis.com/token"
 
 type Google struct {
 	dataCollector telemetry.DataCollector
@@ -35,7 +36,7 @@ func (g Google) GetName() string {
 	return GoogleName
 }
 
-func (g Google) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, error) {
+func (g Google) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, *errs.Error) {
 	// https://developers.google.com/identity/protocols/oauth2/openid-connect#exchangecode
 	idToken, err := g.getIDToken(ct, authorizationCode)
 	if err != nil {
@@ -64,19 +65,33 @@ func (g Google) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 	}, err
 }
 
-func (g Google) GetStateID(request *http.Request) (uint64, error) {
-	return strconv.ParseUint(request.URL.Query().Get("state"), 10, 64)
+func (g Google) GetStateID(ct context.Context, request *http.Request) (uint64, *errs.Error) {
+	num, err := strconv.ParseUint(request.URL.Query().Get("state"), 10, 64)
+	if err != nil {
+		internalErr := &errs.Error{
+			Code:     errs.InvalidFormat,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return 0, internalErr
+	}
+
+	return num, nil
 }
 
-func (g Google) GetAuthorizationCode(request *http.Request) string {
+func (g Google) GetAuthorizationCode(ct context.Context, request *http.Request) string {
 	return request.URL.Query().Get("code")
 }
 
-func (g Google) GetSignInURL(ct context.Context, stateID uint64) (string, error) {
-	baseURL, err := url.Parse(googleAuthURLString)
+func (g Google) GetSignInURL(ct context.Context, stateID uint64) (string, *errs.Error) {
+	baseURL, err := url.Parse(googleAuthURL)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	query := baseURL.Query()
@@ -89,7 +104,7 @@ func (g Google) GetSignInURL(ct context.Context, stateID uint64) (string, error)
 	return baseURL.String(), nil
 }
 
-func (g Google) getIDToken(ct context.Context, authorizationCode string) (string, error) {
+func (g Google) getIDToken(ct context.Context, authorizationCode string) (string, *errs.Error) {
 	tokenBody := struct {
 		ClientID     string `json:"client_id"`
 		ClientSecret string `json:"client_secret"`
@@ -106,29 +121,40 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 
 	buf, err := json.Marshal(tokenBody)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr := &errs.Error{
+			Code:     errs.Serialization,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
-	res, err := http.Post(googleTokenURLString, "application/json", bytes.NewReader(buf))
+	res, err := http.Post(googleTokenURL, "application/json", bytes.NewReader(buf))
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
+
 	defer res.Body.Close()
 
-	if res.StatusCode > 300 || res.StatusCode < 200 {
-		err = fmt.Errorf("fail to obtain access token: OAuthProvider=%v HttpStatusCode=%v", g.GetName(), res.StatusCode)
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-			telemetry.CauseProp: err,
-		})
-		return "", err
+	internalErr := errs.GetFromHTTPErr(res)
+	if internalErr != nil {
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	buf, err = io.ReadAll(res.Body)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr = &errs.Error{
+			Code:     errs.IO,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	body := struct {
@@ -141,10 +167,15 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 	}{}
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr = &errs.Error{
+			Code:     errs.Deserialization,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
-	return body.IDToken, err
+	return body.IDToken, nil
 }
 
 func NewGoogle(

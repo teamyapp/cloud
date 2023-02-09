@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"path"
 	"strconv"
 
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/storage"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -22,11 +23,11 @@ type ChunksIterator struct {
 
 var _ entity.Iterator[[]byte] = (*ChunksIterator)(nil)
 
-func (c ChunksIterator) HasNext() (bool, error) {
+func (c ChunksIterator) HasNext() (bool, *errs.Error) {
 	return c.nextChunkIndex < len(c.chunkIDs), nil
 }
 
-func (c *ChunksIterator) Next(ct context.Context) ([]byte, error) {
+func (c *ChunksIterator) Next(ct context.Context) ([]byte, *errs.Error) {
 	hasNext, err := c.HasNext()
 	if err != nil {
 		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -34,12 +35,11 @@ func (c *ChunksIterator) Next(ct context.Context) ([]byte, error) {
 	}
 
 	if !hasNext {
-		err = errors.New("no next chunk")
-		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-			telemetry.CauseProp: err,
-			"NextChunkIndex":    c.nextChunkIndex,
-			"NumOfChunks":       c.chunkIDs,
-		})
+		err = &errs.Error{
+			Code:    errs.InvalidOperation,
+			Message: fmt.Sprintf("no next chunk: nextChunkIndex=%v, numOfChunks=%v", c.nextChunkIndex, c.chunkIDs),
+		}
+		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return nil, err
 	}
 
@@ -68,7 +68,7 @@ func newChunksIterator(
 	}
 }
 
-func saveChunk(mapBackend storage.MapBackend, chunkID uint64, data []byte) error {
+func saveChunk(mapBackend storage.MapBackend, chunkID uint64, data []byte) *errs.Error {
 	chunkIDPath := strconv.FormatUint(chunkID, 10)
 	fullPath := path.Join(chunkKeyPrefix, chunkIDPath)
 	return mapBackend.Put(fullPath, data)

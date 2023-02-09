@@ -9,6 +9,7 @@ import (
 	"github.com/teamyapp/cloud/libs/collect"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/runner"
+	"github.com/teamyapp/cloud/libs/telemetry"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -16,6 +17,7 @@ import (
 )
 
 type Authorization struct {
+	dataCollector        telemetry.DataCollector
 	authorizationService service.Authorization
 	proto.UnimplementedAuthorizationServer
 }
@@ -26,7 +28,8 @@ var _ proto.AuthorizationServer = (*Authorization)(nil)
 func (a Authorization) HasPermission(ctx context.Context, req *proto.HasPermissionRequest) (*proto.HasPermissionResponse, error) {
 	hasPermission, err := a.authorizationService.HasPermission(ctx, req.ResourceType, req.ResourceId, req.Operation, req.UserId)
 	if err != nil {
-		return nil, err
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
 	return &proto.HasPermissionResponse{HasPermission: hasPermission}, nil
@@ -51,7 +54,8 @@ func (a Authorization) ListResourceTypes(ct context.Context, query *proto.ListRe
 
 	resourceTypeEntities, err := a.authorizationService.ListResourceTypes(ct, resourceTypeQuery)
 	if err != nil {
-		return nil, err
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
 	var resourceTypes []*proto.ResourceType
@@ -67,12 +71,22 @@ func (a Authorization) ListResourceTypes(ct context.Context, query *proto.ListRe
 
 func (a Authorization) RegisterResourceType(ct context.Context, request *proto.RegisterResourceTypeRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RegisterResourceType(ct, request.ResourceType)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) UnregisterResourceType(ct context.Context, request *proto.UnregisterResourceTypeRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnregisterResourceType(ct, request.ResourceType)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) ListResources(ct context.Context, query *proto.ListResourcesQuery) (*proto.ListResourcesResponse, error) {
@@ -94,7 +108,8 @@ func (a Authorization) ListResources(ct context.Context, query *proto.ListResour
 
 	resourceEntities, err := a.authorizationService.ListResources(ct, resourceQuery)
 	if err != nil {
-		return nil, err
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
 	resources := collect.Map(resourceEntities, func(resource entity.Resource, _ int) *proto.Resource {
@@ -111,12 +126,22 @@ func (a Authorization) ListResources(ct context.Context, query *proto.ListResour
 
 func (a Authorization) RegisterResource(ct context.Context, request *proto.RegisterResourceRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RegisterResource(ct, request.ResourceType, request.ResourceId)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) UnregisterResource(ct context.Context, request *proto.UnregisterResourceRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnregisterResource(ct, request.ResourceType, request.ResourceId)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) ListResourceRelations(ct context.Context, query *proto.ListResourceRelationsQuery) (*proto.ListResourceRelationsResponse, error) {
@@ -140,7 +165,8 @@ func (a Authorization) ListResourceRelations(ct context.Context, query *proto.Li
 
 	resourceRelationEntities, err := a.authorizationService.ListResourceRelations(ct, resourceRelationQuery)
 	if err != nil {
-		return nil, err
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
 	resourceRelations := collect.Map(resourceRelationEntities, func(resourceRelation entity.ResourceRelation, _ int) *proto.ResourceRelation {
@@ -165,7 +191,11 @@ func (a Authorization) AssignParentResource(ct context.Context, request *proto.A
 		request.ParentResourceType,
 		request.ParentResourceId,
 	)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+	}
+
+	return &emptypb.Empty{}, errs.ToGRPCErr(err)
 }
 
 func (a Authorization) UnassignParentResource(ct context.Context, request *proto.UnassignParentResourceRequest) (*emptypb.Empty, error) {
@@ -176,7 +206,12 @@ func (a Authorization) UnassignParentResource(ct context.Context, request *proto
 		request.ParentResourceType,
 		request.ParentResourceId,
 	)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) ListOperations(ct context.Context, query *proto.ListOperationsQuery) (*proto.ListOperationsResponse, error) {
@@ -198,7 +233,8 @@ func (a Authorization) ListOperations(ct context.Context, query *proto.ListOpera
 
 	operationEntities, err := a.authorizationService.ListOperations(ct, operationQuery)
 	if err != nil {
-		return nil, err
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
 	operations := collect.Map(operationEntities, func(operation entity.Operation, _ int) *proto.Operation {
@@ -215,12 +251,21 @@ func (a Authorization) ListOperations(ct context.Context, query *proto.ListOpera
 
 func (a Authorization) RegisterOperation(ct context.Context, request *proto.RegisterOperationRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RegisterOperation(ct, request.ResourceType, request.Operation)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) UnregisterOperation(ct context.Context, request *proto.UnregisterOperationRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnregisterOperation(ct, request.ResourceType, request.Operation)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+	}
+
+	return &emptypb.Empty{}, errs.ToGRPCErr(err)
 }
 
 func (a Authorization) ListOperationRelations(ct context.Context, query *proto.ListOperationRelationsQuery) (*proto.ListOperationRelationsResponse, error) {
@@ -244,7 +289,8 @@ func (a Authorization) ListOperationRelations(ct context.Context, query *proto.L
 
 	operationRelationEntities, err := a.authorizationService.ListOperationRelations(ct, operationRelationQuery)
 	if err != nil {
-		return nil, err
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
 	operationRelations := collect.Map(operationRelationEntities, func(operationRelation entity.OperationRelation, _ int) *proto.OperationRelation {
@@ -269,7 +315,12 @@ func (a Authorization) AssignParentOperation(ct context.Context, request *proto.
 		request.ParentResourceType,
 		request.ParentOperation,
 	)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) UnassignParentOperation(ct context.Context, request *proto.UnassignParentOperationRequest) (*emptypb.Empty, error) {
@@ -280,7 +331,12 @@ func (a Authorization) UnassignParentOperation(ct context.Context, request *prot
 		request.ParentResourceType,
 		request.ParentOperation,
 	)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) ListUserGroups(ct context.Context, query *proto.ListUserGroupsQuery) (*proto.ListUserGroupsResponse, error) {
@@ -303,7 +359,8 @@ func (a Authorization) ListUserGroups(ct context.Context, query *proto.ListUserG
 
 	userGroupEntities, err := a.authorizationService.ListUserGroups(ct, userGroupQuery)
 	if err != nil {
-		return nil, err
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
 	userGroups := collect.Map(userGroupEntities, func(userGroup entity.UserGroup, _ int) *proto.UserGroup {
@@ -322,7 +379,8 @@ func (a Authorization) ListUserGroups(ct context.Context, query *proto.ListUserG
 func (a Authorization) CreateUserGroup(ct context.Context, request *proto.CreateUserGroupRequest) (*proto.CreateUserGroupResponse, error) {
 	userGroup, err := a.authorizationService.CreateUserGroup(ct, request.Name, request.Description)
 	if err != nil {
-		return nil, err
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
 	return &proto.CreateUserGroupResponse{UserGroup: &proto.UserGroup{
@@ -337,12 +395,22 @@ func (a Authorization) CreateUserGroup(ct context.Context, request *proto.Create
 
 func (a Authorization) UpdateUserGroup(ct context.Context, request *proto.UpdateUserGroupRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UpdateUserGroup(ct, request.GroupId, request.Name, request.Description)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) DeleteUserGroup(ct context.Context, request *proto.DeleteUserGroupRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.DeleteUserGroup(ct, request.GroupId)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) ListUserGroupMembers(ct context.Context, query *proto.ListUserGroupMembersQuery) (*proto.ListUserGroupMembersResponse, error) {
@@ -364,7 +432,8 @@ func (a Authorization) ListUserGroupMembers(ct context.Context, query *proto.Lis
 
 	userGroupMemberEntities, err := a.authorizationService.ListUserGroupMembers(ct, userGroupMemberQuery)
 	if err != nil {
-		return nil, err
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
 	userGroupMembers := collect.Map(userGroupMemberEntities, func(userGroupMember entity.UserGroupMember, _ int) *proto.UserGroupMember {
@@ -380,12 +449,22 @@ func (a Authorization) ListUserGroupMembers(ct context.Context, query *proto.Lis
 
 func (a Authorization) AddUserGroupMember(ct context.Context, request *proto.AddUserGroupMemberRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.AddUserGroupMember(ct, request.GroupId, request.UserId)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) RemoveUserGroupMember(ct context.Context, request *proto.RemoveUserGroupMemberRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RemoveUserGroupMember(ct, request.GroupId, request.UserId)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) ListPermissions(ct context.Context, query *proto.ListPermissionsQuery) (*proto.ListPermissionsResponse, error) {
@@ -409,7 +488,8 @@ func (a Authorization) ListPermissions(ct context.Context, query *proto.ListPerm
 
 	permissionEntities, err := a.authorizationService.ListPermissions(ct, permissionQuery)
 	if err != nil {
-		return nil, err
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
 	permissions := collect.Map(permissionEntities, func(permission entity.Permission, _ int) *proto.Permission {
@@ -427,12 +507,22 @@ func (a Authorization) ListPermissions(ct context.Context, query *proto.ListPerm
 
 func (a Authorization) AddPermission(ct context.Context, request *proto.AddPermissionRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.AddPermission(ct, request.ResourceType, request.ResourceId, request.Operation, request.GroupId)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) RemovePermission(ct context.Context, request *proto.RemovePermissionRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RemovePermission(ct, request.ResourceType, request.ResourceId, request.Operation, request.GroupId)
-	return &emptypb.Empty{}, err
+	if err != nil {
+		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) Start(rn *runner.ServiceRunner) *errs.Error {
@@ -442,8 +532,12 @@ func (a Authorization) Start(rn *runner.ServiceRunner) *errs.Error {
 	return nil
 }
 
-func NewAuthorization(authorizationService service.Authorization) Authorization {
+func NewAuthorization(
+	dataCollector telemetry.DataCollector,
+	authorizationService service.Authorization,
+) Authorization {
 	return Authorization{
+		dataCollector:        dataCollector,
 		authorizationService: authorizationService,
 	}
 }

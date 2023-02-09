@@ -3,6 +3,7 @@ package gen
 import (
 	"context"
 
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -13,7 +14,7 @@ type UniqueString struct {
 	alphabet      []rune
 }
 
-func (u UniqueString) GenerateUniqueString(ct context.Context) (string, error) {
+func (u UniqueString) GenerateUniqueString(ct context.Context) (string, *errs.Error) {
 	currNum, err := u.uniqueNumGen.GenerateUniqueNumber(ct)
 	if err != nil {
 		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -42,7 +43,7 @@ func NewUniqueString(
 	stringLen int,
 	alphabet string,
 	uniqueNumFactory UniqueNumberFactory,
-) (UniqueString, error) {
+) (UniqueString, *errs.Error) {
 	numNum, err := uniqueNumFactory.MakeUniqueNumber(name)
 	if err != nil {
 		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})

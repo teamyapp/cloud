@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"hash"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/lang"
 	"github.com/teamyapp/cloud/app/storage"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -31,11 +31,11 @@ type File struct {
 	fileIDGen          *gen.UniqueNumber
 }
 
-func (f File) GetUploadSession(ct context.Context, uploadSessionID uint64) (entity.UploadSession, error) {
+func (f File) GetUploadSession(ct context.Context, uploadSessionID uint64) (entity.UploadSession, *errs.Error) {
 	return f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
 }
 
-func (f File) CreateUploadSession(ct context.Context) (uint64, error) {
+func (f File) CreateUploadSession(ct context.Context) (uint64, *errs.Error) {
 	chunkID, err := f.uploadSessionIDGen.GenerateUniqueNumber(ct)
 	if err != nil {
 		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -64,25 +64,39 @@ func (f File) InitUploadSession(
 	expectedContentHash string,
 	totalSizeInBytes uint64,
 	totalNumOfChunks int,
-) (entity.UploadSession, error) {
-	uploadSession, err := f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
-	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.UploadSession{}, err
+) (entity.UploadSession, *errs.Error) {
+	uploadSession, internalErr := f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
+	if internalErr != nil {
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	}
 
 	switch uploadSession.Status {
 	case entity.CompletedUploadSessionStatus:
-		return entity.UploadSession{}, errors.New("upload session is already completed")
+		internalErr = &errs.Error{
+			Code:    errs.InvalidOperation,
+			Message: "upload session is already completed",
+		}
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	case entity.InitializedUploadSessionStatus, entity.UploadingChunksUploadSessionStatus:
-		return entity.UploadSession{}, errors.New("upload session is already initialized")
+		internalErr = &errs.Error{
+			Code:    errs.InvalidOperation,
+			Message: "upload session is already initialized",
+		}
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	}
 
 	hashBuffer := sha256.New()
 	hashState, err := hashBuffer.(encoding.BinaryMarshaler).MarshalBinary()
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.UploadSession{}, err
+		internalErr = &errs.Error{
+			Code:     errs.Deserialization,
+			EmbedErr: err,
+		}
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	}
 
 	uploadSession.FileName = fileName
@@ -94,35 +108,50 @@ func (f File) InitUploadSession(
 	now := time.Now()
 	uploadSession.HashState = hashState
 	uploadSession.UpdatedAt = &now
-	err = f.uploadSessionDao.UpdateUploadSession(ct, uploadSession)
+	internalErr = f.uploadSessionDao.UpdateUploadSession(ct, uploadSession)
+	if internalErr != nil {
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
+	}
+
 	uploadSession.HashState = nil
 	return uploadSession, nil
 }
 
-func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []byte) (entity.UploadSession, error) {
-	uploadSession, err := f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
-	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.UploadSession{}, err
+func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []byte) (entity.UploadSession, *errs.Error) {
+	uploadSession, internalErr := f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
+	if internalErr != nil {
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	}
 
 	switch uploadSession.Status {
 	case entity.CompletedUploadSessionStatus:
-		return entity.UploadSession{}, errors.New("upload session is already completed")
+		internalErr = &errs.Error{
+			Code:    errs.InvalidOperation,
+			Message: "upload session is already completed",
+		}
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	case entity.CreatedUploadSessionStatus:
-		return entity.UploadSession{}, errors.New("upload session it not initialized")
+		internalErr = &errs.Error{
+			Code:    errs.InvalidOperation,
+			Message: "upload session is not initialized",
+		}
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	}
 
-	chunkID, err := f.chunkIDGen.GenerateUniqueNumber(ct)
-	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.UploadSession{}, err
+	chunkID, internalErr := f.chunkIDGen.GenerateUniqueNumber(ct)
+	if internalErr != nil {
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	}
 
-	err = saveChunk(f.mapBackend, chunkID, chunkData)
-	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.UploadSession{}, err
+	internalErr = saveChunk(f.mapBackend, chunkID, chunkData)
+	if internalErr != nil {
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	}
 
 	now := time.Now()
@@ -131,29 +160,41 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 		SizeInBytes: uint64(len(chunkData)),
 		CreatedAt:   now,
 	}
-	err = f.chunkDao.CreateChunkMetadata(ct, chunkMetadata)
-	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.UploadSession{}, err
+	internalErr = f.chunkDao.CreateChunkMetadata(ct, chunkMetadata)
+	if internalErr != nil {
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	}
 
 	hashBuffer := sha256.New()
-	err = hashBuffer.(encoding.BinaryUnmarshaler).UnmarshalBinary(uploadSession.HashState)
+	err := hashBuffer.(encoding.BinaryUnmarshaler).UnmarshalBinary(uploadSession.HashState)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.UploadSession{}, err
+		internalErr = &errs.Error{
+			Code:     errs.Deserialization,
+			EmbedErr: err,
+		}
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	}
 
 	_, err = hashBuffer.Write(chunkData)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.UploadSession{}, err
+		internalErr = &errs.Error{
+			Code:     errs.IO,
+			EmbedErr: err,
+		}
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	}
 
 	hashState, err := hashBuffer.(encoding.BinaryMarshaler).MarshalBinary()
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.UploadSession{}, err
+		internalErr = &errs.Error{
+			Code:     errs.Serialization,
+			EmbedErr: err,
+		}
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	}
 
 	uploadSession.HashState = hashState
@@ -164,26 +205,34 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 	if uploadSession.NextChunkIndexToUpload < uploadSession.TotalNumOfChunks {
 		uploadSession.Status = entity.UploadingChunksUploadSessionStatus
 	} else {
-		uploadSession, err = f.FinishFileUpload(ct, uploadSession, hashBuffer)
-		if err != nil {
-			f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-			return entity.UploadSession{}, err
+		uploadSession, internalErr = f.FinishFileUpload(ct, uploadSession, hashBuffer)
+		if internalErr != nil {
+			f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			return entity.UploadSession{}, internalErr
 		}
 	}
 
-	err = f.uploadSessionDao.UpdateUploadSession(ct, uploadSession)
+	internalErr = f.uploadSessionDao.UpdateUploadSession(ct, uploadSession)
+	if internalErr != nil {
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return uploadSession, internalErr
+	}
+
 	uploadSession.HashState = nil
 	return uploadSession, nil
 }
 
-func (f File) FinishFileUpload(ct context.Context, uploadSession entity.UploadSession, hashBuffer hash.Hash) (entity.UploadSession, error) {
+func (f File) FinishFileUpload(ct context.Context, uploadSession entity.UploadSession, hashBuffer hash.Hash) (entity.UploadSession, *errs.Error) {
 	uploadSession.Status = entity.CompletedUploadSessionStatus
 	actualHash := hashBuffer.Sum(nil)
 	actualHashString := hex.EncodeToString(actualHash)
 	if actualHashString != uploadSession.ExpectedContentHash {
-		err := fmt.Errorf("sha256 hash not match: actualHash=%v, expectedHash=%v", actualHashString, uploadSession.ExpectedContentHash)
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.UploadSession{}, err
+		internalErr := &errs.Error{
+			Code:    errs.Unknown,
+			Message: fmt.Sprintf("sha256 hash not match: actualHash=%v, expectedHash=%v", actualHashString, uploadSession.ExpectedContentHash),
+		}
+		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UploadSession{}, internalErr
 	}
 
 	uploadSession.ActualContentHash = actualHashString
@@ -205,11 +254,11 @@ func (f File) FinishFileUpload(ct context.Context, uploadSession entity.UploadSe
 	return uploadSession, f.fileMetadataDao.CreateFileMetadata(ct, fileMetadata)
 }
 
-func (f File) GetFileMetadata(ct context.Context, fileID uint64) (entity.FileMetadata, error) {
+func (f File) GetFileMetadata(ct context.Context, fileID uint64) (entity.FileMetadata, *errs.Error) {
 	return f.fileMetadataDao.FindMetadataByFileID(ct, fileID)
 }
 
-func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, error) {
+func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Error) {
 	metadata, err := f.GetFileMetadata(ct, fileID)
 	if err != nil {
 		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -269,19 +318,19 @@ func NewFile(
 	uploadSessionIDGen, err := uniqueNumberFactory.MakeUniqueNumber("uploadSessionID")
 	if err != nil {
 		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return File{}, err
+		return File{}, err.ToError()
 	}
 
 	chunkIDGen, err := uniqueNumberFactory.MakeUniqueNumber("chunkID")
 	if err != nil {
 		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return File{}, err
+		return File{}, err.ToError()
 	}
 
 	fileIDGen, err := uniqueNumberFactory.MakeUniqueNumber("fileID")
 	if err != nil {
 		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return File{}, err
+		return File{}, err.ToError()
 	}
 
 	return File{

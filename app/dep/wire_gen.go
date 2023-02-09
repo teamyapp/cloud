@@ -72,7 +72,7 @@ func InitAuthorizationAPI(dataCollector telemetry.DataCollector, sqlDB *sql.DB, 
 	if err != nil {
 		return api.Authorization{}, err
 	}
-	apiAuthorization := api.NewAuthorization(authorization)
+	apiAuthorization := api.NewAuthorization(dataCollector, authorization)
 	return apiAuthorization, nil
 }
 

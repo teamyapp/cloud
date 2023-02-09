@@ -3,7 +3,6 @@ package oauth
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/security"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
@@ -36,7 +36,7 @@ func (s Slack) GetName() string {
 	return slackName
 }
 
-func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, error) {
+func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, *errs.Error) {
 	idToken, err := s.getIDToken(ct, authorizationCode)
 	if err != nil {
 		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
@@ -63,19 +63,33 @@ func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.Ext
 	}, nil
 }
 
-func (s Slack) GetStateID(request *http.Request) (uint64, error) {
-	return strconv.ParseUint(request.URL.Query().Get("state"), 10, 64)
+func (s Slack) GetStateID(ct context.Context, request *http.Request) (uint64, *errs.Error) {
+	num, err := strconv.ParseUint(request.URL.Query().Get("state"), 10, 64)
+	if err != nil {
+		internalErr := &errs.Error{
+			Code:     errs.InvalidFormat,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return 0, internalErr
+	}
+
+	return num, nil
 }
 
-func (s Slack) GetAuthorizationCode(request *http.Request) string {
+func (s Slack) GetAuthorizationCode(ct context.Context, request *http.Request) string {
 	return request.URL.Query().Get("code")
 }
 
-func (s Slack) GetSignInURL(ct context.Context, stateID uint64) (string, error) {
+func (s Slack) GetSignInURL(ct context.Context, stateID uint64) (string, *errs.Error) {
 	baseURL, err := url.Parse(slackAuthorizeURL)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	query := baseURL.Query()
@@ -88,7 +102,7 @@ func (s Slack) GetSignInURL(ct context.Context, stateID uint64) (string, error) 
 	return baseURL.String(), nil
 }
 
-func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string, error) {
+func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string, *errs.Error) {
 	// API accepts request in encoded form data only
 	// https://api.slack.com/methods/openid.connect.token
 	formData := url.Values{}
@@ -100,33 +114,44 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 
 	req, err := http.NewRequest("POST", slackTokenURL, strings.NewReader(formData.Encode()))
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	defer res.Body.Close()
 
-	if res.StatusCode > 300 || res.StatusCode < 200 {
-		err = fmt.Errorf("fail to obtain %s access token", s.GetName())
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-			telemetry.CauseProp: err,
-			"OAuthProviderName": s.GetName(),
-			"HttpStatusCode":    res.StatusCode,
-		})
-		return "", err
+	internalErr := errs.GetFromHTTPErr(res)
+	if internalErr != nil {
+		internalErr.Message = fmt.Sprintf("fail to obtain access token: oauthProviderName=%v, httpStatusCode=%v",
+			s.GetName(),
+			res.StatusCode)
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	buf, err := io.ReadAll(res.Body)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr = &errs.Error{
+			Code:     errs.IO,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	body := struct {
@@ -138,14 +163,21 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 	}{}
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr = &errs.Error{
+			Code:     errs.Deserialization,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	if !body.OK {
-		err = errors.New(body.Error)
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err.Error()})
-		return "", err
+		internalErr = &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	return body.IDToken, nil

@@ -7,6 +7,7 @@ import (
 
 	"github.com/minio/minio-go"
 	"github.com/teamyapp/cloud/libs/env"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -21,36 +22,60 @@ type S3Bucket struct {
 
 var _ MapBackend = (*S3Bucket)(nil)
 
-func (s S3Bucket) Get(key string) ([]byte, error) {
+func (s S3Bucket) Get(key string) ([]byte, *errs.Error) {
 	fullPath := path.Join(appDataRoot, string(s.env), key)
 	obj, err := s.client.GetObject(s.bucketName, fullPath, minio.GetObjectOptions{})
 	if err != nil {
-		s.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return nil, err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return nil, internalErr
 	}
 
-	return io.ReadAll(obj)
+	buf, err := io.ReadAll(obj)
+	if err != nil {
+		internalErr := &errs.Error{
+			Code:     errs.IO,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return nil, internalErr
+	}
+
+	return buf, nil
 }
 
-func (s S3Bucket) Put(key string, data []byte) error {
+func (s S3Bucket) Put(key string, data []byte) *errs.Error {
 	objSize := int64(len(data))
 	fullPath := path.Join(appDataRoot, string(s.env), key)
 	_, err := s.client.PutObject(s.bucketName, fullPath, bytes.NewReader(data), objSize, minio.PutObjectOptions{})
 	if err != nil {
-		s.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
-func (s S3Bucket) Delete(key string) error {
+func (s S3Bucket) Delete(key string) *errs.Error {
 	fullPath := path.Join(appDataRoot, string(s.env), key)
 	err := s.client.RemoveObject(s.bucketName, fullPath)
 	if err != nil {
-		s.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
 func NewS3Bucket(
@@ -63,8 +88,12 @@ func NewS3Bucket(
 ) (S3Bucket, error) {
 	client, err := minio.New(endpoint, accessKeyID, accessKey, true)
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return S3Bucket{}, err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return S3Bucket{}, internalErr.ToError()
 	}
 
 	return S3Bucket{

@@ -10,6 +10,7 @@ const (
 	Unknown           ErrorCode = "Unknown"
 	Cancelled         ErrorCode = "Cancelled"
 	InvalidArgument   ErrorCode = "InvalidArgument"
+	InvalidValue      ErrorCode = "InvalidValue"
 	InvalidFormat     ErrorCode = "InvalidFormat"
 	InvalidOperation  ErrorCode = "InvalidOperation"
 	Aborted           ErrorCode = "Aborted"
@@ -23,6 +24,7 @@ const (
 	NotReady          ErrorCode = "NotReady"
 	Unreachable       ErrorCode = "Unreachable"
 	IO                ErrorCode = "IO"
+	OS                ErrorCode = "OS"
 	Serialization     ErrorCode = "Serialization"
 	Deserialization   ErrorCode = "Deserialization"
 )
@@ -33,8 +35,10 @@ type Error struct {
 	Message  string
 }
 
-var _ error = (*Error)(nil)
-
-func (e Error) Error() string {
+func (e Error) String() string {
 	return fmt.Sprintf("[Error Code=%v Message=%v EmbedErr=%v]", e.Code, e.Message, e.EmbedErr)
+}
+
+func (e Error) ToError() error {
+	return fmt.Errorf("[Code=%v Message=%v EmbedErr=%v]", e.Code, e.Message, e.EmbedErr)
 }

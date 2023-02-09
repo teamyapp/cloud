@@ -1,12 +1,14 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -17,7 +19,7 @@ type AllocatedRange struct {
 
 var _ dao.AllocatedRange = (*AllocatedRange)(nil)
 
-func (a AllocatedRange) FindAllocatedRangeByKey(key string) (entity.AllocatedRange, error) {
+func (a AllocatedRange) FindAllocatedRangeByKey(ct context.Context, key string) (entity.AllocatedRange, *errs.Error) {
 	row := a.db.QueryRow(`
 	SELECT key, range_end
 	FROM allocated_range
@@ -28,19 +30,29 @@ func (a AllocatedRange) FindAllocatedRangeByKey(key string) (entity.AllocatedRan
 	allocatedRange := entity.AllocatedRange{}
 	err := row.Scan(&allocatedRange.Key, &allocatedRange.RangeEnd)
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.AllocatedRange{}, dao.ErrNotFound(fmt.Sprintf(
-			"allocated range not found: key=%v",
-			key))
+		internalErr := &errs.Error{
+			Code:    errs.NotFound,
+			Message: fmt.Sprintf("allocated range not found: key=%v", key),
+		}
+		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
+			telemetry.CauseProp: err,
+		})
+		return entity.AllocatedRange{}, internalErr
 	}
 
 	if err != nil {
-		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.AllocatedRange{}, internalErr
 	}
 
-	return allocatedRange, err
+	return allocatedRange, nil
 }
 
-func (a AllocatedRange) CreateAllocatedRange(allocatedRange entity.AllocatedRange) error {
+func (a AllocatedRange) CreateAllocatedRange(ct context.Context, allocatedRange entity.AllocatedRange) *errs.Error {
 	_, err := a.db.Exec(`
 	INSERT INTO allocated_range (key, range_end)
 	VALUES ($1, $2);
@@ -48,13 +60,18 @@ func (a AllocatedRange) CreateAllocatedRange(allocatedRange entity.AllocatedRang
 		allocatedRange.Key,
 		allocatedRange.RangeEnd)
 	if err != nil {
-		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
-func (a AllocatedRange) UpdateAllocatedRange(allocatedRange entity.AllocatedRange) error {
+func (a AllocatedRange) UpdateAllocatedRange(ct context.Context, allocatedRange entity.AllocatedRange) *errs.Error {
 	_, err := a.db.Exec(`
 	UPDATE allocated_range
 	SET range_end = $1
@@ -63,10 +80,15 @@ func (a AllocatedRange) UpdateAllocatedRange(allocatedRange entity.AllocatedRang
 		allocatedRange.RangeEnd,
 		allocatedRange.Key)
 	if err != nil {
-		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
 func NewAllocatedRange(dataCollector telemetry.DataCollector, sqlDB *sql.DB) AllocatedRange {

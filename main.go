@@ -13,6 +13,7 @@ import (
 	"github.com/teamyapp/cloud/app/dep"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/libs/env"
+	"github.com/teamyapp/cloud/libs/errs"
 	tmio "github.com/teamyapp/cloud/libs/io"
 	"github.com/teamyapp/cloud/libs/middleware"
 	"github.com/teamyapp/cloud/libs/runner"
@@ -57,11 +58,11 @@ func main() {
 		telemetry.MessageProp: gitCommitLink,
 	})
 
-	err = sqldb.Use(dataCollector, cfg.Config, func(sqlDB *sql.DB) error {
-		err = sqldb.MigrateUp(dataCollector, sqlDB, sqldb.DefaultMigrationRoot, sqldb.MigrateAll)
-		if err != nil {
-			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-			return err
+	err = sqldb.Use(dataCollector, cfg.Config, func(sqlDB *sql.DB) *errs.Error {
+		internalErr := sqldb.MigrateUp(dataCollector, sqlDB, sqldb.DefaultMigrationRoot, sqldb.MigrateAll)
+		if internalErr != nil {
+			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			return internalErr
 		}
 
 		runnerConfig, internalErr := runner.ServiceRunnerConfigFromEnv(dataCollector)
@@ -98,20 +99,32 @@ func main() {
 			dep.JWTSigningKey(cfg.JWTSigningKey),
 			dep.GenRangeSize(cfg.GenRangeSize))
 		if err != nil {
-			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-			return err
+			internalErr = &errs.Error{
+				Code:     errs.Unknown,
+				EmbedErr: err,
+			}
+			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			return internalErr
 		}
 
 		generatorAPI, err := dep.InitGeneratorAPI(dataCollector, sqlDB, dep.GenRangeSize(cfg.GenRangeSize))
 		if err != nil {
-			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-			return err
+			internalErr = &errs.Error{
+				Code:     errs.Unknown,
+				EmbedErr: err,
+			}
+			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			return internalErr
 		}
 
 		authorizationAPI, err := dep.InitAuthorizationAPI(dataCollector, sqlDB, dep.GenRangeSize(cfg.GenRangeSize))
 		if err != nil {
-			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-			return err
+			internalErr = &errs.Error{
+				Code:     errs.Unknown,
+				EmbedErr: err,
+			}
+			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			return internalErr
 		}
 
 		fileAPI, err := dep.InitFileAPI(
@@ -124,8 +137,12 @@ func main() {
 			dep.S3AccessKey(cfg.S3AccessKey),
 			dep.S3BucketName(cfg.S3BucketName))
 		if err != nil {
-			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-			return err
+			internalErr = &errs.Error{
+				Code:     errs.Unknown,
+				EmbedErr: err,
+			}
+			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			return internalErr
 		}
 
 		telemetryAPI := dep.InitTelemetryAPI(dataCollector)
@@ -177,7 +194,7 @@ func newLineFormatter(environment env.Environment) telemetry.LineFormatter {
 	return telemetry.NewJSONLineFormatter()
 }
 
-func newLogOutput(environment env.Environment, serviceName string) (io.WriteCloser, error) {
+func newLogOutput(environment env.Environment, serviceName string) (io.WriteCloser, *errs.Error) {
 	if environment == env.DevelopmentEnv {
 		logFileName := fmt.Sprintf("%v.log", serviceName)
 		logFilePath := getEnv("LOG_OUTPUT_FILE", filepath.Join("..", "logs", logFileName))
@@ -187,12 +204,18 @@ func newLogOutput(environment env.Environment, serviceName string) (io.WriteClos
 		// https://github.com/golang/go/issues/22323
 		err := os.MkdirAll(logDir, 0744)
 		if err != nil {
-			return nil, err
+			return nil, &errs.Error{
+				Code:     errs.OS,
+				EmbedErr: err,
+			}
 		}
 
 		file, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0640)
 		if err != nil {
-			return nil, err
+			return nil, &errs.Error{
+				Code:     errs.OS,
+				EmbedErr: err,
+			}
 		}
 
 		return tmio.NewMultiWriteCloser(file, os.Stdout), nil

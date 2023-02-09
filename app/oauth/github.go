@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -34,45 +35,56 @@ func (g GitHub) GetName() string {
 	return GitHubName
 }
 
-func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, error) {
+func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, *errs.Error) {
 	// https://docs.github.com/en/developers/apps/building-github-apps/identifying-and-authorizing-
 	// users-for-github-apps#2-users-are-redirected-back-to-your-site-by-github
-	accessToken, err := g.getAccessToken(ct, authorizationCode)
-	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.ExternalUser{}, err
+	accessToken, internalErr := g.getAccessToken(ct, authorizationCode)
+	if internalErr != nil {
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.ExternalUser{}, internalErr
 	}
 
 	// https://docs.github.com/en/developers/apps/building-github-apps/identifying-and-authorizing-
 	// users-for-github-apps#3-your-github-app-accesses-the-api-with-the-users-access-token
 	req, err := http.NewRequest("GET", githubUserURL, nil)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.ExternalUser{}, err
+		internalErr = &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.ExternalUser{}, internalErr
 	}
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.ExternalUser{}, err
+		internalErr = &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.ExternalUser{}, internalErr
 	}
 
-	if res.StatusCode > 300 || res.StatusCode < 200 {
-		err = fmt.Errorf("fail to obtain %s user ID", g.GetName())
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-			telemetry.CauseProp: err,
-			"AuthProviderName":  g.GetName(),
-			"HttpStatusCode":    res.StatusCode,
-		})
-		return entity.ExternalUser{}, err
+	internalErr = errs.GetFromHTTPErr(res)
+	if internalErr != nil {
+		internalErr.Message = fmt.Sprintf("fail to obtain user ID: authProviderName=%v, httpStatusCode=%v",
+			g.GetName(),
+			res.StatusCode)
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.ExternalUser{}, internalErr
 	}
 
 	buf, err := io.ReadAll(res.Body)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.ExternalUser{}, err
+		internalErr = &errs.Error{
+			Code:     errs.IO,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.ExternalUser{}, internalErr
 	}
 
 	var body struct {
@@ -81,8 +93,12 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 	}
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return entity.ExternalUser{}, err
+		internalErr = &errs.Error{
+			Code:     errs.Deserialization,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.ExternalUser{}, internalErr
 	}
 
 	return entity.ExternalUser{
@@ -91,19 +107,33 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 	}, nil
 }
 
-func (g GitHub) GetStateID(request *http.Request) (uint64, error) {
-	return strconv.ParseUint(request.URL.Query().Get("state"), 10, 64)
+func (g GitHub) GetStateID(ct context.Context, request *http.Request) (uint64, *errs.Error) {
+	num, err := strconv.ParseUint(request.URL.Query().Get("state"), 10, 64)
+	if err != nil {
+		internalErr := &errs.Error{
+			Code:     errs.InvalidFormat,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return 0, internalErr
+	}
+
+	return num, nil
 }
 
-func (g GitHub) GetAuthorizationCode(request *http.Request) string {
+func (g GitHub) GetAuthorizationCode(ct context.Context, request *http.Request) string {
 	return request.URL.Query().Get("code")
 }
 
-func (g GitHub) GetSignInURL(ct context.Context, stateID uint64) (string, error) {
+func (g GitHub) GetSignInURL(ct context.Context, stateID uint64) (string, *errs.Error) {
 	baseURL, err := url.Parse(githubAuthorizationURL)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr := &errs.Error{
+			Code:     errs.InvalidFormat,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	// Github app does not require "scopes" in your authorization request
@@ -115,7 +145,7 @@ func (g GitHub) GetSignInURL(ct context.Context, stateID uint64) (string, error)
 	return baseURL.String(), nil
 }
 
-func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (string, error) {
+func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (string, *errs.Error) {
 	tokenBody := struct {
 		ClientID     string `json:"client_id"`
 		ClientSecret string `json:"client_secret"`
@@ -128,39 +158,55 @@ func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (st
 
 	buf, err := json.Marshal(tokenBody)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr := &errs.Error{
+			Code:     errs.Serialization,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	req, err := http.NewRequest("POST", githubAccessTokenURL, bytes.NewReader(buf))
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
+
 	defer res.Body.Close()
 
-	if res.StatusCode > 300 || res.StatusCode < 200 {
-		err = fmt.Errorf("fail to obtain %s access token", g.GetName())
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-			telemetry.CauseProp: err,
-			"OauthProviderName": g.GetName(),
-			"HttpStatusCode":    res.StatusCode,
-		})
-		return "", err
+	internalErr := errs.GetFromHTTPErr(res)
+	if internalErr != nil {
+		internalErr.Message = fmt.Sprintf("fail to obtain user ID: authProviderName=%v, httpStatusCode=%v",
+			g.GetName(),
+			res.StatusCode)
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	buf, err = io.ReadAll(res.Body)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr = &errs.Error{
+			Code:     errs.IO,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	body := struct {
@@ -170,10 +216,15 @@ func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (st
 	}{}
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr = &errs.Error{
+			Code:     errs.Deserialization,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
-	return body.AccessToken, err
+	return body.AccessToken, nil
 }
 
 func NewGitHub(dataCollector telemetry.DataCollector, webAPIBaseURL string, clientID string, clientSecret string) GitHub {

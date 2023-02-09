@@ -8,6 +8,7 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -18,7 +19,7 @@ type UserGroup struct {
 
 var _ dao.UserGroup = (*UserGroup)(nil)
 
-func (u UserGroup) FindGroupByID(ct context.Context, groupID uint64) (entity.UserGroup, error) {
+func (u UserGroup) FindGroupByID(ct context.Context, groupID uint64) (entity.UserGroup, *errs.Error) {
 	group := entity.UserGroup{}
 	err := u.db.QueryRow(`
 		SELECT
@@ -41,19 +42,29 @@ func (u UserGroup) FindGroupByID(ct context.Context, groupID uint64) (entity.Use
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.UserGroup{}, dao.ErrNotFound(fmt.Sprintf(
-			"user group not found: group_id=%d",
-			groupID))
+		internalErr := &errs.Error{
+			Code: errs.NotFound,
+			Message: fmt.Sprintf(
+				"user group not found: group_id=%d",
+				groupID),
+		}
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UserGroup{}, internalErr
 	}
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UserGroup{}, internalErr
 	}
 
-	return group, err
+	return group, nil
 }
 
-func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, error) {
+func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, *errs.Error) {
 	rows, err := u.db.Query(`
 		SELECT
 			id,
@@ -64,9 +75,14 @@ func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, error)
 			updated_at
 		FROM user_group;
 	`)
+
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return nil, err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return nil, internalErr
 	}
 
 	defer rows.Close()
@@ -82,7 +98,11 @@ func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, error)
 			&group.UpdatedAt,
 		)
 		if err != nil {
-			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+			internalErr := &errs.Error{
+				Code:     errs.Unknown,
+				EmbedErr: err,
+			}
+			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
 			continue
 		}
 
@@ -92,7 +112,7 @@ func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, error)
 	return groups, nil
 }
 
-func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) (entity.UserGroup, error) {
+func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) (entity.UserGroup, *errs.Error) {
 	_, err := u.db.Exec(`
 		INSERT INTO user_group
 		(
@@ -113,13 +133,18 @@ func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) (enti
 	)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.UserGroup{}, internalErr
 	}
 
-	return group, err
+	return group, nil
 }
 
-func (u UserGroup) UpdateGroup(ct context.Context, group entity.UserGroup) error {
+func (u UserGroup) UpdateGroup(ct context.Context, group entity.UserGroup) *errs.Error {
 	_, err := u.db.Exec(`
 		UPDATE user_group
 		SET
@@ -138,13 +163,18 @@ func (u UserGroup) UpdateGroup(ct context.Context, group entity.UserGroup) error
 	)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
-func (u UserGroup) DeleteGroup(ct context.Context, groupID uint64) error {
+func (u UserGroup) DeleteGroup(ct context.Context, groupID uint64) *errs.Error {
 	_, err := u.db.Exec(`
 		DELETE FROM user_group
 		WHERE id = $1;
@@ -152,10 +182,15 @@ func (u UserGroup) DeleteGroup(ct context.Context, groupID uint64) error {
 		groupID)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
 func NewUserGroup(dataCollector telemetry.DataCollector, sqlDB *sql.DB) UserGroup {

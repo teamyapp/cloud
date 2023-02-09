@@ -6,6 +6,7 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/collect"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type OperationRelation struct {
@@ -14,12 +15,12 @@ type OperationRelation struct {
 
 var _ dao.OperationRelation = (*OperationRelation)(nil)
 
-func (o OperationRelation) FindOperationRelation(ct context.Context, childResourceType string, childOperation string, parentResourceType string, parentOperation string) (entity.OperationRelation, error) {
+func (o OperationRelation) FindOperationRelation(ct context.Context, childResourceType string, childOperation string, parentResourceType string, parentOperation string) (entity.OperationRelation, *errs.Error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (o OperationRelation) FindOperationRelations(ct context.Context, childResourceType string, childOperation string) ([]entity.OperationRelation, error) {
+func (o OperationRelation) FindOperationRelations(ct context.Context, childResourceType string, childOperation string) ([]entity.OperationRelation, *errs.Error) {
 	operationRelations := collect.Filter(o.operationRelations, func(operationRelation entity.OperationRelation) bool {
 		return childResourceType == operationRelation.ChildResourceType && childOperation == operationRelation.ChildOperation
 	})
@@ -27,17 +28,17 @@ func (o OperationRelation) FindOperationRelations(ct context.Context, childResou
 	return operationRelations, nil
 }
 
-func (o OperationRelation) FindAllOperationRelations(ct context.Context) ([]entity.OperationRelation, error) {
+func (o OperationRelation) FindAllOperationRelations(ct context.Context) ([]entity.OperationRelation, *errs.Error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (o OperationRelation) CreateOperationRelation(ct context.Context, operationRelation entity.OperationRelation) error {
+func (o OperationRelation) CreateOperationRelation(ct context.Context, operationRelation entity.OperationRelation) *errs.Error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (o OperationRelation) DeleteOperationRelation(ct context.Context, childResourceType string, childOperation string, parentResourceType string, parentOperation string) error {
+func (o OperationRelation) DeleteOperationRelation(ct context.Context, childResourceType string, childOperation string, parentResourceType string, parentOperation string) *errs.Error {
 	//TODO implement me
 	panic("implement me")
 }

@@ -22,7 +22,7 @@ func ServerHTTPWithIdentity(
 	dataCollector telemetry.DataCollector,
 	identityAPIEndpoint string,
 ) Middleware[http.HandlerFunc] {
-	return withIdentity(dataCollector, identityAPIEndpoint, func(request *http.Request) (string, error) {
+	return withIdentity(dataCollector, identityAPIEndpoint, func(request *http.Request) (string, *errs.Error) {
 		ct := request.Context()
 		value := request.Header.Get("Authorization")
 		if len(value) == 0 {
@@ -61,7 +61,7 @@ func ServerWebSocketWithIdentity(
 	dataCollector telemetry.DataCollector,
 	identityAPIEndpoint string,
 ) Middleware[http.HandlerFunc] {
-	return withIdentity(dataCollector, identityAPIEndpoint, func(request *http.Request) (string, error) {
+	return withIdentity(dataCollector, identityAPIEndpoint, func(request *http.Request) (string, *errs.Error) {
 		return request.URL.Query().Get("accessToken"), nil
 	})
 }
@@ -105,7 +105,7 @@ func ClientGRPCWithIdentity(getAccessToken func() string) grpc.UnaryClientInterc
 func withIdentity(
 	dataCollector telemetry.DataCollector,
 	identityAPIEndpoint string,
-	getBearerToken func(request *http.Request) (string, error),
+	getBearerToken func(request *http.Request) (string, *errs.Error),
 ) Middleware[http.HandlerFunc] {
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		verifyTokenURL := fmt.Sprintf("%s/verify-token", identityAPIEndpoint)
@@ -114,8 +114,8 @@ func withIdentity(
 			token, err := getBearerToken(request)
 			if err != nil {
 				dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-			} else {
-				updatedCt, err := ctxWithUserID(dataCollector, request.Context(), verifyTokenURL, token)
+			} else if len(token) > 0 {
+				updatedCt, err := ctxWithUserID(dataCollector, ct, verifyTokenURL, token)
 				if err != nil {
 					dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 				} else {
@@ -145,7 +145,6 @@ func ctxWithUserID(dataCollector telemetry.DataCollector, ct context.Context, ve
 	internalErr := errs.GetFromHTTPErr(res)
 	if internalErr != nil {
 		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
-
 		return nil, internalErr
 	}
 

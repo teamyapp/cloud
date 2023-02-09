@@ -2,12 +2,11 @@ package gen
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"math"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -19,9 +18,9 @@ type UniqueNumber struct {
 	allocatedRange    entity.AllocatedRange
 }
 
-func (u *UniqueNumber) GenerateUniqueNumber(ct context.Context) (uint64, error) {
+func (u *UniqueNumber) GenerateUniqueNumber(ct context.Context) (uint64, *errs.Error) {
 	if u.allocatedRange.NextNumber > u.allocatedRange.RangeEnd {
-		err := u.allocateNewRange()
+		err := u.allocateNewRange(ct)
 		if err != nil {
 			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			return uint64(0), err
@@ -33,11 +32,14 @@ func (u *UniqueNumber) GenerateUniqueNumber(ct context.Context) (uint64, error) 
 	return num, nil
 }
 
-func (u *UniqueNumber) allocateNewRange() error {
+func (u *UniqueNumber) allocateNewRange(ct context.Context) *errs.Error {
 	if u.allocatedRange.RangeEnd == math.MaxInt64 {
-		err := fmt.Errorf("out of number to allocate")
-		u.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return err
+		internalErr := &errs.Error{
+			Code:    errs.Unknown,
+			Message: "out of number to allocate",
+		}
+		u.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
 	newRangeStart := u.allocatedRange.RangeEnd + 1
@@ -47,7 +49,7 @@ func (u *UniqueNumber) allocateNewRange() error {
 		RangeEnd:   newRangeEnd,
 		NextNumber: newRangeStart,
 	}
-	err := u.allocatedRangeDao.UpdateAllocatedRange(newRange)
+	err := u.allocatedRangeDao.UpdateAllocatedRange(ct, newRange)
 	if err != nil {
 		u.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 		return err
@@ -73,11 +75,11 @@ func newUniqueNumber(
 	allocatedRangeDao dao.AllocatedRange,
 	name string,
 	rangeSize uint64,
-) (*UniqueNumber, error) {
-	allocatedRange, err := allocatedRangeDao.FindAllocatedRangeByKey(name)
-	var errNotFound dao.ErrNotFound
+) (*UniqueNumber, *errs.Error) {
+	ct := context.Background()
+	allocatedRange, err := allocatedRangeDao.FindAllocatedRangeByKey(ct, name)
 	if err != nil {
-		if !errors.As(err, &errNotFound) {
+		if err.Code == errs.NotFound {
 			return nil, err
 		}
 
@@ -87,7 +89,7 @@ func newUniqueNumber(
 			NextNumber: 0,
 		}
 
-		err = allocatedRangeDao.CreateAllocatedRange(allocatedRange)
+		err = allocatedRangeDao.CreateAllocatedRange(ct, allocatedRange)
 		if err != nil {
 			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 			return nil, err
@@ -101,7 +103,7 @@ func newUniqueNumber(
 		allocatedRange:    allocatedRange,
 		allocatedRangeDao: allocatedRangeDao,
 	}
-	err = uniqueNumber.allocateNewRange()
+	err = uniqueNumber.allocateNewRange(ct)
 	if err != nil {
 		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
 	}
@@ -115,7 +117,7 @@ type UniqueNumberFactory struct {
 	rangeSize         uint64
 }
 
-func (u UniqueNumberFactory) MakeUniqueNumber(name string) (*UniqueNumber, error) {
+func (u UniqueNumberFactory) MakeUniqueNumber(name string) (*UniqueNumber, *errs.Error) {
 	return newUniqueNumber(u.dataCollector, u.allocatedRangeDao, name, u.rangeSize)
 }
 

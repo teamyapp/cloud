@@ -8,6 +8,7 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -18,7 +19,7 @@ type Operation struct {
 
 var _ dao.Operation = (*Operation)(nil)
 
-func (o Operation) FindOperation(ct context.Context, resourceTypeName string, operationName string) (entity.Operation, error) {
+func (o Operation) FindOperation(ct context.Context, resourceTypeName string, operationName string) (entity.Operation, *errs.Error) {
 	operation := entity.Operation{}
 	err := o.db.QueryRow(`
 		SELECT
@@ -37,19 +38,27 @@ func (o Operation) FindOperation(ct context.Context, resourceTypeName string, op
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.Operation{}, dao.ErrNotFound(fmt.Sprintf(
-			"resource not found: resource_type=%v, operation=%v",
-			resourceTypeName, operationName))
+		internalErr := &errs.Error{
+			Code:    errs.NotFound,
+			Message: fmt.Sprintf("resource not found: resource_type=%v, operation=%v", resourceTypeName, operationName),
+		}
+		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.Operation{}, internalErr
 	}
 
 	if err != nil {
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.Operation{}, internalErr
 	}
 
-	return operation, err
+	return operation, nil
 }
 
-func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, error) {
+func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *errs.Error) {
 	rows, err := o.db.Query(`
 		SELECT
 			resource_type,
@@ -59,8 +68,12 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, er
 		FROM operation;
 	`)
 	if err != nil {
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return nil, err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return nil, internalErr
 	}
 
 	defer rows.Close()
@@ -74,17 +87,30 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, er
 			&operation.CreatorUserID,
 		)
 		if err != nil {
-			o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+			internalErr := &errs.Error{
+				Code:     errs.Unknown,
+				EmbedErr: err,
+			}
+			o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
 			continue
 		}
 
 		operations = append(operations, operation)
 	}
 
+	if err != nil {
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return nil, internalErr
+	}
+
 	return operations, nil
 }
 
-func (o Operation) CreateOperation(ct context.Context, operation entity.Operation) error {
+func (o Operation) CreateOperation(ct context.Context, operation entity.Operation) *errs.Error {
 	_, err := o.db.Exec(`
 		INSERT INTO operation
 		(
@@ -101,13 +127,18 @@ func (o Operation) CreateOperation(ct context.Context, operation entity.Operatio
 	)
 
 	if err != nil {
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
-func (o Operation) DeleteOperation(ct context.Context, resourceTypeName string, operationName string) error {
+func (o Operation) DeleteOperation(ct context.Context, resourceTypeName string, operationName string) *errs.Error {
 	_, err := o.db.Exec(`
 		DELETE FROM operation
 		WHERE resource_type = $1 AND operation = $2;
@@ -115,10 +146,15 @@ func (o Operation) DeleteOperation(ct context.Context, resourceTypeName string, 
 		resourceTypeName, operationName)
 
 	if err != nil {
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
 func NewOperation(dataCollector telemetry.DataCollector, sqlDB *sql.DB) Operation {
