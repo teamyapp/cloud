@@ -8,6 +8,7 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -18,7 +19,7 @@ type ServiceAccount struct {
 
 var _ dao.ServiceAccount = (*ServiceAccount)(nil)
 
-func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerID uint64) ([]entity.ServiceAccount, error) {
+func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerID uint64) ([]entity.ServiceAccount, *errs.Error) {
 	rows, err := s.db.Query(`
 	SELECT
 	    id,
@@ -30,9 +31,14 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 	WHERE owner_user_id = $1;`,
 		accountOwnerID)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return nil, err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return nil, internalErr
 	}
+
 	defer rows.Close()
 
 	serviceAccounts := make([]entity.ServiceAccount, 0)
@@ -46,7 +52,11 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 			&serviceAccount.CreatedAt,
 		)
 		if err != nil {
-			s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+			internalErr := &errs.Error{
+				Code:     errs.Unknown,
+				EmbedErr: err,
+			}
+			s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
 			continue
 		}
 
@@ -56,7 +66,7 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 	return serviceAccounts, nil
 }
 
-func (s ServiceAccount) FindServiceAccountByID(ct context.Context, serviceAccountID uint64) (entity.ServiceAccount, error) {
+func (s ServiceAccount) FindServiceAccountByID(ct context.Context, serviceAccountID uint64) (entity.ServiceAccount, *errs.Error) {
 	serviceAccount := entity.ServiceAccount{}
 	err := s.db.QueryRow(`
 	SELECT
@@ -77,18 +87,29 @@ func (s ServiceAccount) FindServiceAccountByID(ct context.Context, serviceAccoun
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.ServiceAccount{}, dao.ErrNotFound(fmt.Sprintf(
-			"service account not found: id=%v", serviceAccountID))
+		internalErr := &errs.Error{
+			Code: errs.NotFound,
+			Message: fmt.Sprintf(
+				"service account not found: id=%v",
+				serviceAccountID),
+		}
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.ServiceAccount{}, internalErr
 	}
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.ServiceAccount{}, internalErr
 	}
 
-	return serviceAccount, err
+	return serviceAccount, nil
 }
 
-func (s ServiceAccount) CreateServiceAccount(ct context.Context, serviceAccount entity.ServiceAccount) error {
+func (s ServiceAccount) CreateServiceAccount(ct context.Context, serviceAccount entity.ServiceAccount) *errs.Error {
 	_, err := s.db.Exec(`
 	INSERT INTO identity_service_account
 	(
@@ -105,14 +126,20 @@ func (s ServiceAccount) CreateServiceAccount(ct context.Context, serviceAccount 
 		serviceAccount.Secret,
 		serviceAccount.CreatedAt,
 	)
+
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
-func (s ServiceAccount) UpdateServiceAccount(ct context.Context, serviceAccount entity.ServiceAccount) error {
+func (s ServiceAccount) UpdateServiceAccount(ct context.Context, serviceAccount entity.ServiceAccount) *errs.Error {
 	_, err := s.db.Exec(`
 	UPDATE identity_service_account
 	SET
@@ -131,13 +158,18 @@ func (s ServiceAccount) UpdateServiceAccount(ct context.Context, serviceAccount 
 	)
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
-func (s ServiceAccount) DeleteServiceAccount(ct context.Context, serviceAccountID uint64) error {
+func (s ServiceAccount) DeleteServiceAccount(ct context.Context, serviceAccountID uint64) *errs.Error {
 	_, err := s.db.Exec(`
 		DELETE 
 		FROM identity_service_account
@@ -145,10 +177,15 @@ func (s ServiceAccount) DeleteServiceAccount(ct context.Context, serviceAccountI
 		serviceAccountID)
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
 func NewServiceAccount(dataCollector telemetry.DataCollector, sqlDB *sql.DB) ServiceAccount {

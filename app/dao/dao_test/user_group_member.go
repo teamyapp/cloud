@@ -6,6 +6,7 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/collect"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type UserGroupMember struct {
@@ -14,7 +15,7 @@ type UserGroupMember struct {
 
 var _ dao.UserGroupMember = (*UserGroupMember)(nil)
 
-func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64) ([]uint64, error) {
+func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64) ([]uint64, *errs.Error) {
 	groupMembers := collect.Filter(u.userGroupMembers, func(userGroupMember entity.UserGroupMember) bool {
 		return userGroupMember.UserID == userID
 	})
@@ -24,32 +25,32 @@ func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64)
 	}), nil
 }
 
-func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID uint64) ([]entity.UserGroupMember, error) {
+func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID uint64) ([]entity.UserGroupMember, *errs.Error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, groupID uint64) ([]entity.UserGroupMember, error) {
+func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, groupID uint64) ([]entity.UserGroupMember, *errs.Error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroupMember) FindUserGroupMember(ct context.Context, groupID uint64, userID uint64) (entity.UserGroupMember, error) {
+func (u UserGroupMember) FindUserGroupMember(ct context.Context, groupID uint64, userID uint64) (entity.UserGroupMember, *errs.Error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.UserGroupMember, error) {
+func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.UserGroupMember, *errs.Error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroupMember) CreateUserGroupMember(ct context.Context, userGroupMember entity.UserGroupMember) error {
+func (u UserGroupMember) CreateUserGroupMember(ct context.Context, userGroupMember entity.UserGroupMember) *errs.Error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UserGroupMember) DeleteUserGroupMember(ct context.Context, groupID uint64, userID uint64) error {
+func (u UserGroupMember) DeleteUserGroupMember(ct context.Context, groupID uint64, userID uint64) *errs.Error {
 	//TODO implement me
 	panic("implement me")
 }

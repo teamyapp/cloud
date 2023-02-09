@@ -1,11 +1,14 @@
 package dao
 
 import (
+	"context"
+
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type AllocatedRange interface {
-	FindAllocatedRangeByKey(key string) (entity.AllocatedRange, error)
-	CreateAllocatedRange(allocatedRange entity.AllocatedRange) error
-	UpdateAllocatedRange(allocatedRange entity.AllocatedRange) error
+	FindAllocatedRangeByKey(ct context.Context, key string) (entity.AllocatedRange, *errs.Error)
+	CreateAllocatedRange(ct context.Context, allocatedRange entity.AllocatedRange) *errs.Error
+	UpdateAllocatedRange(ct context.Context, allocatedRange entity.AllocatedRange) *errs.Error
 }

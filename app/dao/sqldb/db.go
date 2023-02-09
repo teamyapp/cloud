@@ -12,6 +12,7 @@ import (
 
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/io"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
@@ -41,7 +42,7 @@ type Config struct {
 	DBConnectionMaxIdleTime time.Duration `envconfig:"DB_CONNECTION_MAX_IDLE_TIME" default:"2m"`
 }
 
-func Use(dataCollector telemetry.DataCollector, cfg Config, action func(sqlDB *sql.DB) error) error {
+func Use(dataCollector telemetry.DataCollector, cfg Config, action func(sqlDB *sql.DB) *errs.Error) *errs.Error {
 	sqlDB, err := connect(cfg)
 	if err != nil {
 		return err
@@ -56,15 +57,15 @@ func Use(dataCollector telemetry.DataCollector, cfg Config, action func(sqlDB *s
 	return action(sqlDB)
 }
 
-func MigrateUp(dataCollector telemetry.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) error {
+func MigrateUp(dataCollector telemetry.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) *errs.Error {
 	return migrateDB(dataCollector, sqlDB, migrationRoot, migrate.Up, steps)
 }
 
-func MigrateDown(dataCollector telemetry.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) error {
+func MigrateDown(dataCollector telemetry.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) *errs.Error {
 	return migrateDB(dataCollector, sqlDB, migrationRoot, migrate.Down, steps)
 }
 
-func NewMigration(dataCollector telemetry.DataCollector, migrationDir string, fileName string) (string, error) {
+func NewMigration(dataCollector telemetry.DataCollector, migrationDir string, fileName string) (string, *errs.Error) {
 	now := time.Now()
 	prefix := fmt.Sprintf(
 		"%04d%02d%02d%02d%02d%02d_%s",
@@ -78,16 +79,24 @@ func NewMigration(dataCollector telemetry.DataCollector, migrationDir string, fi
 
 	err := os.MkdirAll(migrationDir, os.ModePerm)
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr := &errs.Error{
+			Code:     errs.OS,
+			EmbedErr: err,
+		}
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	fileName = fmt.Sprintf("%s.sql", prefix)
 	fullFilePath := filepath.Join(migrationDir, fileName)
 	err = io.CreateFileWithLog(fullFilePath)
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return "", err
+		internalErr := &errs.Error{
+			Code:     errs.OS,
+			EmbedErr: err,
+		}
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return "", internalErr
 	}
 
 	return fullFilePath, nil
@@ -128,23 +137,35 @@ GRANT ALL PRIVILEGES ON DATABASE "%s" TO "%s";
 	})
 }
 
-func ExecSQL(dataCollector telemetry.DataCollector, sqlDB *sql.DB, sqlFileName string) error {
+func ExecSQL(dataCollector telemetry.DataCollector, sqlDB *sql.DB, sqlFileName string) *errs.Error {
 	buf, err := os.ReadFile(sqlFileName)
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return err
+		internalErr := &errs.Error{
+			Code:     errs.OS,
+			EmbedErr: err,
+		}
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
 	tx, err := sqlDB.BeginTx(context.Background(), nil)
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
 	_, err = tx.Exec(string(buf))
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
 	err = tx.Commit()
@@ -154,7 +175,10 @@ func ExecSQL(dataCollector telemetry.DataCollector, sqlDB *sql.DB, sqlFileName s
 		})
 	}
 
-	return err
+	return &errs.Error{
+		Code:     errs.Unknown,
+		EmbedErr: err,
+	}
 }
 
 func waitUntilReady(dataCollector telemetry.DataCollector, sqlDB *sql.DB) {
@@ -178,7 +202,7 @@ func waitUntilReady(dataCollector telemetry.DataCollector, sqlDB *sql.DB) {
 	}
 }
 
-func connect(cfg Config) (*sql.DB, error) {
+func connect(cfg Config) (*sql.DB, *errs.Error) {
 	dbSource := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		cfg.DBHost,
@@ -187,7 +211,16 @@ func connect(cfg Config) (*sql.DB, error) {
 		cfg.DBPassword,
 		cfg.DBName,
 		cfg.DBSSLMode)
-	return sql.Open(dbType, dbSource)
+	db, err := sql.Open(dbType, dbSource)
+	if err != nil {
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		return nil, internalErr
+	}
+
+	return db, nil
 }
 
 func migrateDB(
@@ -196,14 +229,18 @@ func migrateDB(
 	migrationRoot string,
 	migrateDirection migrate.MigrationDirection,
 	steps int,
-) error {
+) *errs.Error {
 	migrations := &migrate.FileMigrationSource{
 		Dir: migrationRoot,
 	}
 	_, err := migrate.ExecMax(db, dbType, migrations, migrateDirection, steps)
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		return err
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
 	dataCollector.Logger.Log(telemetry.Info, telemetry.Props{

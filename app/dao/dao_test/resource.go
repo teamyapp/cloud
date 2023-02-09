@@ -5,6 +5,7 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type Resource struct {
@@ -13,22 +14,22 @@ type Resource struct {
 
 var _ dao.Resource = (*Resource)(nil)
 
-func (r Resource) FindResource(ct context.Context, resourceTypeName string, resourceID uint64) (entity.Resource, error) {
+func (r Resource) FindResource(ct context.Context, resourceTypeName string, resourceID uint64) (entity.Resource, *errs.Error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, error) {
+func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, *errs.Error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (r Resource) CreateResource(ct context.Context, resource entity.Resource) error {
+func (r Resource) CreateResource(ct context.Context, resource entity.Resource) *errs.Error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (r Resource) DeleteResource(ct context.Context, resourceTypeName string, resourceID uint64) error {
+func (r Resource) DeleteResource(ct context.Context, resourceTypeName string, resourceID uint64) *errs.Error {
 	//TODO implement me
 	panic("implement me")
 }

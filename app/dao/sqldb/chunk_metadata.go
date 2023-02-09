@@ -8,6 +8,7 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -18,7 +19,7 @@ type ChunkMetadata struct {
 
 var _ dao.ChunkMetadata = (*ChunkMetadata)(nil)
 
-func (c ChunkMetadata) FindChunkMetadataID(ct context.Context, chunkID uint64) (entity.ChunkMetadata, error) {
+func (c ChunkMetadata) FindChunkMetadataID(ct context.Context, chunkID uint64) (entity.ChunkMetadata, *errs.Error) {
 	chunkMetadata := entity.ChunkMetadata{}
 	err := c.db.QueryRow(`
 	SELECT
@@ -35,18 +36,26 @@ func (c ChunkMetadata) FindChunkMetadataID(ct context.Context, chunkID uint64) (
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.ChunkMetadata{}, dao.ErrNotFound(fmt.Sprintf(
-			"chunk metadata not found: id=%v", chunkID))
+		internalErr := &errs.Error{
+			Code:    errs.NotFound,
+			Message: fmt.Sprintf("chunk metadata not found: id=%v", chunkID),
+		}
+		return entity.ChunkMetadata{}, internalErr
 	}
 
 	if err != nil {
-		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return entity.ChunkMetadata{}, internalErr
 	}
 
-	return chunkMetadata, err
+	return chunkMetadata, nil
 }
 
-func (c ChunkMetadata) CreateChunkMetadata(ct context.Context, metadata entity.ChunkMetadata) error {
+func (c ChunkMetadata) CreateChunkMetadata(ct context.Context, metadata entity.ChunkMetadata) *errs.Error {
 	_, err := c.db.Exec(`
 	INSERT INTO file_chunk_metadata
 	(
@@ -61,13 +70,18 @@ func (c ChunkMetadata) CreateChunkMetadata(ct context.Context, metadata entity.C
 	)
 
 	if err != nil {
-		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
-func (c ChunkMetadata) UpdateChunkMetadata(ct context.Context, metadata entity.ChunkMetadata) error {
+func (c ChunkMetadata) UpdateChunkMetadata(ct context.Context, metadata entity.ChunkMetadata) *errs.Error {
 	_, err := c.db.Exec(`
 	UPDATE file_chunk_metadata
 	SET
@@ -83,10 +97,15 @@ func (c ChunkMetadata) UpdateChunkMetadata(ct context.Context, metadata entity.C
 	)
 
 	if err != nil {
-		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		return internalErr
 	}
 
-	return err
+	return nil
 }
 
 func NewChunkMetadata(dataCollector telemetry.DataCollector, sqlDB *sql.DB) ChunkMetadata {

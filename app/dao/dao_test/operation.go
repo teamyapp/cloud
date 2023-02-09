@@ -5,6 +5,7 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type Operation struct {
@@ -13,22 +14,22 @@ type Operation struct {
 
 var _ dao.Operation = (*Operation)(nil)
 
-func (o Operation) FindOperation(ct context.Context, resourceTypeName string, operationName string) (entity.Operation, error) {
+func (o Operation) FindOperation(ct context.Context, resourceTypeName string, operationName string) (entity.Operation, *errs.Error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, error) {
+func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *errs.Error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (o Operation) CreateOperation(ct context.Context, operation entity.Operation) error {
+func (o Operation) CreateOperation(ct context.Context, operation entity.Operation) *errs.Error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (o Operation) DeleteOperation(ct context.Context, resourceTypeName string, operationName string) error {
+func (o Operation) DeleteOperation(ct context.Context, resourceTypeName string, operationName string) *errs.Error {
 	//TODO implement me
 	panic("implement me")
 }

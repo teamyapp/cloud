@@ -7,8 +7,11 @@ import (
 	"net/http"
 )
 
+const HTTPClientErrors = 400
+const HTTPServerErrors = 500
+
 var toHTTPStatusCode = map[ErrorCode]int{
-	Unknown:          http.StatusTeapot,
+	Unknown:          http.StatusInternalServerError,
 	InvalidArgument:  http.StatusBadRequest,
 	InvalidOperation: http.StatusBadRequest,
 	Timeout:          http.StatusRequestTimeout,
@@ -31,7 +34,7 @@ func GetFromHTTPErr(response *http.Response) *Error {
 	// Redirection messages (300 – 399)
 	// Client error responses (400 – 499)
 	// Server error responses (500 – 599)
-	if response.StatusCode < 400 {
+	if response.StatusCode < HTTPClientErrors {
 		return nil
 	}
 
@@ -59,7 +62,7 @@ func GetFromHTTPErr(response *http.Response) *Error {
 	}
 }
 
-func InsertHTTPErr(err *Error, responseWriter http.ResponseWriter) {
+func SetHTTPErr(err *Error, responseWriter http.ResponseWriter) {
 	if err == nil {
 		return
 	}

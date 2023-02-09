@@ -15,13 +15,15 @@ func ClientGRPCWithRetry(retry retry.Retry) grpc.UnaryClientInterceptor {
 		_, err := retry.WithRetry(func() *errs.Error {
 			return errs.FromGRPCErr(invoker(ct, method, req, reply, cc, opts...))
 		})
-		return err
+		return errs.ToGRPCErr(err)
 	}
 }
 
 type HttpClientExecutor interface {
 	Do(req *http.Request) (*http.Response, error)
 }
+
+var _ HttpClientExecutor = (*http.Client)(nil)
 
 type HttpClientExecuteFunc func(req *http.Request) (*http.Response, error)
 
@@ -56,7 +58,7 @@ func ClientHTTPWithRetry(dataCollector telemetry.DataCollector, retry retry.Retr
 				return internalErr
 			})
 
-			return res, err
+			return res, err.ToError()
 		})
 	}
 

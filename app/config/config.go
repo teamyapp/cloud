@@ -8,6 +8,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
 	"github.com/teamyapp/cloud/libs/env"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -42,11 +43,14 @@ type App struct {
 	S3BucketName       string        `envconfig:"S3_BUCKET_NAME" default:"teamyapp"`
 }
 
-func AppFromEnv() (App, error) {
+func AppFromEnv() (App, *errs.Error) {
 	cfg := App{}
 	err := FromEnv(&cfg)
 	if err != nil {
-		return App{}, err
+		return App{}, &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
 	}
 
 	return cfg, nil
