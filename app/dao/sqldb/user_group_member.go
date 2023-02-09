@@ -36,6 +36,8 @@ func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64)
 	}
 
 	defer rows.Close()
+
+	var internalErr *errs.Error
 	groupIDs := make([]uint64, 0)
 	for rows.Next() {
 		var groupID uint64
@@ -43,11 +45,16 @@ func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64)
 			&groupID,
 		)
 		if err != nil {
-			internalErr := &errs.Error{
+			newInternalErr := &errs.Error{
 				Code:     errs.Unknown,
 				EmbedErr: err,
 			}
-			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+
+			if internalErr == nil {
+				internalErr = newInternalErr
+			}
+
+			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
 			continue
 		}
 
@@ -77,6 +84,8 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID
 	}
 
 	defer rows.Close()
+
+	var internalErr *errs.Error
 	userGroupMembers := make([]entity.UserGroupMember, 0)
 	for rows.Next() {
 		userGroupMember := entity.UserGroupMember{}
@@ -87,11 +96,16 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			internalErr := &errs.Error{
+			newInternalErr := &errs.Error{
 				Code:     errs.Unknown,
 				EmbedErr: err,
 			}
-			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+
+			if internalErr == nil {
+				internalErr = newInternalErr
+			}
+
+			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
 			continue
 		}
 
@@ -121,6 +135,8 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, group
 	}
 
 	defer rows.Close()
+
+	var internalErr *errs.Error
 	userGroupMembers := make([]entity.UserGroupMember, 0)
 	for rows.Next() {
 		userGroupMember := entity.UserGroupMember{}
@@ -131,11 +147,16 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, group
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			internalErr := &errs.Error{
+			newInternalErr := &errs.Error{
 				Code:     errs.Unknown,
 				EmbedErr: err,
 			}
-			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+
+			if internalErr == nil {
+				internalErr = newInternalErr
+			}
+
+			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
 			continue
 		}
 
@@ -206,6 +227,8 @@ func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.U
 	}
 
 	defer rows.Close()
+
+	var internalErr *errs.Error
 	userGroupMembers := make([]entity.UserGroupMember, 0)
 	for rows.Next() {
 		userGroupMember := entity.UserGroupMember{}
@@ -216,11 +239,16 @@ func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.U
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			internalErr := &errs.Error{
+			newInternalErr := &errs.Error{
 				Code:     errs.Unknown,
 				EmbedErr: err,
 			}
-			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+
+			if internalErr == nil {
+				internalErr = newInternalErr
+			}
+
+			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
 			continue
 		}
 

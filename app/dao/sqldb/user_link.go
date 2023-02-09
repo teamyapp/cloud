@@ -85,6 +85,7 @@ func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUser
 
 	defer rows.Close()
 
+	var internalErr *errs.Error
 	userLinks := make([]entity.UserLink, 0)
 	for rows.Next() {
 		userLink := entity.UserLink{}
@@ -95,11 +96,16 @@ func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUser
 			&userLink.InternalUserID,
 		)
 		if err != nil {
-			internalErr := &errs.Error{
+			newInternalErr := &errs.Error{
 				Code:     errs.Unknown,
 				EmbedErr: err,
 			}
-			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+
+			if internalErr == nil {
+				internalErr = newInternalErr
+			}
+
+			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
 			continue
 		}
 

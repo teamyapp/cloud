@@ -77,6 +77,8 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *e
 	}
 
 	defer rows.Close()
+
+	var internalErr *errs.Error
 	operations := make([]entity.Operation, 0)
 	for rows.Next() {
 		operation := entity.Operation{}
@@ -87,24 +89,20 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *e
 			&operation.CreatorUserID,
 		)
 		if err != nil {
-			internalErr := &errs.Error{
+			newInternalErr := &errs.Error{
 				Code:     errs.Unknown,
 				EmbedErr: err,
 			}
-			o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+
+			if internalErr == nil {
+				internalErr = newInternalErr
+			}
+
+			o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
 			continue
 		}
 
 		operations = append(operations, operation)
-	}
-
-	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
-		return nil, internalErr
 	}
 
 	return operations, nil

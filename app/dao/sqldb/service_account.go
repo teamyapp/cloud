@@ -41,6 +41,7 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 
 	defer rows.Close()
 
+	var internalErr *errs.Error
 	serviceAccounts := make([]entity.ServiceAccount, 0)
 	for rows.Next() {
 		serviceAccount := entity.ServiceAccount{}
@@ -52,11 +53,16 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 			&serviceAccount.CreatedAt,
 		)
 		if err != nil {
-			internalErr := &errs.Error{
+			newInternalErr := &errs.Error{
 				Code:     errs.Unknown,
 				EmbedErr: err,
 			}
-			s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+
+			if internalErr == nil {
+				internalErr = newInternalErr
+			}
+
+			s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
 			continue
 		}
 
