@@ -29,9 +29,10 @@ func (a Authorization) HasPermission(ctx context.Context, req *proto.HasPermissi
 	hasPermission, err := a.authorizationService.HasPermission(ctx, req.ResourceType, req.ResourceId, req.Operation, req.UserId)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &proto.HasPermissionResponse{HasPermission: hasPermission}, errs.ToGRPCErr(err)
+	return &proto.HasPermissionResponse{HasPermission: hasPermission}, nil
 }
 
 func (a Authorization) ListResourceTypes(ct context.Context, query *proto.ListResourceTypesQuery) (*proto.ListResourceTypesResponse, error) {
@@ -72,18 +73,20 @@ func (a Authorization) RegisterResourceType(ct context.Context, request *proto.R
 	err := a.authorizationService.RegisterResourceType(ct, request.ResourceType)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) UnregisterResourceType(ct context.Context, request *proto.UnregisterResourceTypeRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnregisterResourceType(ct, request.ResourceType)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) ListResources(ct context.Context, query *proto.ListResourcesQuery) (*proto.ListResourcesResponse, error) {
@@ -125,18 +128,20 @@ func (a Authorization) RegisterResource(ct context.Context, request *proto.Regis
 	err := a.authorizationService.RegisterResource(ct, request.ResourceType, request.ResourceId)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) UnregisterResource(ct context.Context, request *proto.UnregisterResourceRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnregisterResource(ct, request.ResourceType, request.ResourceId)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) ListResourceRelations(ct context.Context, query *proto.ListResourceRelationsQuery) (*proto.ListResourceRelationsResponse, error) {
@@ -203,9 +208,10 @@ func (a Authorization) UnassignParentResource(ct context.Context, request *proto
 	)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) ListOperations(ct context.Context, query *proto.ListOperationsQuery) (*proto.ListOperationsResponse, error) {
@@ -247,9 +253,10 @@ func (a Authorization) RegisterOperation(ct context.Context, request *proto.Regi
 	err := a.authorizationService.RegisterOperation(ct, request.ResourceType, request.Operation)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) UnregisterOperation(ct context.Context, request *proto.UnregisterOperationRequest) (*emptypb.Empty, error) {
@@ -310,9 +317,10 @@ func (a Authorization) AssignParentOperation(ct context.Context, request *proto.
 	)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) UnassignParentOperation(ct context.Context, request *proto.UnassignParentOperationRequest) (*emptypb.Empty, error) {
@@ -325,9 +333,10 @@ func (a Authorization) UnassignParentOperation(ct context.Context, request *prot
 	)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) ListUserGroups(ct context.Context, query *proto.ListUserGroupsQuery) (*proto.ListUserGroupsResponse, error) {
@@ -388,18 +397,20 @@ func (a Authorization) UpdateUserGroup(ct context.Context, request *proto.Update
 	err := a.authorizationService.UpdateUserGroup(ct, request.GroupId, request.Name, request.Description)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) DeleteUserGroup(ct context.Context, request *proto.DeleteUserGroupRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.DeleteUserGroup(ct, request.GroupId)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) ListUserGroupMembers(ct context.Context, query *proto.ListUserGroupMembersQuery) (*proto.ListUserGroupMembersResponse, error) {
@@ -440,18 +451,20 @@ func (a Authorization) AddUserGroupMember(ct context.Context, request *proto.Add
 	err := a.authorizationService.AddUserGroupMember(ct, request.GroupId, request.UserId)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) RemoveUserGroupMember(ct context.Context, request *proto.RemoveUserGroupMemberRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RemoveUserGroupMember(ct, request.GroupId, request.UserId)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) ListPermissions(ct context.Context, query *proto.ListPermissionsQuery) (*proto.ListPermissionsResponse, error) {
@@ -496,18 +509,20 @@ func (a Authorization) AddPermission(ct context.Context, request *proto.AddPermi
 	err := a.authorizationService.AddPermission(ct, request.ResourceType, request.ResourceId, request.Operation, request.GroupId)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) RemovePermission(ct context.Context, request *proto.RemovePermissionRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RemovePermission(ct, request.ResourceType, request.ResourceId, request.Operation, request.GroupId)
 	if err != nil {
 		a.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) Start(rn *runner.ServiceRunner) *errs.Error {
