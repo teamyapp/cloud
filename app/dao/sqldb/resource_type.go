@@ -42,7 +42,7 @@ func (r ResourceType) FindResourceType(ct context.Context, resourceTypeName stri
 				"resource type not found: resource_type=%v",
 				resourceTypeName),
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.ResourceType{}, internalErr
 	}
 
@@ -51,7 +51,7 @@ func (r ResourceType) FindResourceType(ct context.Context, resourceTypeName stri
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.ResourceType{}, internalErr
 	}
 
@@ -71,7 +71,7 @@ func (r ResourceType) FindAllResourceTypes(ct context.Context) ([]entity.Resourc
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -96,7 +96,7 @@ func (r ResourceType) FindAllResourceTypes(ct context.Context) ([]entity.Resourc
 				internalErr = newInternalErr
 			}
 
-			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			r.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -125,7 +125,7 @@ func (r ResourceType) CreateResourceType(ct context.Context, resourceTypeEntity 
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -143,7 +143,7 @@ func (r ResourceType) DeleteResourceType(ct context.Context, resourceTypeName st
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

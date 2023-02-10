@@ -51,7 +51,7 @@ func (p Permission) FindPermission(ct context.Context, query entity.PermissionQu
 				query.Operation,
 				query.GroupID),
 		}
-		p.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		p.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.Permission{}, internalErr
 	}
 
@@ -60,7 +60,7 @@ func (p Permission) FindPermission(ct context.Context, query entity.PermissionQu
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		p.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		p.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.Permission{}, internalErr
 	}
 
@@ -83,7 +83,7 @@ func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission,
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		p.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		p.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -111,7 +111,7 @@ func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission,
 				internalErr = newInternalErr
 			}
 
-			p.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			p.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -146,7 +146,7 @@ func (p Permission) CreatePermission(ct context.Context, permission entity.Permi
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		p.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		p.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -164,7 +164,7 @@ func (p Permission) DeletePermission(ct context.Context, resourceType string, re
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		p.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		p.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

@@ -35,7 +35,7 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -62,7 +62,7 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 				internalErr = newInternalErr
 			}
 
-			s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			s.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -99,7 +99,7 @@ func (s ServiceAccount) FindServiceAccountByID(ct context.Context, serviceAccoun
 				"service account not found: id=%v",
 				serviceAccountID),
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.ServiceAccount{}, internalErr
 	}
 
@@ -108,7 +108,7 @@ func (s ServiceAccount) FindServiceAccountByID(ct context.Context, serviceAccoun
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.ServiceAccount{}, internalErr
 	}
 
@@ -138,7 +138,7 @@ func (s ServiceAccount) CreateServiceAccount(ct context.Context, serviceAccount 
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -168,7 +168,7 @@ func (s ServiceAccount) UpdateServiceAccount(ct context.Context, serviceAccount 
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -187,7 +187,7 @@ func (s ServiceAccount) DeleteServiceAccount(ct context.Context, serviceAccountI
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

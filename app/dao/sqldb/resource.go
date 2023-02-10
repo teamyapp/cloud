@@ -45,7 +45,7 @@ func (r Resource) FindResource(ct context.Context, resourceTypeName string, reso
 				resourceTypeName,
 				resourceID),
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.Resource{}, internalErr
 	}
 
@@ -54,7 +54,7 @@ func (r Resource) FindResource(ct context.Context, resourceTypeName string, reso
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.Resource{}, internalErr
 	}
 
@@ -75,7 +75,7 @@ func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, *errs
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -101,7 +101,7 @@ func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, *errs
 				internalErr = newInternalErr
 			}
 
-			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			r.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -132,7 +132,7 @@ func (r Resource) CreateResource(ct context.Context, resource entity.Resource) *
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -150,7 +150,7 @@ func (r Resource) DeleteResource(ct context.Context, resourceTypeName string, re
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

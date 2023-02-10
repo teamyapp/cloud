@@ -46,7 +46,7 @@ func (u UserLink) FindUserLinkByExternalUserID(ct context.Context, authProvider 
 				authProvider,
 				externalUserID),
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UserLink{}, internalErr
 	}
 
@@ -55,7 +55,7 @@ func (u UserLink) FindUserLinkByExternalUserID(ct context.Context, authProvider 
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UserLink{}, internalErr
 	}
 
@@ -79,7 +79,7 @@ func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUser
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -105,7 +105,7 @@ func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUser
 				internalErr = newInternalErr
 			}
 
-			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			u.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -136,7 +136,7 @@ func (u UserLink) CreateUserLink(ct context.Context, userLink entity.UserLink) *
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -156,7 +156,7 @@ func (u UserLink) DeleteUserLink(ct context.Context, authProvider string, intern
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

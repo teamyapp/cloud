@@ -83,7 +83,7 @@ func NewMigration(dataCollector telemetry.DataCollector, migrationDir string, fi
 			Code:     errs.OS,
 			EmbedErr: err,
 		}
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		dataCollector.Logger.Error(internalErr)
 		return "", internalErr
 	}
 
@@ -95,7 +95,7 @@ func NewMigration(dataCollector telemetry.DataCollector, migrationDir string, fi
 			Code:     errs.OS,
 			EmbedErr: err,
 		}
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		dataCollector.Logger.Error(internalErr)
 		return "", internalErr
 	}
 
@@ -113,8 +113,7 @@ func New(dataCollector telemetry.DataCollector, dbName string) {
 	dbNamePostfix := randString(dbNamePostfixAlphabet, 5)
 	fullDBName := fmt.Sprintf("%s-%s", dbName, dbNamePostfix)
 	password := randString(alphabet, dbPasswordLen)
-	dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
-		telemetry.MessageProp: strings.TrimSpace(fmt.Sprintf(`
+	dataCollector.Logger.Info(strings.TrimSpace(fmt.Sprintf(`
 user: %s
 password: %s
 dbName: %s
@@ -125,16 +124,15 @@ CREATE USER "%s" WITH PASSWORD '%s';
 GRANT ALL PRIVILEGES ON DATABASE "%s" TO "%s";
 ================================================================================
 `,
-			fullDBName,
-			password,
-			fullDBName,
-			fullDBName,
-			fullDBName,
-			password,
-			fullDBName,
-			fullDBName,
-		)),
-	})
+		fullDBName,
+		password,
+		fullDBName,
+		fullDBName,
+		fullDBName,
+		password,
+		fullDBName,
+		fullDBName,
+	)))
 }
 
 func ExecSQL(dataCollector telemetry.DataCollector, sqlDB *sql.DB, sqlFileName string) *errs.Error {
@@ -144,7 +142,7 @@ func ExecSQL(dataCollector telemetry.DataCollector, sqlDB *sql.DB, sqlFileName s
 			Code:     errs.OS,
 			EmbedErr: err,
 		}
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		dataCollector.Logger.Error(internalErr)
 		return internalErr
 	}
 
@@ -154,7 +152,7 @@ func ExecSQL(dataCollector telemetry.DataCollector, sqlDB *sql.DB, sqlFileName s
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		dataCollector.Logger.Error(internalErr)
 		return internalErr
 	}
 
@@ -164,15 +162,13 @@ func ExecSQL(dataCollector telemetry.DataCollector, sqlDB *sql.DB, sqlFileName s
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		dataCollector.Logger.Error(internalErr)
 		return internalErr
 	}
 
 	err = tx.Commit()
 	if err == nil {
-		dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
-			telemetry.MessageProp: "successfully seeded DB",
-		})
+		dataCollector.Logger.Info("successfully seeded DB")
 	}
 
 	return &errs.Error{
@@ -185,19 +181,16 @@ func waitUntilReady(dataCollector telemetry.DataCollector, sqlDB *sql.DB) {
 	for {
 		err := sqlDB.Ping()
 		if err == nil {
-			dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
-				telemetry.MessageProp: "successfully connected to the DB",
-			})
+			dataCollector.Logger.Info("successfully connected to the DB")
 			break
 		}
 
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		dataCollector.Logger.Log(telemetry.Warning, telemetry.Props{
-			telemetry.MessageProp: "fail to connect to the DB",
+		dataCollector.Logger.Error(&errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
 		})
-		dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
-			telemetry.MessageProp: "retry after 5 seconds",
-		})
+		dataCollector.Logger.Warning("fail to connect to the DB")
+		dataCollector.Logger.Info("retry after 5 seconds")
 		time.Sleep(5 * time.Second)
 	}
 }
@@ -239,13 +232,11 @@ func migrateDB(
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		dataCollector.Logger.Error(internalErr)
 		return internalErr
 	}
 
-	dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
-		telemetry.MessageProp: "migration finished",
-	})
+	dataCollector.Logger.Info("migration finished")
 	return nil
 }
 

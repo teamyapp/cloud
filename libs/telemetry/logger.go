@@ -6,6 +6,8 @@ import (
 	"io"
 	"runtime"
 	"time"
+
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type Logger struct {
@@ -13,6 +15,47 @@ type Logger struct {
 	logInterceptors []LogInterceptor
 	lineFormatter   LineFormatter
 	output          io.Writer
+}
+
+func (l Logger) Fatal(err *errs.Error) {
+	l.FatalWithContext(context.Background(), err)
+	panic(err)
+}
+
+func (l Logger) FatalWithContext(ct context.Context, err *errs.Error) {
+	l.logWithContext(ct, Fatal, Props{CauseProp: err}, 1)
+}
+
+func (l Logger) Error(err *errs.Error) {
+	l.ErrorWithContext(context.Background(), err)
+}
+
+func (l Logger) ErrorWithContext(ct context.Context, err *errs.Error) {
+	l.logWithContext(ct, Error, Props{CauseProp: err}, 1)
+}
+
+func (l Logger) Warning(input interface{}) {
+	l.WarningWithContext(context.Background(), input)
+}
+
+func (l Logger) WarningWithContext(ct context.Context, input interface{}) {
+	l.logWithContext(ct, Warning, Props{MessageProp: input}, 1)
+}
+
+func (l Logger) Info(input interface{}) {
+	l.InfoWithContext(context.Background(), input)
+}
+
+func (l Logger) InfoWithContext(ct context.Context, input interface{}) {
+	l.logWithContext(ct, Info, Props{MessageProp: input}, 1)
+}
+
+func (l Logger) Debug(input interface{}) {
+	l.DebugWithContext(context.Background(), input)
+}
+
+func (l Logger) DebugWithContext(ct context.Context, input interface{}) {
+	l.logWithContext(ct, Debug, Props{MessageProp: input}, 1)
 }
 
 func (l Logger) Log(level LogLevel, props Props) {

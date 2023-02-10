@@ -66,7 +66,7 @@ func (u UploadSession) FindUploadSessionByID(ct context.Context, uploadSessionID
 				"upload session not found: id=%v",
 				uploadSessionID),
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -75,13 +75,13 @@ func (u UploadSession) FindUploadSessionByID(ct context.Context, uploadSessionID
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
 	chunkIDs, internalErr := parseIDs(ct, u.dataCollector, chunkIDsString)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -132,7 +132,7 @@ func (u UploadSession) CreateUploadSession(ct context.Context, uploadSession ent
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -183,7 +183,7 @@ func (u UploadSession) UpdateUploadSession(ct context.Context, uploadSession ent
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

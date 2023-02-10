@@ -31,7 +31,7 @@ func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64)
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -54,7 +54,7 @@ func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64)
 				internalErr = newInternalErr
 			}
 
-			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			u.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -79,7 +79,7 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -105,7 +105,7 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID
 				internalErr = newInternalErr
 			}
 
-			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			u.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -130,7 +130,7 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, group
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -156,7 +156,7 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, group
 				internalErr = newInternalErr
 			}
 
-			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			u.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -192,7 +192,7 @@ func (u UserGroupMember) FindUserGroupMember(ct context.Context, groupID uint64,
 				groupID,
 				userID),
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UserGroupMember{}, internalErr
 	}
 
@@ -201,7 +201,7 @@ func (u UserGroupMember) FindUserGroupMember(ct context.Context, groupID uint64,
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UserGroupMember{}, internalErr
 	}
 
@@ -222,7 +222,7 @@ func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.U
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -248,7 +248,7 @@ func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.U
 				internalErr = newInternalErr
 			}
 
-			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			u.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -279,7 +279,7 @@ func (u UserGroupMember) CreateUserGroupMember(ct context.Context, userGroupMemb
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -298,7 +298,7 @@ func (u UserGroupMember) DeleteUserGroupMember(ct context.Context, groupID uint6
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

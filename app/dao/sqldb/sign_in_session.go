@@ -44,7 +44,7 @@ func (s SignInSession) FindSignInSessionByID(ct context.Context, sessionID uint6
 				"sign in session not found: sessionID=%v",
 				sessionID),
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.SignInSession{}, internalErr
 	}
 
@@ -53,7 +53,7 @@ func (s SignInSession) FindSignInSessionByID(ct context.Context, sessionID uint6
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.SignInSession{}, internalErr
 	}
 
@@ -81,7 +81,7 @@ func (s SignInSession) CreateSignInSession(ct context.Context, session entity.Si
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -107,7 +107,7 @@ func (s SignInSession) UpdateSignInSession(ct context.Context, session entity.Si
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -126,7 +126,7 @@ func (s SignInSession) DeleteSignInSession(ct context.Context, sessionID uint64)
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

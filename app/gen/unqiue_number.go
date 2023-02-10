@@ -22,7 +22,7 @@ func (u *UniqueNumber) GenerateUniqueNumber(ct context.Context) (uint64, *errs.E
 	if u.allocatedRange.NextNumber > u.allocatedRange.RangeEnd {
 		err := u.allocateNewRange(ct)
 		if err != nil {
-			u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+			u.dataCollector.Logger.ErrorWithContext(ct, err)
 			return uint64(0), err
 		}
 	}
@@ -38,7 +38,7 @@ func (u *UniqueNumber) allocateNewRange(ct context.Context) *errs.Error {
 			Code:    errs.Unknown,
 			Message: "out of number to allocate",
 		}
-		u.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -51,14 +51,12 @@ func (u *UniqueNumber) allocateNewRange(ct context.Context) *errs.Error {
 	}
 	err := u.allocatedRangeDao.UpdateAllocatedRange(ct, newRange)
 	if err != nil {
-		u.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		u.dataCollector.Logger.ErrorWithContext(ct, err)
 		return err
 	}
 
 	u.allocatedRange = newRange
-	u.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
-		telemetry.MessageProp: newRange,
-	})
+	u.dataCollector.Logger.InfoWithContext(ct, newRange)
 	return nil
 }
 
@@ -91,7 +89,7 @@ func newUniqueNumber(
 
 		err = allocatedRangeDao.CreateAllocatedRange(ct, allocatedRange)
 		if err != nil {
-			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+			dataCollector.Logger.WarningWithContext(ct, err)
 			return nil, err
 		}
 	}
@@ -105,7 +103,7 @@ func newUniqueNumber(
 	}
 	err = uniqueNumber.allocateNewRange(ct)
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		dataCollector.Logger.ErrorWithContext(ct, err)
 	}
 
 	return uniqueNumber, err

@@ -57,7 +57,7 @@ func (o OperationRelation) FindOperationRelation(
 				parentResourceType,
 				parentOperation),
 		}
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.OperationRelation{}, internalErr
 	}
 
@@ -66,7 +66,7 @@ func (o OperationRelation) FindOperationRelation(
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.OperationRelation{}, internalErr
 	}
 
@@ -90,7 +90,7 @@ func (o OperationRelation) FindOperationRelations(ct context.Context, childResou
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -118,7 +118,7 @@ func (o OperationRelation) FindOperationRelations(ct context.Context, childResou
 				internalErr = newInternalErr
 			}
 
-			o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			o.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -144,7 +144,7 @@ func (o OperationRelation) FindAllOperationRelations(ct context.Context) ([]enti
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -172,7 +172,7 @@ func (o OperationRelation) FindAllOperationRelations(ct context.Context) ([]enti
 				internalErr = newInternalErr
 			}
 
-			o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			o.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -207,7 +207,7 @@ func (o OperationRelation) CreateOperationRelation(ct context.Context, operation
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -232,7 +232,7 @@ func (o OperationRelation) DeleteOperationRelation(
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

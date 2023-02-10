@@ -46,13 +46,13 @@ func ClientHTTPWithRetry(dataCollector telemetry.DataCollector, retry retry.Retr
 						Code:     errs.Unknown,
 						EmbedErr: err,
 					}
-					dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+					dataCollector.Logger.ErrorWithContext(ct, internalErr)
 					return internalErr
 				}
 
 				internalErr := errs.GetFromHTTPErr(res)
 				if internalErr != nil {
-					dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+					dataCollector.Logger.ErrorWithContext(ct, internalErr)
 				}
 
 				return internalErr

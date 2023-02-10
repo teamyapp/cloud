@@ -38,7 +38,7 @@ func (f File) GetUploadSession(ct context.Context, uploadSessionID uint64) (enti
 func (f File) CreateUploadSession(ct context.Context) (uint64, *errs.Error) {
 	chunkID, err := f.uploadSessionIDGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		f.dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
 
@@ -50,7 +50,7 @@ func (f File) CreateUploadSession(ct context.Context) (uint64, *errs.Error) {
 
 	err = f.uploadSessionDao.CreateUploadSession(ct, uploadSession)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		f.dataCollector.Logger.ErrorWithContext(ct, err)
 	}
 
 	return chunkID, err
@@ -67,7 +67,7 @@ func (f File) InitUploadSession(
 ) (entity.UploadSession, *errs.Error) {
 	uploadSession, internalErr := f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
 	if internalErr != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -77,14 +77,14 @@ func (f File) InitUploadSession(
 			Code:    errs.InvalidOperation,
 			Message: "upload session is already completed",
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	case entity.InitializedUploadSessionStatus, entity.UploadingChunksUploadSessionStatus:
 		internalErr = &errs.Error{
 			Code:    errs.InvalidOperation,
 			Message: "upload session is already initialized",
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -95,7 +95,7 @@ func (f File) InitUploadSession(
 			Code:     errs.Deserialization,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -110,7 +110,7 @@ func (f File) InitUploadSession(
 	uploadSession.UpdatedAt = &now
 	internalErr = f.uploadSessionDao.UpdateUploadSession(ct, uploadSession)
 	if internalErr != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -121,7 +121,7 @@ func (f File) InitUploadSession(
 func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []byte) (entity.UploadSession, *errs.Error) {
 	uploadSession, internalErr := f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
 	if internalErr != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -131,26 +131,26 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 			Code:    errs.InvalidOperation,
 			Message: "upload session is already completed",
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	case entity.CreatedUploadSessionStatus:
 		internalErr = &errs.Error{
 			Code:    errs.InvalidOperation,
 			Message: "upload session is not initialized",
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
 	chunkID, internalErr := f.chunkIDGen.GenerateUniqueNumber(ct)
 	if internalErr != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
 	internalErr = saveChunk(f.mapBackend, chunkID, chunkData)
 	if internalErr != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -162,7 +162,7 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 	}
 	internalErr = f.chunkDao.CreateChunkMetadata(ct, chunkMetadata)
 	if internalErr != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -173,7 +173,7 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 			Code:     errs.Deserialization,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -183,7 +183,7 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 			Code:     errs.IO,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -193,7 +193,7 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 			Code:     errs.Serialization,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -207,14 +207,14 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 	} else {
 		uploadSession, internalErr = f.FinishFileUpload(ct, uploadSession, hashBuffer)
 		if internalErr != nil {
-			f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 			return entity.UploadSession{}, internalErr
 		}
 	}
 
 	internalErr = f.uploadSessionDao.UpdateUploadSession(ct, uploadSession)
 	if internalErr != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return uploadSession, internalErr
 	}
 
@@ -231,14 +231,14 @@ func (f File) FinishFileUpload(ct context.Context, uploadSession entity.UploadSe
 			Code:    errs.Unknown,
 			Message: fmt.Sprintf("sha256 hash not match: actualHash=%v, expectedHash=%v", actualHashString, uploadSession.ExpectedContentHash),
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
 	uploadSession.ActualContentHash = actualHashString
 	fileID, err := f.fileIDGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		f.dataCollector.Logger.ErrorWithContext(ct, err)
 		return entity.UploadSession{}, err
 	}
 
@@ -261,7 +261,7 @@ func (f File) GetFileMetadata(ct context.Context, fileID uint64) (entity.FileMet
 func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Error) {
 	metadata, err := f.GetFileMetadata(ct, fileID)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		f.dataCollector.Logger.ErrorWithContext(ct, err)
 		return entity.File{}, err
 	}
 
@@ -272,7 +272,7 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 		for {
 			hasNext, err := chunksIterator.HasNext()
 			if err != nil {
-				f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+				f.dataCollector.Logger.ErrorWithContext(ct, err)
 				chunksBuffer <- lang.Result[[]byte]{
 					Error: err,
 				}
@@ -285,7 +285,7 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 
 			data, err := chunksIterator.Next(ct)
 			if err != nil {
-				f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+				f.dataCollector.Logger.ErrorWithContext(ct, err)
 				chunksBuffer <- lang.Result[[]byte]{
 					Error: err,
 				}
@@ -317,19 +317,19 @@ func NewFile(
 ) (File, error) {
 	uploadSessionIDGen, err := uniqueNumberFactory.MakeUniqueNumber("uploadSessionID")
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		dataCollector.Logger.Error(err)
 		return File{}, err.ToError()
 	}
 
 	chunkIDGen, err := uniqueNumberFactory.MakeUniqueNumber("chunkID")
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		dataCollector.Logger.Error(err)
 		return File{}, err.ToError()
 	}
 
 	fileIDGen, err := uniqueNumberFactory.MakeUniqueNumber("fileID")
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		dataCollector.Logger.Error(err)
 		return File{}, err.ToError()
 	}
 

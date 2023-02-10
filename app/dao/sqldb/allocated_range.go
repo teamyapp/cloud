@@ -34,9 +34,7 @@ func (a AllocatedRange) FindAllocatedRangeByKey(ct context.Context, key string) 
 			Code:    errs.NotFound,
 			Message: fmt.Sprintf("allocated range not found: key=%v", key),
 		}
-		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-			telemetry.CauseProp: err,
-		})
+		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.AllocatedRange{}, internalErr
 	}
 
@@ -45,7 +43,7 @@ func (a AllocatedRange) FindAllocatedRangeByKey(ct context.Context, key string) 
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.AllocatedRange{}, internalErr
 	}
 
@@ -64,7 +62,7 @@ func (a AllocatedRange) CreateAllocatedRange(ct context.Context, allocatedRange 
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -84,7 +82,7 @@ func (a AllocatedRange) UpdateAllocatedRange(ct context.Context, allocatedRange 
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		a.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

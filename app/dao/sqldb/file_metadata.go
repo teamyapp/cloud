@@ -48,7 +48,7 @@ func (f FileMetadata) FindMetadataByFileID(ct context.Context, fileID uint64) (e
 			Code:    errs.NotFound,
 			Message: fmt.Sprintf("file metadata not found: id=%v", fileID),
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.FileMetadata{}, internalErr
 	}
 
@@ -57,13 +57,13 @@ func (f FileMetadata) FindMetadataByFileID(ct context.Context, fileID uint64) (e
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.FileMetadata{}, internalErr
 	}
 
 	chunkIDs, internalErr := parseIDs(ct, f.dataCollector, chunkIDsString)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.FileMetadata{}, internalErr
 	}
 
@@ -97,7 +97,7 @@ func (f FileMetadata) CreateFileMetadata(ct context.Context, metadata entity.Fil
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -131,7 +131,7 @@ func (f FileMetadata) UpdateFileMetadata(ct context.Context, metadata entity.Fil
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

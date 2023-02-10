@@ -57,7 +57,7 @@ func (r ResourceRelation) FindResourceRelation(
 				parentResourceType,
 				parentResourceID),
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.ResourceRelation{}, internalErr
 	}
 
@@ -66,7 +66,7 @@ func (r ResourceRelation) FindResourceRelation(
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.ResourceRelation{}, internalErr
 	}
 
@@ -90,7 +90,7 @@ func (r ResourceRelation) FindResourceRelations(ct context.Context, childResourc
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -118,7 +118,7 @@ func (r ResourceRelation) FindResourceRelations(ct context.Context, childResourc
 				internalErr = newInternalErr
 			}
 
-			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			r.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -144,7 +144,7 @@ func (r ResourceRelation) FindAllResourceRelations(ct context.Context) ([]entity
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -172,7 +172,7 @@ func (r ResourceRelation) FindAllResourceRelations(ct context.Context) ([]entity
 				internalErr = newInternalErr
 			}
 
-			r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			r.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -207,7 +207,7 @@ func (r ResourceRelation) CreateResourceRelation(ct context.Context, resourceRel
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -236,7 +236,7 @@ func (r ResourceRelation) DeleteResourceRelation(
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		r.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

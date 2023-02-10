@@ -17,7 +17,7 @@ type UniqueString struct {
 func (u UniqueString) GenerateUniqueString(ct context.Context) (string, *errs.Error) {
 	currNum, err := u.uniqueNumGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		u.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
@@ -46,7 +46,7 @@ func NewUniqueString(
 ) (UniqueString, *errs.Error) {
 	numNum, err := uniqueNumFactory.MakeUniqueNumber(name)
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		dataCollector.Logger.Error(err)
 		return UniqueString{}, err
 	}
 

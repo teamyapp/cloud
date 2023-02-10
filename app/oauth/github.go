@@ -40,7 +40,7 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 	// users-for-github-apps#2-users-are-redirected-back-to-your-site-by-github
 	accessToken, internalErr := g.getAccessToken(ct, authorizationCode)
 	if internalErr != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.ExternalUser{}, internalErr
 	}
 
@@ -52,7 +52,7 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.ExternalUser{}, internalErr
 	}
 
@@ -64,7 +64,7 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.ExternalUser{}, internalErr
 	}
 
@@ -73,7 +73,7 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 		internalErr.Message = fmt.Sprintf("fail to obtain user ID: authProviderName=%v, httpStatusCode=%v",
 			g.GetName(),
 			res.StatusCode)
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.ExternalUser{}, internalErr
 	}
 
@@ -83,7 +83,7 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 			Code:     errs.IO,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.ExternalUser{}, internalErr
 	}
 
@@ -97,7 +97,7 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 			Code:     errs.Deserialization,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.ExternalUser{}, internalErr
 	}
 
@@ -114,7 +114,7 @@ func (g GitHub) GetStateID(ct context.Context, request *http.Request) (uint64, *
 			Code:     errs.InvalidFormat,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return 0, internalErr
 	}
 
@@ -132,7 +132,7 @@ func (g GitHub) GetSignInURL(ct context.Context, stateID uint64) (string, *errs.
 			Code:     errs.InvalidFormat,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -162,7 +162,7 @@ func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (st
 			Code:     errs.Serialization,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -172,7 +172,7 @@ func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (st
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -184,7 +184,7 @@ func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (st
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -195,7 +195,7 @@ func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (st
 		internalErr.Message = fmt.Sprintf("fail to obtain user ID: authProviderName=%v, httpStatusCode=%v",
 			g.GetName(),
 			res.StatusCode)
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -205,7 +205,7 @@ func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (st
 			Code:     errs.IO,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -220,7 +220,7 @@ func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (st
 			Code:     errs.Deserialization,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
