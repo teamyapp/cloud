@@ -88,9 +88,7 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 			Code:    errs.InvalidArgument,
 			Message: fmt.Sprintf("duration must start with 'P': duration=%v", input),
 		}
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-			telemetry.CauseProp: err,
-		})
+		dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
 
@@ -144,9 +142,7 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 			Code:    errs.InvalidArgument,
 			Message: fmt.Sprintf("must has either period or time: duration=%v", input),
 		}
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-			telemetry.CauseProp: err,
-		})
+		dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
 
@@ -155,9 +151,7 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 			Code:    errs.InvalidArgument,
 			Message: fmt.Sprintf("must remove ending T or have non empty time section: duration=%v", input),
 		}
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-			telemetry.CauseProp: err,
-		})
+		dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
 
@@ -235,9 +229,7 @@ func validateSymbol(
 			Code:    errs.InvalidArgument,
 			Message: fmt.Sprintf("unsupported symbol: index=%v, symbol=%v", currIndex, currSymbol),
 		}
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-			telemetry.CauseProp: err,
-		})
+		dataCollector.Logger.ErrorWithContext(ct, err)
 		return err
 	}
 
@@ -249,9 +241,7 @@ func validateSymbol(
 				Code:    errs.InvalidArgument,
 				Message: fmt.Sprintf("%c already showed up before %c(%v)", seenSymbolIndex, currSymbol, currIndex),
 			}
-			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-				telemetry.CauseProp: err,
-			})
+			dataCollector.Logger.ErrorWithContext(ct, err)
 			return err
 		}
 	}
