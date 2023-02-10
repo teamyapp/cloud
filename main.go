@@ -187,6 +187,7 @@ func newLineFormatter(environment env.Environment) telemetry.LineFormatter {
 			middleware.BodySizeProp,
 			middleware.BodyProp,
 			telemetry.CauseProp,
+			telemetry.StackTraceProp,
 			telemetry.MessageProp,
 		})
 	}

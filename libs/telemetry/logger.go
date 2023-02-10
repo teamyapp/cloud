@@ -10,6 +10,8 @@ import (
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
+const maxStackDepth = 100
+
 type Logger struct {
 	visibleLevel    LogLevel
 	logInterceptors []LogInterceptor
@@ -18,21 +20,37 @@ type Logger struct {
 }
 
 func (l Logger) Fatal(err *errs.Error) {
-	l.log(Fatal, Props{CauseProp: err}, 1)
+	props := Props{
+		CauseProp:      err,
+		StackTraceProp: newStackTrace(maxStackDepth, 1),
+	}
+	l.log(Fatal, props, 1)
 	panic(err)
 }
 
 func (l Logger) FatalWithContext(ct context.Context, err *errs.Error) {
-	l.logWithContext(ct, Fatal, Props{CauseProp: err}, 1)
+	props := Props{
+		CauseProp:      err,
+		StackTraceProp: newStackTrace(maxStackDepth, 1),
+	}
+	l.logWithContext(ct, Fatal, props, 1)
 	panic(err)
 }
 
 func (l Logger) Error(err *errs.Error) {
-	l.log(Error, Props{CauseProp: err}, 1)
+	props := Props{
+		CauseProp:      err,
+		StackTraceProp: newStackTrace(maxStackDepth, 1),
+	}
+	l.log(Error, props, 1)
 }
 
 func (l Logger) ErrorWithContext(ct context.Context, err *errs.Error) {
-	l.logWithContext(ct, Error, Props{CauseProp: err}, 1)
+	props := Props{
+		CauseProp:      err,
+		StackTraceProp: newStackTrace(maxStackDepth, 1),
+	}
+	l.logWithContext(ct, Error, props, 1)
 }
 
 func (l Logger) Warning(input interface{}) {
@@ -60,7 +78,7 @@ func (l Logger) DebugWithContext(ct context.Context, input interface{}) {
 }
 
 func (l Logger) Log(level LogLevel, props Props) {
-	l.logWithContext(context.Background(), level, props, 1)
+	l.log(level, props, 1)
 }
 
 func (l Logger) LogWithContext(ct context.Context, level LogLevel, props Props) {

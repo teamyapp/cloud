@@ -2,6 +2,7 @@ package telemetry
 
 const (
 	CauseProp       string = "Cause"
+	StackTraceProp  string = "StackTrace"
 	MessageProp     string = "Message"
 	HappenAtProp    string = "HappenAt"
 	SeverityProp    string = "Severity"
