@@ -96,7 +96,7 @@ func NewWebSocket(dataCollector telemetry.DataCollector, conn *websocket.Conn) W
 					Code:     errs.IO,
 					EmbedErr: err,
 				}
-				dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+				dataCollector.Logger.Error(&internalErr)
 				select {
 				case errorCh <- internalErr:
 				default:
