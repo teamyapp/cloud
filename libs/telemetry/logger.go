@@ -18,16 +18,17 @@ type Logger struct {
 }
 
 func (l Logger) Fatal(err *errs.Error) {
-	l.FatalWithContext(context.Background(), err)
+	l.log(Fatal, Props{CauseProp: err}, 1)
 	panic(err)
 }
 
 func (l Logger) FatalWithContext(ct context.Context, err *errs.Error) {
 	l.logWithContext(ct, Fatal, Props{CauseProp: err}, 1)
+	panic(err)
 }
 
 func (l Logger) Error(err *errs.Error) {
-	l.ErrorWithContext(context.Background(), err)
+	l.log(Error, Props{CauseProp: err}, 1)
 }
 
 func (l Logger) ErrorWithContext(ct context.Context, err *errs.Error) {
@@ -35,7 +36,7 @@ func (l Logger) ErrorWithContext(ct context.Context, err *errs.Error) {
 }
 
 func (l Logger) Warning(input interface{}) {
-	l.WarningWithContext(context.Background(), input)
+	l.log(Warning, Props{MessageProp: input}, 1)
 }
 
 func (l Logger) WarningWithContext(ct context.Context, input interface{}) {
@@ -43,7 +44,7 @@ func (l Logger) WarningWithContext(ct context.Context, input interface{}) {
 }
 
 func (l Logger) Info(input interface{}) {
-	l.InfoWithContext(context.Background(), input)
+	l.log(Info, Props{MessageProp: input}, 1)
 }
 
 func (l Logger) InfoWithContext(ct context.Context, input interface{}) {
@@ -51,7 +52,7 @@ func (l Logger) InfoWithContext(ct context.Context, input interface{}) {
 }
 
 func (l Logger) Debug(input interface{}) {
-	l.DebugWithContext(context.Background(), input)
+	l.log(Debug, Props{MessageProp: input}, 1)
 }
 
 func (l Logger) DebugWithContext(ct context.Context, input interface{}) {
@@ -64,6 +65,10 @@ func (l Logger) Log(level LogLevel, props Props) {
 
 func (l Logger) LogWithContext(ct context.Context, level LogLevel, props Props) {
 	l.logWithContext(ct, level, props, 1)
+}
+
+func (l Logger) log(level LogLevel, props Props, skipCallers int) {
+	l.logWithContext(context.Background(), level, props, skipCallers+1)
 }
 
 func (l Logger) logWithContext(ct context.Context, level LogLevel, props Props, skipCallers int) {
