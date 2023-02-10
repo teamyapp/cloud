@@ -46,7 +46,7 @@ func (i Identity) VerifyAccessToken(ct context.Context, accessToken string) (uin
 	if payload.IsServiceAccount {
 		serviceAccount, err := i.serviceAccountDao.FindServiceAccountByID(ct, payload.UserID)
 		if err != nil {
-			i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+			i.dataCollector.Logger.ErrorWithContext(ct, err)
 			return 0, false
 		}
 
@@ -92,31 +92,29 @@ func (i Identity) GenerateLinkUsersSignInURL(
 func (i Identity) generateSignInURL(ct context.Context, authProviderName string, session entity.SignInSession) (string, *errs.Error) {
 	provider, err := i.GetOAuthProvider(ct, authProviderName)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
 	sessionID, err := i.stateIDGenerator.GenerateUniqueNumber(ct)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
 	session.ID = sessionID
 	err = i.signInSessionDao.CreateSignInSession(ct, session)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
 	signInURL, err := provider.GetSignInURL(ct, sessionID)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 	}
 
-	i.dataCollector.Logger.LogWithContext(ct, telemetry.Info, telemetry.Props{
-		telemetry.MessageProp: fmt.Sprintf("SignInURL=%v", signInURL),
-	})
+	i.dataCollector.Logger.InfoWithContext(ct, fmt.Sprintf("SignInURL=%v", signInURL))
 	return signInURL, nil
 }
 
@@ -127,9 +125,7 @@ func (i Identity) GetOAuthProvider(ct context.Context, authProviderName string) 
 			Code:    errs.NotFound,
 			Message: fmt.Sprintf("authProvider not found: AuthProvider=%v", provider),
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-			telemetry.CauseProp: err,
-		})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
@@ -139,25 +135,25 @@ func (i Identity) GetOAuthProvider(ct context.Context, authProviderName string) 
 func (i Identity) FinishOAuthSignIn(ct context.Context, authProviderName string, authorizationCode string, sessionID uint64) (string, *errs.Error) {
 	session, internalErr := i.signInSessionDao.FindSignInSessionByID(ct, sessionID)
 	if internalErr != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
 	internalErr = i.signInSessionDao.DeleteSignInSession(ct, sessionID)
 	if internalErr != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
 	provider, internalErr := i.GetOAuthProvider(ct, authProviderName)
 	if internalErr != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
 	externalUser, internalErr := provider.GetUser(ct, authorizationCode)
 	if internalErr != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -167,7 +163,7 @@ func (i Identity) FinishOAuthSignIn(ct context.Context, authProviderName string,
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -185,7 +181,7 @@ func (i Identity) FinishOAuthSignIn(ct context.Context, authProviderName string,
 
 		internalErr = i.linkUsers(ct, authProviderName, externalUser, *session.InternalUserID)
 		if internalErr != nil {
-			i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 			return "", internalErr
 		}
 
@@ -206,13 +202,13 @@ func (i Identity) getOrLinkInternalUserID(ct context.Context, authProvider strin
 	}
 
 	if err.Code != errs.NotFound {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
 
 	internalUserID, err = i.userIDGenerator.GenerateUniqueNumber(ct)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
 
@@ -225,7 +221,7 @@ func (i Identity) getOrLinkInternalUserID(ct context.Context, authProvider strin
 
 	err = i.userLinkDao.CreateUserLink(ct, userLink)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 	}
 
 	return internalUserID, err
@@ -234,7 +230,7 @@ func (i Identity) getOrLinkInternalUserID(ct context.Context, authProvider strin
 func (i Identity) GetInternalUserID(ct context.Context, authProvider string, externalUserID string) (uint64, *errs.Error) {
 	userLink, err := i.userLinkDao.FindUserLinkByExternalUserID(ct, authProvider, externalUserID)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
 
@@ -244,7 +240,7 @@ func (i Identity) GetInternalUserID(ct context.Context, authProvider string, ext
 func (i Identity) ListServiceAccounts(ct context.Context, accountOwnerID uint64) ([]entity.ServiceAccount, *errs.Error) {
 	serviceAccounts, err := i.serviceAccountDao.FindAllServiceAccounts(ct, accountOwnerID)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
@@ -257,7 +253,7 @@ func (i Identity) ListServiceAccounts(ct context.Context, accountOwnerID uint64)
 func (i Identity) CreateServiceAccount(ct context.Context, accountOwnerID uint64, serviceAccountName string) *errs.Error {
 	serviceAccountID, err := i.userIDGenerator.GenerateUniqueNumber(ct)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return err
 	}
 
@@ -274,7 +270,7 @@ func (i Identity) CreateServiceAccount(ct context.Context, accountOwnerID uint64
 func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64, serviceAccountID uint64) (string, *errs.Error) {
 	serviceAccounts, err := i.serviceAccountDao.FindAllServiceAccounts(ct, accountOwnerID)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
@@ -296,7 +292,7 @@ func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64
 	serviceAccount.Secret = &secret
 	err = i.serviceAccountDao.UpdateServiceAccount(ct, serviceAccount)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
@@ -312,7 +308,7 @@ func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64
 func (i Identity) DeleteServiceAccount(ct context.Context, accountOwnerID uint64, serviceAccountID uint64) *errs.Error {
 	serviceAccounts, err := i.serviceAccountDao.FindAllServiceAccounts(ct, accountOwnerID)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return err
 	}
 
@@ -326,9 +322,7 @@ func (i Identity) DeleteServiceAccount(ct context.Context, accountOwnerID uint64
 				accountOwnerID,
 				serviceAccountID),
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{
-			telemetry.CauseProp: err,
-		})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return err
 	}
 
@@ -351,7 +345,7 @@ func (i Identity) signInUnknownUser(
 ) (string, *errs.Error) {
 	userID, err := i.getOrLinkInternalUserID(ct, authProviderName, externalUser)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
@@ -363,7 +357,7 @@ func (i Identity) signInUnknownUser(
 
 	accessToken, internalErr := i.jwtAuthority.GenerateToken(ct, payload)
 	if internalErr != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -401,13 +395,13 @@ func NewIdentity(
 ) (Identity, error) {
 	userIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("userID")
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		dataCollector.Logger.Error(err)
 		return Identity{}, err.ToError()
 	}
 
 	stateIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("stateID")
 	if err != nil {
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		dataCollector.Logger.Error(err)
 		return Identity{}, err.ToError()
 	}
 

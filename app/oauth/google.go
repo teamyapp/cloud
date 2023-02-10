@@ -40,7 +40,7 @@ func (g Google) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 	// https://developers.google.com/identity/protocols/oauth2/openid-connect#exchangecode
 	idToken, err := g.getIDToken(ct, authorizationCode)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		g.dataCollector.Logger.ErrorWithContext(ct, err)
 		return entity.ExternalUser{}, err
 	}
 
@@ -56,7 +56,7 @@ func (g Google) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 
 	err = g.jwtAuthority.DecodeUnverifiedToken(ct, idToken, &tokenPayload)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		g.dataCollector.Logger.ErrorWithContext(ct, err)
 	}
 
 	return entity.ExternalUser{
@@ -72,7 +72,7 @@ func (g Google) GetStateID(ct context.Context, request *http.Request) (uint64, *
 			Code:     errs.InvalidFormat,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return 0, internalErr
 	}
 
@@ -90,7 +90,7 @@ func (g Google) GetSignInURL(ct context.Context, stateID uint64) (string, *errs.
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -125,7 +125,7 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 			Code:     errs.Serialization,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -135,7 +135,7 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -143,7 +143,7 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 
 	internalErr := errs.GetFromHTTPErr(res)
 	if internalErr != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -153,7 +153,7 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 			Code:     errs.IO,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -171,7 +171,7 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 			Code:     errs.Deserialization,
 			EmbedErr: err,
 		}
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 

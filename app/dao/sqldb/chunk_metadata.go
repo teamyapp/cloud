@@ -48,7 +48,7 @@ func (c ChunkMetadata) FindChunkMetadataID(ct context.Context, chunkID uint64) (
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		c.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.ChunkMetadata{}, internalErr
 	}
 
@@ -74,7 +74,7 @@ func (c ChunkMetadata) CreateChunkMetadata(ct context.Context, metadata entity.C
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		c.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -101,7 +101,7 @@ func (c ChunkMetadata) UpdateChunkMetadata(ct context.Context, metadata entity.C
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		c.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		c.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

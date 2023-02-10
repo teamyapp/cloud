@@ -118,7 +118,7 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 		if visitTimeSection {
 			err := validateSymbol(ct, dataCollector, timeSymbolOrder, timeSymbolIndices, seenSymbols, currRune, index)
 			if err != nil {
-				dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+				dataCollector.Logger.ErrorWithContext(ct, err)
 				return 0, err
 			}
 
@@ -127,7 +127,7 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 		} else {
 			err := validateSymbol(ct, dataCollector, periodSymbolOrder, periodSymbolIndices, seenSymbols, currRune, index)
 			if err != nil {
-				dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+				dataCollector.Logger.ErrorWithContext(ct, err)
 				return 0, err
 			}
 

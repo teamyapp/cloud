@@ -73,7 +73,7 @@ func (f File) Start(rn *runner.ServiceRunner) *errs.Error {
 func (f File) CreateUploadSession(ct context.Context, empty *emptypb.Empty) (*proto.CreateUploadSessionResponse, error) {
 	uploadSessionID, err := f.fileService.CreateUploadSession(ct)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		f.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -85,7 +85,7 @@ func (f File) CreateUploadSession(ct context.Context, empty *emptypb.Empty) (*pr
 func (f File) FindUploadSession(ct context.Context, req *proto.FindUploadSessionRequest) (*proto.UploadSession, error) {
 	uploadSession, err := f.fileService.GetUploadSession(ct, req.UploadSessionId)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		f.dataCollector.Logger.ErrorWithContext(ct, err)
 		return &proto.UploadSession{}, errs.ToGRPCErr(err)
 	}
 
@@ -116,14 +116,14 @@ func (f File) webGetUploadSession(writer http.ResponseWriter, request *http.Requ
 			Code:     errs.InvalidArgument,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	uploadSession, internalErr := f.fileService.GetUploadSession(request.Context(), uploadSessionID)
 	if err != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -140,7 +140,7 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 			Code:     errs.InvalidArgument,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -151,7 +151,7 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 			Code:     errs.IO,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -169,7 +169,7 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 			Code:     errs.Deserialization,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -183,7 +183,7 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 		body.TotalSizeInBytes,
 		body.TotalNumOfChunks)
 	if internalErr != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -204,7 +204,7 @@ func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 			Code:     errs.InvalidArgument,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -215,14 +215,14 @@ func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 			Code:     errs.Deserialization,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	uploadSession, internalErr := f.fileService.AddChunk(request.Context(), uploadSessionID, data)
 	if internalErr != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -239,14 +239,14 @@ func (f File) webGetFileMetadata(writer http.ResponseWriter, request *http.Reque
 			Code:     errs.InvalidArgument,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	fileMetadata, internalErr := f.fileService.GetFileMetadata(request.Context(), fileID)
 	if internalErr != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -263,14 +263,14 @@ func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 			Code:     errs.InvalidArgument,
 			EmbedErr: err,
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	file, internalErr := f.fileService.GetFile(request.Context(), fileID)
 	if internalErr != nil {
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -287,7 +287,7 @@ func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 			Code:    errs.Unknown,
 			Message: "writer must be http.Flusher",
 		}
-		f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -305,7 +305,7 @@ func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 				Code:     errs.Unknown,
 				EmbedErr: err,
 			}
-			f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 			errs.SetHTTPErr(internalErr, writer)
 			return
 		}

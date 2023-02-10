@@ -30,7 +30,7 @@ func ServerHTTPWithIdentity(
 				Code:    errs.NotFound,
 				Message: "authorization header not found",
 			}
-			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			dataCollector.Logger.ErrorWithContext(ct, internalErr)
 			return "", internalErr
 		}
 
@@ -40,7 +40,7 @@ func ServerHTTPWithIdentity(
 				Code:    errs.InvalidFormat,
 				Message: fmt.Sprintf("authotization header must have 2 parts: header=%v", value),
 			}
-			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			dataCollector.Logger.ErrorWithContext(ct, internalErr)
 			return "", internalErr
 		}
 
@@ -49,7 +49,7 @@ func ServerHTTPWithIdentity(
 				Code:    errs.InvalidFormat,
 				Message: fmt.Sprintf("missing beginning Bearer: header=%v", value),
 			}
-			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			dataCollector.Logger.ErrorWithContext(ct, internalErr)
 			return "", internalErr
 		}
 
@@ -79,7 +79,7 @@ func ServerGRPCWithIdentity(dataCollector telemetry.DataCollector, identityAPIEn
 			accessToken := values[0]
 			updatedCt, err := ctxWithUserID(dataCollector, ct, verifyTokenURL, accessToken)
 			if err != nil {
-				dataCollector.Logger.LogWithContext(ct, telemetry.Warning, telemetry.Props{telemetry.CauseProp: err})
+				dataCollector.Logger.WarningWithContext(ct, err.String())
 			} else {
 				ct = updatedCt
 			}
@@ -113,11 +113,11 @@ func withIdentity(
 			ct := request.Context()
 			token, err := getBearerToken(request)
 			if err != nil {
-				dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+				dataCollector.Logger.ErrorWithContext(ct, err)
 			} else if len(token) > 0 {
 				updatedCt, err := ctxWithUserID(dataCollector, ct, verifyTokenURL, token)
 				if err != nil {
-					dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+					dataCollector.Logger.ErrorWithContext(ct, err)
 				} else {
 					request = request.WithContext(updatedCt)
 				}
@@ -138,13 +138,13 @@ func ctxWithUserID(dataCollector telemetry.DataCollector, ct context.Context, ve
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
 	internalErr := errs.GetFromHTTPErr(res)
 	if internalErr != nil {
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -154,7 +154,7 @@ func ctxWithUserID(dataCollector telemetry.DataCollector, ct context.Context, ve
 			Code:     errs.IO,
 			EmbedErr: err,
 		}
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -164,7 +164,7 @@ func ctxWithUserID(dataCollector telemetry.DataCollector, ct context.Context, ve
 			Code:     errs.InvalidFormat,
 			EmbedErr: err,
 		}
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 

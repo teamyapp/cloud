@@ -24,7 +24,7 @@ func parseIDs(ct context.Context, dataCollector telemetry.DataCollector, idsStri
 				Code:     errs.InvalidArgument,
 				EmbedErr: err,
 			}
-			dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+			dataCollector.Logger.ErrorWithContext(ct, internalErr)
 			return chunkIDs, internalErr
 		}
 

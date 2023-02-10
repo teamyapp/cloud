@@ -6,6 +6,8 @@ import (
 	"io"
 	"runtime"
 	"time"
+
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type Logger struct {
@@ -15,12 +17,58 @@ type Logger struct {
 	output          io.Writer
 }
 
+func (l Logger) Fatal(err *errs.Error) {
+	l.log(Fatal, Props{CauseProp: err}, 1)
+	panic(err)
+}
+
+func (l Logger) FatalWithContext(ct context.Context, err *errs.Error) {
+	l.logWithContext(ct, Fatal, Props{CauseProp: err}, 1)
+	panic(err)
+}
+
+func (l Logger) Error(err *errs.Error) {
+	l.log(Error, Props{CauseProp: err}, 1)
+}
+
+func (l Logger) ErrorWithContext(ct context.Context, err *errs.Error) {
+	l.logWithContext(ct, Error, Props{CauseProp: err}, 1)
+}
+
+func (l Logger) Warning(input interface{}) {
+	l.log(Warning, Props{MessageProp: input}, 1)
+}
+
+func (l Logger) WarningWithContext(ct context.Context, input interface{}) {
+	l.logWithContext(ct, Warning, Props{MessageProp: input}, 1)
+}
+
+func (l Logger) Info(input interface{}) {
+	l.log(Info, Props{MessageProp: input}, 1)
+}
+
+func (l Logger) InfoWithContext(ct context.Context, input interface{}) {
+	l.logWithContext(ct, Info, Props{MessageProp: input}, 1)
+}
+
+func (l Logger) Debug(input interface{}) {
+	l.log(Debug, Props{MessageProp: input}, 1)
+}
+
+func (l Logger) DebugWithContext(ct context.Context, input interface{}) {
+	l.logWithContext(ct, Debug, Props{MessageProp: input}, 1)
+}
+
 func (l Logger) Log(level LogLevel, props Props) {
 	l.logWithContext(context.Background(), level, props, 1)
 }
 
 func (l Logger) LogWithContext(ct context.Context, level LogLevel, props Props) {
 	l.logWithContext(ct, level, props, 1)
+}
+
+func (l Logger) log(level LogLevel, props Props, skipCallers int) {
+	l.logWithContext(context.Background(), level, props, skipCallers+1)
 }
 
 func (l Logger) logWithContext(ct context.Context, level LogLevel, props Props, skipCallers int) {

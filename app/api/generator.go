@@ -38,7 +38,7 @@ func (g Generator) GenerateUniqueNumber(
 		var err *errs.Error
 		uniqueNumGen, err = g.uniqueNumberGeneratorFactory.MakeUniqueNumber(request.SequenceName)
 		if err != nil {
-			g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+			g.dataCollector.Logger.ErrorWithContext(ct, err)
 			return nil, errs.ToGRPCErr(err)
 		}
 
@@ -47,7 +47,7 @@ func (g Generator) GenerateUniqueNumber(
 
 	uniqueNum, err := uniqueNumGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		g.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -67,7 +67,7 @@ func (g Generator) GenerateUniqueString(
 			request.Alphabet,
 			g.uniqueNumberGeneratorFactory)
 		if err != nil {
-			g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+			g.dataCollector.Logger.ErrorWithContext(ct, err)
 			return nil, errs.ToGRPCErr(err)
 		}
 		uniqueStringGen = &strGen
@@ -76,7 +76,7 @@ func (g Generator) GenerateUniqueString(
 
 	uniqueStr, err := uniqueStringGen.GenerateUniqueString(ct)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		g.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 

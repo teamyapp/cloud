@@ -39,7 +39,7 @@ func (s Slack) GetName() string {
 func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, *errs.Error) {
 	idToken, err := s.getIDToken(ct, authorizationCode)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		s.dataCollector.Logger.ErrorWithContext(ct, err)
 		return entity.ExternalUser{}, err
 	}
 
@@ -53,7 +53,7 @@ func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.Ext
 	}{}
 	err = s.jwtAuthority.DecodeUnverifiedToken(ct, idToken, &tokenPayload)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		s.dataCollector.Logger.ErrorWithContext(ct, err)
 		return entity.ExternalUser{}, err
 	}
 
@@ -70,7 +70,7 @@ func (s Slack) GetStateID(ct context.Context, request *http.Request) (uint64, *e
 			Code:     errs.InvalidFormat,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return 0, internalErr
 	}
 
@@ -88,7 +88,7 @@ func (s Slack) GetSignInURL(ct context.Context, stateID uint64) (string, *errs.E
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -118,7 +118,7 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -129,7 +129,7 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -140,7 +140,7 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 		internalErr.Message = fmt.Sprintf("fail to obtain access token: oauthProviderName=%v, httpStatusCode=%v",
 			s.GetName(),
 			res.StatusCode)
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -150,7 +150,7 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 			Code:     errs.IO,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -167,7 +167,7 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 			Code:     errs.Deserialization,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -176,7 +176,7 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 

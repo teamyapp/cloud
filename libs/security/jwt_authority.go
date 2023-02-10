@@ -23,7 +23,7 @@ func (j JWTAuthority) GenerateToken(ct context.Context, payload interface{}) (st
 			Code:     errs.Deserialization,
 			EmbedErr: err,
 		}
-		j.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -34,7 +34,7 @@ func (j JWTAuthority) GenerateToken(ct context.Context, payload interface{}) (st
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		j.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -50,7 +50,7 @@ func (j JWTAuthority) DecodeToken(ct context.Context, jwtToken string, output in
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		j.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -59,7 +59,7 @@ func (j JWTAuthority) DecodeToken(ct context.Context, jwtToken string, output in
 			Code:     errs.InvalidArgument,
 			EmbedErr: err,
 		}
-		j.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -74,7 +74,7 @@ func (j JWTAuthority) DecodeUnverifiedToken(ct context.Context, jwtToken string,
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		j.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -88,7 +88,7 @@ func (j JWTAuthority) parseJWTClaims(ct context.Context, claims jwt.Claims, outp
 			Code:     errs.Serialization,
 			EmbedErr: err,
 		}
-		j.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -98,7 +98,7 @@ func (j JWTAuthority) parseJWTClaims(ct context.Context, claims jwt.Claims, outp
 			Code:     errs.Deserialization,
 			EmbedErr: err,
 		}
-		j.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 

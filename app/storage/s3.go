@@ -30,7 +30,7 @@ func (s S3Bucket) Get(key string) ([]byte, *errs.Error) {
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.Error(internalErr)
 		return nil, internalErr
 	}
 
@@ -40,7 +40,7 @@ func (s S3Bucket) Get(key string) ([]byte, *errs.Error) {
 			Code:     errs.IO,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.Error(internalErr)
 		return nil, internalErr
 	}
 
@@ -56,7 +56,7 @@ func (s S3Bucket) Put(key string, data []byte) *errs.Error {
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.Error(internalErr)
 		return internalErr
 	}
 
@@ -71,7 +71,7 @@ func (s S3Bucket) Delete(key string) *errs.Error {
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		s.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		s.dataCollector.Logger.Error(internalErr)
 		return internalErr
 	}
 
@@ -92,7 +92,7 @@ func NewS3Bucket(
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		dataCollector.Logger.Error(internalErr)
 		return S3Bucket{}, internalErr.ToError()
 	}
 

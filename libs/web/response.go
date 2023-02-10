@@ -5,14 +5,19 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 func WriteJSON(ct context.Context, dataCollector telemetry.DataCollector, writer http.ResponseWriter, body interface{}) {
 	buf, err := json.MarshalIndent(body, "", "  ")
 	if err != nil {
-		dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
-		writer.WriteHeader(http.StatusInternalServerError)
+		internalErr := &errs.Error{
+			Code:     errs.Serialization,
+			EmbedErr: err,
+		}
+		dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 

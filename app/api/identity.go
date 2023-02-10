@@ -98,7 +98,7 @@ func (i Identity) webVerifyToken(w http.ResponseWriter, r *http.Request) {
 			Code:     errs.IO,
 			EmbedErr: err,
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, w)
 		return
 	}
@@ -112,7 +112,7 @@ func (i Identity) webVerifyToken(w http.ResponseWriter, r *http.Request) {
 			Code:     errs.Unauthenticated,
 			EmbedErr: err,
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, w)
 	}
 }
@@ -127,14 +127,14 @@ func (i Identity) webOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 			Code:    errs.InvalidArgument,
 			Message: fmt.Sprintf("missing redirectUrl"),
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, w)
 		return
 	}
 
 	url, err := i.identityService.GenerateUnknownUserSignInURL(ct, authProviderName, redirectURL)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		errs.SetHTTPErr(err, w)
 		return
 	}
@@ -147,14 +147,14 @@ func (i Identity) webFinishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	providerName := mux.Vars(r)["provider"]
 	provider, err := i.identityService.GetOAuthProvider(ct, providerName)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		errs.SetHTTPErr(err, w)
 		return
 	}
 
 	stateID, err := provider.GetStateID(ct, r)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		errs.SetHTTPErr(err, w)
 		return
 	}
@@ -162,7 +162,7 @@ func (i Identity) webFinishOAuthSignIn(w http.ResponseWriter, r *http.Request) {
 	authorizationCode := provider.GetAuthorizationCode(ct, r)
 	url, err := i.identityService.FinishOAuthSignIn(ct, providerName, authorizationCode, stateID)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		errs.SetHTTPErr(err, w)
 		return
 	}
@@ -178,14 +178,14 @@ func (i Identity) webListUserLinks(writer http.ResponseWriter, request *http.Req
 			Code:    errs.NotFound,
 			Message: "userID not found",
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	userLinks, err := i.identityService.ListUserLinks(ct, userID)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		errs.SetHTTPErr(err, writer)
 		return
 	}
@@ -201,7 +201,7 @@ func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Re
 			Code:    errs.NotFound,
 			Message: "userID not found",
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -214,14 +214,14 @@ func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Re
 			Code:    errs.InvalidArgument,
 			Message: fmt.Sprintf("missing redirectUrl"),
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	url, err := i.identityService.GenerateLinkUsersSignInURL(ct, authProviderName, userID, redirectURL)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		errs.SetHTTPErr(err, writer)
 		return
 	}
@@ -238,14 +238,14 @@ func (i Identity) webDeleteUserLink(writer http.ResponseWriter, request *http.Re
 			Code:    errs.NotFound,
 			Message: "userID not found",
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	err := i.identityService.DeleteUserLink(ct, userID, authProviderName)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		errs.SetHTTPErr(err, writer)
 		return
 	}
@@ -261,14 +261,14 @@ func (i Identity) webListServiceAccounts(writer http.ResponseWriter, request *ht
 			Code:    errs.NotFound,
 			Message: "userID not found",
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	serviceAccounts, err := i.identityService.ListServiceAccounts(ct, userID)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		errs.SetHTTPErr(err, writer)
 		return
 	}
@@ -284,7 +284,7 @@ func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *h
 			Code:    errs.NotFound,
 			Message: "userID not found",
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -295,7 +295,7 @@ func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *h
 			Code:     errs.IO,
 			EmbedErr: err,
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -309,14 +309,14 @@ func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *h
 			Code:     errs.Deserialization,
 			EmbedErr: err,
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	internalErr := i.identityService.CreateServiceAccount(ct, userID, body.Name)
 	if internalErr != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -332,7 +332,7 @@ func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *h
 			Code:    errs.NotFound,
 			Message: "userID not found",
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -344,14 +344,14 @@ func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *h
 			Code:    errs.InvalidArgument,
 			Message: fmt.Sprintf("invalid serviceAccountId"),
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	serviceToken, internalErr := i.identityService.GenerateServiceToken(ct, userID, serviceAccountID)
 	if internalErr != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -367,7 +367,7 @@ func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *h
 			Code:    errs.NotFound,
 			Message: "userID not found",
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -379,14 +379,14 @@ func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *h
 			Code:    errs.InvalidArgument,
 			Message: fmt.Sprintf("invalid serviceAccountId"),
 		}
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	internalErr := i.identityService.DeleteServiceAccount(ct, userID, serviceAccountID)
 	if internalErr != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -397,7 +397,7 @@ func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *h
 func (i Identity) GetInternalUserId(ct context.Context, req *proto.GetInternalUserIdRequest) (*proto.GetInternalUserIdResponse, error) {
 	internalUserID, err := i.identityService.GetInternalUserID(ct, req.AuthProvider, req.ExternalUserId)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -407,7 +407,7 @@ func (i Identity) GetInternalUserId(ct context.Context, req *proto.GetInternalUs
 func (i Identity) ListUserLinks(ct context.Context, req *proto.ListUserLinksRequest) (*proto.ListUserLinksResponse, error) {
 	userLinks, err := i.identityService.ListUserLinks(ct, req.InternalUserId)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: err})
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 

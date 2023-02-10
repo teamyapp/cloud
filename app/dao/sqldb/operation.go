@@ -42,7 +42,7 @@ func (o Operation) FindOperation(ct context.Context, resourceTypeName string, op
 			Code:    errs.NotFound,
 			Message: fmt.Sprintf("resource not found: resource_type=%v, operation=%v", resourceTypeName, operationName),
 		}
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.Operation{}, internalErr
 	}
 
@@ -51,7 +51,7 @@ func (o Operation) FindOperation(ct context.Context, resourceTypeName string, op
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.Operation{}, internalErr
 	}
 
@@ -72,7 +72,7 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *e
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 
@@ -98,7 +98,7 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *e
 				internalErr = newInternalErr
 			}
 
-			o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: newInternalErr})
+			o.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
 			continue
 		}
 
@@ -129,7 +129,7 @@ func (o Operation) CreateOperation(ct context.Context, operation entity.Operatio
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -148,7 +148,7 @@ func (o Operation) DeleteOperation(ct context.Context, resourceTypeName string, 
 			Code:     errs.Unknown,
 			EmbedErr: err,
 		}
-		o.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
+		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
