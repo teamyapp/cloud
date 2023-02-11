@@ -77,7 +77,7 @@ func newUniqueNumber(
 	ct := context.Background()
 	allocatedRange, err := allocatedRangeDao.FindAllocatedRangeByKey(ct, name)
 	if err != nil {
-		if err.Code == errs.NotFound {
+		if err.Code != errs.NotFound {
 			return nil, err
 		}
 
