@@ -165,8 +165,8 @@ func ctxWithUserID(
 	verifyTokenURL string,
 	ct context.Context,
 	accessToken string) (context.Context, *errs.Error) {
-	dataCollector.Logger.InfoWithContext(ct, "Enter ctxWithUserID")
-	defer dataCollector.Logger.InfoWithContext(ct, "Exit ctxWithUserID")
+	dataCollector.Logger.DebugWithContext(ct, "enter ctxWithUserID")
+	defer dataCollector.Logger.DebugWithContext(ct, "exit ctxWithUserID")
 
 	req, err := http.NewRequest(http.MethodPost, verifyTokenURL, bytes.NewReader([]byte(accessToken)))
 	if err != nil {
