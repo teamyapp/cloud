@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
 	"github.com/teamyapp/cloud/app/dep"
@@ -146,14 +147,15 @@ func main() {
 		}
 
 		telemetryAPI := dep.InitTelemetryAPI(dataCollector)
-		rn := runner.NewServiceRunner(dataCollector, runnerConfig, []runner.Service{
+		rn := runner.NewServiceRunnerBuilder(dataCollector, runnerConfig, []runner.Service{
 			identityAPI,
 			generatorAPI,
 			authorizationAPI,
 			fileAPI,
 			telemetryAPI,
-		})
-
+		}).
+			IncludeIdentityWebFunc(api.IncludeIdentityWebFunc).
+			Build()
 		rn.Start()
 		return nil
 	})

@@ -12,17 +12,23 @@ import (
 	"github.com/teamyapp/cloud/libs/ctx"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
+	"github.com/teamyapp/cloud/libs/web"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
 const gRPCAuthorizationKey = "Authorization"
 
+type IncludeIdentityWebFunc func(request *http.Request) bool
+type IncludeIdentityGRPCFunc func(info *grpc.UnaryServerInfo) bool
+
 func ServerHTTPWithIdentity(
 	dataCollector telemetry.DataCollector,
+	httpClient web.Client,
 	identityAPIEndpoint string,
+	includeIdentity IncludeIdentityWebFunc,
 ) Middleware[http.HandlerFunc] {
-	return withIdentity(dataCollector, identityAPIEndpoint, func(request *http.Request) (string, *errs.Error) {
+	return withIdentity(dataCollector, httpClient, identityAPIEndpoint, func(request *http.Request) (string, *errs.Error) {
 		ct := request.Context()
 		value := request.Header.Get("Authorization")
 		if len(value) == 0 {
@@ -30,7 +36,6 @@ func ServerHTTPWithIdentity(
 				Code:    errs.NotFound,
 				Message: "authorization header not found",
 			}
-			dataCollector.Logger.ErrorWithContext(ct, internalErr)
 			return "", internalErr
 		}
 
@@ -54,34 +59,52 @@ func ServerHTTPWithIdentity(
 		}
 
 		return parts[1], nil
-	})
+	}, includeIdentity)
 }
 
 func ServerWebSocketWithIdentity(
 	dataCollector telemetry.DataCollector,
+	httpClient web.Client,
 	identityAPIEndpoint string,
+	includeIdentity IncludeIdentityWebFunc,
 ) Middleware[http.HandlerFunc] {
-	return withIdentity(dataCollector, identityAPIEndpoint, func(request *http.Request) (string, *errs.Error) {
-		return request.URL.Query().Get("accessToken"), nil
-	})
-}
-
-func ServerGRPCWithIdentity(dataCollector telemetry.DataCollector, identityAPIEndpoint string) grpc.UnaryServerInterceptor {
-	verifyTokenURL := fmt.Sprintf("%s/verify-token", identityAPIEndpoint)
-	return func(ct context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-		md, ok := metadata.FromIncomingContext(ct)
-		if !ok {
-			return handler(ct, req)
+	return withIdentity(dataCollector, httpClient, identityAPIEndpoint, func(request *http.Request) (string, *errs.Error) {
+		token := request.URL.Query().Get("accessToken")
+		if len(token) == 0 {
+			internalErr := &errs.Error{
+				Code:    errs.NotFound,
+				Message: "access token not found",
+			}
+			return "", internalErr
 		}
 
-		values := md.Get(gRPCAuthorizationKey)
-		if len(values) > 0 {
-			accessToken := values[0]
-			updatedCt, err := ctxWithUserID(dataCollector, ct, verifyTokenURL, accessToken)
-			if err != nil {
-				dataCollector.Logger.WarningWithContext(ct, err.String())
-			} else {
-				ct = updatedCt
+		return token, nil
+	}, includeIdentity)
+}
+
+func ServerGRPCWithIdentity(
+	dataCollector telemetry.DataCollector,
+	httpClient web.Client,
+	identityAPIEndpoint string,
+	includeIdentity IncludeIdentityGRPCFunc,
+) grpc.UnaryServerInterceptor {
+	verifyTokenURL := fmt.Sprintf("%s/verify-token", identityAPIEndpoint)
+	return func(ct context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+		if includeIdentity(info) {
+			md, ok := metadata.FromIncomingContext(ct)
+			if !ok {
+				return handler(ct, req)
+			}
+
+			values := md.Get(gRPCAuthorizationKey)
+			if len(values) > 0 {
+				accessToken := values[0]
+				updatedCt, err := ctxWithUserID(dataCollector, httpClient, verifyTokenURL, ct, accessToken)
+				if err != nil {
+					dataCollector.Logger.WarningWithContext(ct, err.String())
+				} else {
+					ct = updatedCt
+				}
 			}
 		}
 
@@ -104,22 +127,30 @@ func ClientGRPCWithIdentity(getAccessToken func() string) grpc.UnaryClientInterc
 
 func withIdentity(
 	dataCollector telemetry.DataCollector,
+	httpClient web.Client,
 	identityAPIEndpoint string,
 	getBearerToken func(request *http.Request) (string, *errs.Error),
+	includeIdentity IncludeIdentityWebFunc,
 ) Middleware[http.HandlerFunc] {
+	verifyTokenURL := fmt.Sprintf("%s/verify-token", identityAPIEndpoint)
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
-		verifyTokenURL := fmt.Sprintf("%s/verify-token", identityAPIEndpoint)
 		return func(writer http.ResponseWriter, request *http.Request) {
-			ct := request.Context()
-			token, err := getBearerToken(request)
-			if err != nil {
-				dataCollector.Logger.ErrorWithContext(ct, err)
-			} else if len(token) > 0 {
-				updatedCt, err := ctxWithUserID(dataCollector, ct, verifyTokenURL, token)
+			if includeIdentity(request) {
+				ct := request.Context()
+				token, err := getBearerToken(request)
 				if err != nil {
-					dataCollector.Logger.ErrorWithContext(ct, err)
+					if err.Code == errs.NotFound {
+						dataCollector.Logger.WarningWithContext(ct, "access token not found")
+					} else {
+						dataCollector.Logger.ErrorWithContext(ct, err)
+					}
 				} else {
-					request = request.WithContext(updatedCt)
+					updatedCt, err := ctxWithUserID(dataCollector, httpClient, verifyTokenURL, ct, token)
+					if err != nil {
+						dataCollector.Logger.ErrorWithContext(ct, err)
+					} else {
+						request = request.WithContext(updatedCt)
+					}
 				}
 			}
 
@@ -128,11 +159,27 @@ func withIdentity(
 	}
 }
 
-func ctxWithUserID(dataCollector telemetry.DataCollector, ct context.Context, verifyTokenURL string, accessToken string) (context.Context, *errs.Error) {
-	res, err := http.Post(
-		verifyTokenURL,
-		"text/plain",
-		bytes.NewReader([]byte(accessToken)))
+func ctxWithUserID(
+	dataCollector telemetry.DataCollector,
+	httpClient web.Client,
+	verifyTokenURL string,
+	ct context.Context,
+	accessToken string) (context.Context, *errs.Error) {
+	dataCollector.Logger.InfoWithContext(ct, "Enter ctxWithUserID")
+	defer dataCollector.Logger.InfoWithContext(ct, "Exit ctxWithUserID")
+
+	req, err := http.NewRequest(http.MethodPost, verifyTokenURL, bytes.NewReader([]byte(accessToken)))
+	if err != nil {
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		return nil, internalErr
+	}
+
+	req.Header.Set("Content-Type", "text/plain")
+	res, err := httpClient.Do(ct, req)
 	if err != nil {
 		internalErr := &errs.Error{
 			Code:     errs.Unknown,

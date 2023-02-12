@@ -39,3 +39,7 @@ func getValueHttp(ctx context.Context, request *http.Request, key key) string {
 
 	return value
 }
+
+func setValueHttp(request *http.Request, key key, value string) {
+	request.Header.Set(string(key), value)
+}

@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/teamyapp/cloud/libs/ctx"
 	"github.com/teamyapp/cloud/libs/telemetry"
+	"github.com/teamyapp/cloud/libs/web"
 	"google.golang.org/grpc"
 )
 
@@ -43,6 +44,17 @@ func ClientGRPCWithRequestID(dataCollector telemetry.DataCollector) grpc.UnaryCl
 		requestID = generateRequestIdIfNot(dataCollector, ct, requestID)
 		ct = ctx.MetadataWithRequestID(ct, requestID)
 		return invoker(ct, method, req, reply, cc, opts...)
+	}
+}
+
+func ClientHTTPWithRequestID(dataCollector telemetry.DataCollector) Middleware[web.Client] {
+	return func(client web.Client) web.Client {
+		return func(ct context.Context, req *http.Request) (*http.Response, error) {
+			requestID := ctx.GetRequestIDHttp(ct, req)
+			requestID = generateRequestIdIfNot(dataCollector, ct, requestID)
+			ctx.SetRequestIDHttp(req, requestID)
+			return client.Do(ct, req)
+		}
 	}
 }
 

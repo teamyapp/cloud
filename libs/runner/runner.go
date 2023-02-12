@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/middleware"
 	"github.com/teamyapp/cloud/libs/telemetry"
+	"github.com/teamyapp/cloud/libs/web"
 	"google.golang.org/grpc"
 )
 
@@ -46,11 +48,13 @@ func ServiceRunnerConfigFromEnv(dataCollector telemetry.DataCollector) (ServiceR
 }
 
 type ServiceRunner struct {
-	dataCollector telemetry.DataCollector
-	config        ServiceRunnerConfig
-	webRouter     *mux.Router
-	gRPCServer    *grpc.Server
-	services      []Service
+	dataCollector          telemetry.DataCollector
+	config                 ServiceRunnerConfig
+	httpClient             web.Client
+	webRouter              *mux.Router
+	gRPCServer             *grpc.Server
+	services               []Service
+	includeIdentityWebFunc middleware.IncludeIdentityWebFunc
 }
 
 func (s *ServiceRunner) Start() {
@@ -87,8 +91,16 @@ func (s *ServiceRunner) startWebServer() {
 		middleware.ServerHTTPWithRequestID(s.dataCollector),
 		middleware.ServerHTTPWithTimeout(s.config.RequestTimeout),
 		middleware.ServerHTTPLogRequest(s.dataCollector),
-		middleware.ServerHTTPWithIdentity(s.dataCollector, s.config.IdentityAPIEndpoint),
-		middleware.ServerWebSocketWithIdentity(s.dataCollector, s.config.IdentityAPIEndpoint),
+		middleware.ServerHTTPWithIdentity(
+			s.dataCollector,
+			s.httpClient,
+			s.config.IdentityAPIEndpoint,
+			s.includeIdentityWebFunc),
+		middleware.ServerWebSocketWithIdentity(
+			s.dataCollector,
+			s.httpClient,
+			s.config.IdentityAPIEndpoint,
+			s.includeIdentityWebFunc),
 	}
 	handlerFunc := middleware.WithMiddlewares[http.HandlerFunc](s.webRouter.ServeHTTP, middlewares)
 	serveMux.HandleFunc("/", handlerFunc)
@@ -123,18 +135,72 @@ func (s *ServiceRunner) WithGRPCServer(withGRPCServer func(server *grpc.Server))
 	withGRPCServer(s.gRPCServer)
 }
 
-func NewServiceRunner(dataCollector telemetry.DataCollector, config ServiceRunnerConfig, services []Service) ServiceRunner {
+type ServiceRunnerBuilder struct {
+	dataCollector           telemetry.DataCollector
+	config                  ServiceRunnerConfig
+	httpClient              web.Client
+	services                []Service
+	includeIdentityWebFunc  middleware.IncludeIdentityWebFunc
+	includeIdentityGRPCFunc middleware.IncludeIdentityGRPCFunc
+}
+
+func (s *ServiceRunnerBuilder) IncludeIdentityWebFunc(
+	includeIdentityWebFunc middleware.IncludeIdentityWebFunc,
+) *ServiceRunnerBuilder {
+	s.includeIdentityWebFunc = includeIdentityWebFunc
+	return s
+}
+
+func (s *ServiceRunnerBuilder) IncludeIdentityGRPCFunc(
+	includeIdentityGRPCFunc middleware.IncludeIdentityGRPCFunc,
+) *ServiceRunnerBuilder {
+	s.includeIdentityGRPCFunc = includeIdentityGRPCFunc
+	return s
+}
+
+func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 	return ServiceRunner{
-		dataCollector: dataCollector,
-		config:        config,
+		dataCollector: s.dataCollector,
+		config:        s.config,
+		httpClient:    s.httpClient,
 		webRouter:     mux.NewRouter(),
 		gRPCServer: grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
-				middleware.ServerGRPCWithTimeout(config.RequestTimeout),
-				middleware.ServerGRPCWithRequestID(dataCollector),
-				middleware.ServerGRPCLogRequest(dataCollector),
-				middleware.ServerGRPCWithIdentity(dataCollector, config.IdentityAPIEndpoint),
+				middleware.ServerGRPCWithTimeout(s.config.RequestTimeout),
+				middleware.ServerGRPCWithRequestID(s.dataCollector),
+				middleware.ServerGRPCLogRequest(s.dataCollector),
+				middleware.ServerGRPCWithIdentity(
+					s.dataCollector,
+					s.httpClient,
+					s.config.IdentityAPIEndpoint,
+					s.includeIdentityGRPCFunc),
 			)),
-		services: services,
+		services:               s.services,
+		includeIdentityWebFunc: s.includeIdentityWebFunc,
 	}
+}
+
+func NewServiceRunnerBuilder(
+	dataCollector telemetry.DataCollector,
+	config ServiceRunnerConfig,
+	services []Service,
+) *ServiceRunnerBuilder {
+	middlewares := []middleware.Middleware[web.Client]{
+		middleware.ClientHTTPWithRequestID(dataCollector),
+	}
+	httpClient := middleware.WithMiddlewares[web.Client](
+		func(ct context.Context, req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		}, middlewares)
+	return &ServiceRunnerBuilder{
+		dataCollector: dataCollector,
+		config:        config,
+		httpClient:    httpClient,
+		services:      services,
+		includeIdentityWebFunc: func(request *http.Request) bool {
+			return true
+		},
+		includeIdentityGRPCFunc: func(info *grpc.UnaryServerInfo) bool {
+			return true
+		}}
 }
