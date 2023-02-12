@@ -69,7 +69,7 @@ func (a Authorization) RegisterResourceType(ct context.Context, resourceTypeName
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "user ID not found",
 		}
 		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
@@ -103,7 +103,7 @@ func (a Authorization) RegisterResource(ct context.Context, resourceTypeName str
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "user ID not found",
 		}
 		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
@@ -143,7 +143,7 @@ func (a Authorization) AssignParentResource(
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "user ID not found",
 		}
 		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
@@ -191,7 +191,7 @@ func (a Authorization) RegisterOperation(ct context.Context, resourceTypeName st
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "user ID not found",
 		}
 		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
@@ -231,7 +231,7 @@ func (a Authorization) AssignParentOperation(
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "user ID not found",
 		}
 		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
@@ -279,7 +279,7 @@ func (a Authorization) CreateUserGroup(ct context.Context, name string, descript
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "user ID not found",
 		}
 		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
@@ -348,7 +348,7 @@ func (a Authorization) AddUserGroupMember(ct context.Context, groupID uint64, us
 	creatorUserID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "user ID not found",
 		}
 		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
@@ -383,7 +383,7 @@ func (a Authorization) AddPermission(ct context.Context, resourceType string, re
 	creatorUserID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "user ID not found",
 		}
 		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)

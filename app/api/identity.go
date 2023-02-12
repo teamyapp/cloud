@@ -194,7 +194,7 @@ func (i Identity) webListUserLinks(writer http.ResponseWriter, request *http.Req
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "userID not found",
 		}
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
@@ -217,7 +217,7 @@ func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Re
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "userID not found",
 		}
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
@@ -254,7 +254,7 @@ func (i Identity) webDeleteUserLink(writer http.ResponseWriter, request *http.Re
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "userID not found",
 		}
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
@@ -277,7 +277,7 @@ func (i Identity) webListServiceAccounts(writer http.ResponseWriter, request *ht
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "userID not found",
 		}
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
@@ -300,7 +300,7 @@ func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *h
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "userID not found",
 		}
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
@@ -348,7 +348,7 @@ func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *h
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "userID not found",
 		}
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
@@ -383,7 +383,7 @@ func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *h
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
 		internalErr := &errs.Error{
-			Code:    errs.NotFound,
+			Code:    errs.Unauthenticated,
 			Message: "userID not found",
 		}
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
