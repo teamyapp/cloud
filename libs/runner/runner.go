@@ -50,7 +50,7 @@ func ServiceRunnerConfigFromEnv(dataCollector telemetry.DataCollector) (ServiceR
 type ServiceRunner struct {
 	dataCollector          telemetry.DataCollector
 	config                 ServiceRunnerConfig
-	httpClient             web.Client
+	httpClient             web.HTTPClient
 	webRouter              *mux.Router
 	gRPCServer             *grpc.Server
 	services               []Service
@@ -138,7 +138,7 @@ func (s *ServiceRunner) WithGRPCServer(withGRPCServer func(server *grpc.Server))
 type ServiceRunnerBuilder struct {
 	dataCollector           telemetry.DataCollector
 	config                  ServiceRunnerConfig
-	httpClient              web.Client
+	httpClient              web.HTTPClient
 	services                []Service
 	includeIdentityWebFunc  middleware.IncludeIdentityWebFunc
 	includeIdentityGRPCFunc middleware.IncludeIdentityGRPCFunc
@@ -185,10 +185,10 @@ func NewServiceRunnerBuilder(
 	config ServiceRunnerConfig,
 	services []Service,
 ) *ServiceRunnerBuilder {
-	middlewares := []middleware.Middleware[web.Client]{
+	middlewares := []middleware.Middleware[web.HTTPClient]{
 		middleware.ClientHTTPWithRequestID(dataCollector),
 	}
-	httpClient := middleware.WithMiddlewares[web.Client](
+	httpClient := middleware.WithMiddlewares[web.HTTPClient](
 		func(ct context.Context, req *http.Request) (*http.Response, error) {
 			return http.DefaultClient.Do(req)
 		}, middlewares)

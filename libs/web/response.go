@@ -25,9 +25,3 @@ func WriteJSON(ct context.Context, dataCollector telemetry.DataCollector, writer
 	writer.WriteHeader(http.StatusAccepted)
 	writer.Write(buf)
 }
-
-type Client func(ct context.Context, req *http.Request) (*http.Response, error)
-
-func (c *Client) Do(ct context.Context, req *http.Request) (*http.Response, error) {
-	return (*c)(ct, req)
-}

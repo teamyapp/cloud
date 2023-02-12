@@ -24,7 +24,7 @@ type IncludeIdentityGRPCFunc func(info *grpc.UnaryServerInfo) bool
 
 func ServerHTTPWithIdentity(
 	dataCollector telemetry.DataCollector,
-	httpClient web.Client,
+	httpClient web.HTTPClient,
 	identityAPIEndpoint string,
 	includeIdentity IncludeIdentityWebFunc,
 ) Middleware[http.HandlerFunc] {
@@ -64,7 +64,7 @@ func ServerHTTPWithIdentity(
 
 func ServerWebSocketWithIdentity(
 	dataCollector telemetry.DataCollector,
-	httpClient web.Client,
+	httpClient web.HTTPClient,
 	identityAPIEndpoint string,
 	includeIdentity IncludeIdentityWebFunc,
 ) Middleware[http.HandlerFunc] {
@@ -84,7 +84,7 @@ func ServerWebSocketWithIdentity(
 
 func ServerGRPCWithIdentity(
 	dataCollector telemetry.DataCollector,
-	httpClient web.Client,
+	httpClient web.HTTPClient,
 	identityAPIEndpoint string,
 	includeIdentity IncludeIdentityGRPCFunc,
 ) grpc.UnaryServerInterceptor {
@@ -127,7 +127,7 @@ func ClientGRPCWithIdentity(getAccessToken func() string) grpc.UnaryClientInterc
 
 func withIdentity(
 	dataCollector telemetry.DataCollector,
-	httpClient web.Client,
+	httpClient web.HTTPClient,
 	identityAPIEndpoint string,
 	getBearerToken func(request *http.Request) (string, *errs.Error),
 	includeIdentity IncludeIdentityWebFunc,
@@ -161,10 +161,11 @@ func withIdentity(
 
 func ctxWithUserID(
 	dataCollector telemetry.DataCollector,
-	httpClient web.Client,
+	httpClient web.HTTPClient,
 	verifyTokenURL string,
 	ct context.Context,
-	accessToken string) (context.Context, *errs.Error) {
+	accessToken string,
+) (context.Context, *errs.Error) {
 	dataCollector.Logger.DebugWithContext(ct, "enter ctxWithUserID")
 	defer dataCollector.Logger.DebugWithContext(ct, "exit ctxWithUserID")
 

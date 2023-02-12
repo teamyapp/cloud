@@ -47,8 +47,8 @@ func ClientGRPCWithRequestID(dataCollector telemetry.DataCollector) grpc.UnaryCl
 	}
 }
 
-func ClientHTTPWithRequestID(dataCollector telemetry.DataCollector) Middleware[web.Client] {
-	return func(client web.Client) web.Client {
+func ClientHTTPWithRequestID(dataCollector telemetry.DataCollector) Middleware[web.HTTPClient] {
+	return func(client web.HTTPClient) web.HTTPClient {
 		return func(ct context.Context, req *http.Request) (*http.Response, error) {
 			requestID := ctx.GetRequestIDHttp(ct, req)
 			requestID = generateRequestIdIfNot(dataCollector, ct, requestID)
