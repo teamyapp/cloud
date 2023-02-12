@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/teamyapp/cloud/app/api/proto"
@@ -16,11 +17,29 @@ import (
 	"github.com/teamyapp/cloud/libs/collect"
 	"github.com/teamyapp/cloud/libs/ctx"
 	"github.com/teamyapp/cloud/libs/errs"
+	"github.com/teamyapp/cloud/libs/middleware"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
 	"google.golang.org/grpc"
 )
+
+var skippedIdentityAPIPrefixes = []string{
+	path.Join(identityPathPrefix, "verify-token"),
+	path.Join(identityPathPrefix, "sign-in"),
+}
+
+func IncludeIdentityWebFunc(request *http.Request) bool {
+	for _, skippedIdentityAPIPrefix := range skippedIdentityAPIPrefixes {
+		if strings.HasPrefix(request.URL.Path, skippedIdentityAPIPrefix) {
+			return false
+		}
+	}
+
+	return true
+}
+
+var _ middleware.IncludeIdentityWebFunc = IncludeIdentityWebFunc
 
 type Identity struct {
 	dataCollector   telemetry.DataCollector

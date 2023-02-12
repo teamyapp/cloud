@@ -25,7 +25,9 @@ func NewContextWithRequestID(ctx context.Context, requestID string) context.Cont
 }
 
 func MetadataWithRequestID(ctx context.Context, requestID string) context.Context {
-	ctx = metadata.AppendToOutgoingContext(ctx, string(requestIDKey), requestID)
+	return metadata.AppendToOutgoingContext(ctx, string(requestIDKey), requestID)
+}
 
-	return ctx
+func SetRequestIDHttp(request *http.Request, requestID string) {
+	setValueHttp(request, requestIDKey, requestID)
 }
