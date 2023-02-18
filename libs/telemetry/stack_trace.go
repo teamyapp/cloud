@@ -32,7 +32,7 @@ type stackTrace struct {
 var _ json.Marshaler = (*stackTrace)(nil)
 
 func (s stackTrace) MarshalJSON() ([]byte, error) {
-	return []byte(s.String()), nil
+	return json.Marshal(s.String())
 }
 
 func (s stackTrace) String() string {

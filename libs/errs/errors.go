@@ -40,9 +40,12 @@ var _ json.Marshaler = (*Error)(nil)
 
 func (e Error) MarshalJSON() ([]byte, error) {
 	fields := map[string]string{
-		"Code":     string(e.Code),
-		"Message":  e.Message,
-		"EmbedErr": e.EmbedErr.Error(),
+		"Code":    string(e.Code),
+		"Message": e.Message,
+	}
+
+	if e.EmbedErr != nil {
+		fields["EmbedErr"] = e.EmbedErr.Error()
 	}
 
 	return json.Marshal(fields)
