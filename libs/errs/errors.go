@@ -1,6 +1,7 @@
 package errs
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -33,6 +34,18 @@ type Error struct {
 	Code     ErrorCode
 	EmbedErr error
 	Message  string
+}
+
+var _ json.Marshaler = (*Error)(nil)
+
+func (e Error) MarshalJSON() ([]byte, error) {
+	fields := map[string]string{
+		"Code":     string(e.Code),
+		"Message":  e.Message,
+		"EmbedErr": e.EmbedErr.Error(),
+	}
+
+	return json.Marshal(fields)
 }
 
 func (e Error) String() string {
