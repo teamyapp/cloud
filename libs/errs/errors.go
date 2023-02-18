@@ -52,9 +52,17 @@ func (e Error) MarshalJSON() ([]byte, error) {
 }
 
 func (e Error) String() string {
-	return fmt.Sprintf("[Error Code=%v Message=%v EmbedErr=%v]", e.Code, e.Message, e.EmbedErr)
+	return fmt.Sprintf("[Code=%v Message=%v EmbedErr=%v]", e.Code, e.Message, formatErr(e.EmbedErr))
 }
 
 func (e Error) ToError() error {
-	return fmt.Errorf("[Code=%v Message=%v EmbedErr=%v]", e.Code, e.Message, e.EmbedErr)
+	return fmt.Errorf("[Code=%v Message=%v EmbedErr=%v]", e.Code, e.Message, formatErr(e.EmbedErr))
+}
+
+func formatErr(err error) string {
+	if err == nil {
+		return "nil"
+	}
+
+	return err.Error()
 }
