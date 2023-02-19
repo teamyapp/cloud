@@ -209,7 +209,7 @@ func (i Identity) webListUserLinks(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
-	web.WriteJSON(ct, i.dataCollector, writer, userLinks)
+	web.WriteJSONToResponse(ct, i.dataCollector, writer, userLinks)
 }
 
 func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Request) {
@@ -292,7 +292,7 @@ func (i Identity) webListServiceAccounts(writer http.ResponseWriter, request *ht
 		return
 	}
 
-	web.WriteJSON(ct, i.dataCollector, writer, serviceAccounts)
+	web.WriteJSONToResponse(ct, i.dataCollector, writer, serviceAccounts)
 }
 
 func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *http.Request) {

@@ -1,15 +1,17 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-func WriteJSONToResponse(ct context.Context, dataCollector telemetry.DataCollector, writer http.ResponseWriter, body interface{}) *errs.Error {
+func WriteJSONToRequest(ct context.Context, dataCollector telemetry.DataCollector, req *http.Request, body interface{}) *errs.Error {
 	buf, err := json.MarshalIndent(body, "", "  ")
 	if err != nil {
 		internalErr := &errs.Error{
@@ -20,8 +22,7 @@ func WriteJSONToResponse(ct context.Context, dataCollector telemetry.DataCollect
 		return internalErr
 	}
 
-	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(http.StatusAccepted)
-	writer.Write(buf)
+	req.Header.Set("Content-Type", "application/json")
+	req.Body = io.NopCloser(bytes.NewBuffer(buf))
 	return nil
 }
