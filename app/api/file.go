@@ -128,7 +128,7 @@ func (f File) webGetUploadSession(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	web.WriteJSON(ct, f.dataCollector, writer, uploadSession)
+	web.WriteJSONToResponse(ct, f.dataCollector, writer, uploadSession)
 }
 
 func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Request) {
@@ -188,7 +188,7 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
-	web.WriteJSON(ct, f.dataCollector, writer, uploadSession)
+	web.WriteJSONToResponse(ct, f.dataCollector, writer, uploadSession)
 }
 
 func (f File) webDeleteUploadSession(writer http.ResponseWriter, request *http.Request) {
@@ -227,7 +227,7 @@ func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	web.WriteJSON(ct, f.dataCollector, writer, uploadSession)
+	web.WriteJSONToResponse(ct, f.dataCollector, writer, uploadSession)
 }
 
 func (f File) webGetFileMetadata(writer http.ResponseWriter, request *http.Request) {
@@ -251,7 +251,7 @@ func (f File) webGetFileMetadata(writer http.ResponseWriter, request *http.Reque
 		return
 	}
 
-	web.WriteJSON(ct, f.dataCollector, writer, fileMetadata)
+	web.WriteJSONToResponse(ct, f.dataCollector, writer, fileMetadata)
 }
 
 func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {

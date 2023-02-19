@@ -9,7 +9,7 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-func WriteJSON(ct context.Context, dataCollector telemetry.DataCollector, writer http.ResponseWriter, body interface{}) {
+func WriteJSONToResponse(ct context.Context, dataCollector telemetry.DataCollector, writer http.ResponseWriter, body interface{}) *errs.Error {
 	buf, err := json.MarshalIndent(body, "", "  ")
 	if err != nil {
 		internalErr := &errs.Error{
@@ -17,11 +17,11 @@ func WriteJSON(ct context.Context, dataCollector telemetry.DataCollector, writer
 			EmbedErr: err,
 		}
 		dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		errs.SetHTTPErr(internalErr, writer)
-		return
+		return internalErr
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusAccepted)
 	writer.Write(buf)
+	return nil
 }
