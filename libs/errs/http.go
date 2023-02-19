@@ -25,7 +25,7 @@ var toHTTPStatusCode = map[ErrorCode]int{
 
 type errorResponse struct {
 	Code    ErrorCode `json:"code"`
-	Message string
+	Message string    `json:"message"`
 }
 
 func GetFromHTTPErr(response *http.Response) *Error {
