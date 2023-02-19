@@ -41,7 +41,7 @@ func (s stackTrace) String() string {
 		frameLines = append(frameLines, fm.String())
 	}
 
-	return "\n" + strings.Join(frameLines, "\n")
+	return strings.Join(frameLines, "\n")
 }
 
 func newStackTrace(maxStackSize int, skipCallers int) stackTrace {
