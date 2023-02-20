@@ -16,12 +16,17 @@ import (
 	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/errs"
 	tmio "github.com/teamyapp/cloud/libs/io"
+	"github.com/teamyapp/cloud/libs/metrics"
 	"github.com/teamyapp/cloud/libs/middleware"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-var serviceLabels = []string{"cloud", "backend"}
+const appName = "cloud"
+const serviceName = "backend"
+
+var serviceLabels = []string{appName, serviceName}
+var fullServiceName = strings.Join(serviceLabels, "-")
 
 func main() {
 	cfg, err := config.AppFromEnv()
@@ -30,7 +35,7 @@ func main() {
 	}
 
 	lineFormatter := newLineFormatter(cfg.Environment)
-	logOutput, err := newLogOutput(cfg.Environment, strings.Join(serviceLabels, "-"))
+	logOutput, err := newLogOutput(cfg.Environment, fullServiceName)
 	if err != nil {
 		panic(err)
 	}
@@ -147,13 +152,15 @@ func main() {
 		}
 
 		telemetryAPI := dep.InitTelemetryAPI(dataCollector)
-		rn := runner.NewServiceRunnerBuilder(dataCollector, runnerConfig, []runner.Service{
-			identityAPI,
-			generatorAPI,
-			authorizationAPI,
-			fileAPI,
-			telemetryAPI,
-		}).
+		rn := runner.NewServiceRunnerBuilder(dataCollector,
+			metrics.NewPrometheus(appName, serviceName, cfg.Environment),
+			runnerConfig, []runner.Service{
+				identityAPI,
+				generatorAPI,
+				authorizationAPI,
+				fileAPI,
+				telemetryAPI,
+			}).
 			IncludeIdentityWebFunc(api.IncludeIdentityWebFunc).
 			Build()
 		rn.Start()

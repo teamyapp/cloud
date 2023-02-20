@@ -23,7 +23,12 @@ type ConnectionConfig struct {
 	RequestTimeout time.Duration
 }
 
-func NewClientConnection(dataCollector telemetry.DataCollector, cfg ConnectionConfig, retry retry.Retry) (*grpc.ClientConn, error) {
+func NewClientConnection(
+	dataCollector telemetry.DataCollector,
+	clientGRPCMetrics middleware.ClientGRPCMetrics,
+	cfg ConnectionConfig,
+	retry retry.Retry,
+) (*grpc.ClientConn, error) {
 	var cred credentials.TransportCredentials
 	if cfg.ShouldEncrypt {
 		cred = credentials.NewTLS(nil)
@@ -35,6 +40,7 @@ func NewClientConnection(dataCollector telemetry.DataCollector, cfg ConnectionCo
 		fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		grpc.WithTransportCredentials(cred),
 		grpc.WithChainUnaryInterceptor(
+			middleware.ClientGRPCWithMetrics(clientGRPCMetrics),
 			middleware.ClientGRPCWithRetry(retry),
 			middleware.ClientGRPCWithRequestID(dataCollector),
 			middleware.ClientGRPCWithTimout(cfg.RequestTimeout),
