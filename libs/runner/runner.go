@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/libs/errs"
+	"github.com/teamyapp/cloud/libs/metrics"
 	"github.com/teamyapp/cloud/libs/middleware"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
@@ -26,10 +28,11 @@ type WebRoute struct {
 }
 
 type ServiceRunnerConfig struct {
-	WebServerPort       int           `envconfig:"SERVICE_RUNNER_WEB_SERVER_PORT" default:"9011"`
-	GRPCServerPort      int           `envconfig:"SERVICE_RUNNER_GRPC_SERVER_PORT" default:"9012"`
-	IdentityAPIEndpoint string        `envconfig:"SERVICE_RUNNER_IDENTITY_API_ENDPOINT" default:"http://localhost:9500/identity"`
-	RequestTimeout      time.Duration `envconfig:"REQUEST_TIMEOUT" default:"10s"`
+	WebServerPort        int           `envconfig:"SERVICE_RUNNER_WEB_SERVER_PORT" default:"9011"`
+	GRPCServerPort       int           `envconfig:"SERVICE_RUNNER_GRPC_SERVER_PORT" default:"9012"`
+	MonitoringServerPort int           `envconfig:"SERVICE_RUNNER_MONITORING_SERVER_PORT" default:"10000"`
+	IdentityAPIEndpoint  string        `envconfig:"SERVICE_RUNNER_IDENTITY_API_ENDPOINT" default:"http://localhost:9500/identity"`
+	RequestTimeout       time.Duration `envconfig:"REQUEST_TIMEOUT" default:"10s"`
 }
 
 func ServiceRunnerConfigFromEnv(dataCollector telemetry.DataCollector) (ServiceRunnerConfig, *errs.Error) {
@@ -49,6 +52,7 @@ func ServiceRunnerConfigFromEnv(dataCollector telemetry.DataCollector) (ServiceR
 
 type ServiceRunner struct {
 	dataCollector          telemetry.DataCollector
+	prometheus             metrics.Prometheus
 	config                 ServiceRunnerConfig
 	httpClient             web.HTTPClient
 	webRouter              *mux.Router
@@ -78,6 +82,13 @@ func (s *ServiceRunner) Start() {
 		defer wg.Done()
 		s.startGRPCServer()
 	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		s.startMonitoringServer()
+	}()
+
 	wg.Wait()
 }
 
@@ -87,6 +98,7 @@ func (s *ServiceRunner) startWebServer() {
 	})
 	serveMux := http.NewServeMux()
 	middlewares := []middleware.Middleware[http.HandlerFunc]{
+		middleware.ServerHTTPWithMetrics(s.prometheus),
 		middleware.ServerHTTPEnableCORS,
 		middleware.ServerHTTPWithRequestID(s.dataCollector),
 		middleware.ServerHTTPWithTimeout(s.config.RequestTimeout),
@@ -125,6 +137,17 @@ func (s *ServiceRunner) startGRPCServer() {
 	}
 }
 
+func (s *ServiceRunner) startMonitoringServer() {
+	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
+		telemetry.MessageProp: fmt.Sprintf("service runner Monitoring server started at %v", s.config.MonitoringServerPort),
+	})
+	serveMux := http.NewServeMux()
+	serveMux.Handle("/metrics", promhttp.Handler())
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.MonitoringServerPort), serveMux); err != nil {
+		panic(err)
+	}
+}
+
 func (s *ServiceRunner) RegisterWebRoutes(routes []WebRoute) {
 	for _, route := range routes {
 		s.webRouter.HandleFunc(route.Path, route.HandlerFunc).Methods(route.Method)
@@ -137,6 +160,7 @@ func (s *ServiceRunner) WithGRPCServer(withGRPCServer func(server *grpc.Server))
 
 type ServiceRunnerBuilder struct {
 	dataCollector           telemetry.DataCollector
+	prometheus              metrics.Prometheus
 	config                  ServiceRunnerConfig
 	httpClient              web.HTTPClient
 	services                []Service
@@ -161,11 +185,13 @@ func (s *ServiceRunnerBuilder) IncludeIdentityGRPCFunc(
 func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 	return ServiceRunner{
 		dataCollector: s.dataCollector,
+		prometheus:    s.prometheus,
 		config:        s.config,
 		httpClient:    s.httpClient,
 		webRouter:     mux.NewRouter(),
 		gRPCServer: grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
+				middleware.ServerGRPCWithMetrics(s.prometheus),
 				middleware.ServerGRPCWithTimeout(s.config.RequestTimeout),
 				middleware.ServerGRPCWithRequestID(s.dataCollector),
 				middleware.ServerGRPCLogRequest(s.dataCollector),
@@ -182,10 +208,12 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 
 func NewServiceRunnerBuilder(
 	dataCollector telemetry.DataCollector,
+	prometheus metrics.Prometheus,
 	config ServiceRunnerConfig,
 	services []Service,
 ) *ServiceRunnerBuilder {
 	middlewares := []middleware.Middleware[web.HTTPClient]{
+		middleware.ClientHTTPWithMetrics(prometheus),
 		middleware.ClientHTTPWithRequestID(dataCollector),
 	}
 	httpClient := middleware.WithMiddlewares[web.HTTPClient](
@@ -194,6 +222,7 @@ func NewServiceRunnerBuilder(
 		}, middlewares)
 	return &ServiceRunnerBuilder{
 		dataCollector: dataCollector,
+		prometheus:    prometheus,
 		config:        config,
 		httpClient:    httpClient,
 		services:      services,
