@@ -10,7 +10,7 @@ import (
 	"github.com/graph-gophers/graphql-go/trace/tracer"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/teamyapp/cloud/libs/env"
-	"github.com/teamyapp/cloud/libs/telemetry"
+	"github.com/teamyapp/cloud/libs/metrics"
 )
 
 type PrometheusTracer struct {
@@ -58,7 +58,7 @@ func NewPrometheusTracer(appMame string, serviceName string, environment env.Env
 			Subsystem: serviceName,
 			Name:      "graphql_incoming_request_count",
 			ConstLabels: map[string]string{
-				telemetry.EnvironmentLabel: string(environment),
+				metrics.EnvironmentLabel: string(environment),
 			},
 		},
 		[]string{"path"})
@@ -68,9 +68,9 @@ func NewPrometheusTracer(appMame string, serviceName string, environment env.Env
 			Subsystem: serviceName,
 			Name:      "graphql_incoming_response_time",
 			ConstLabels: map[string]string{
-				telemetry.EnvironmentLabel: string(environment),
+				metrics.EnvironmentLabel: string(environment),
 			},
-			Buckets: telemetry.ResponseTimeBuckets,
+			Buckets: metrics.ResponseTimeBuckets,
 		},
 		[]string{"path"})
 	prometheus.MustRegister(requestCountMetric)
