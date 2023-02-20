@@ -6,7 +6,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/middleware"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type Prometheus struct {
@@ -64,7 +63,7 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			Subsystem: serviceName,
 			Name:      "http_incoming_request_count",
 			ConstLabels: map[string]string{
-				telemetry.EnvironmentLabel: string(environment),
+				EnvironmentLabel: string(environment),
 			},
 		},
 		[]string{"path"})
@@ -74,9 +73,9 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			Subsystem: serviceName,
 			Name:      "http_incoming_request_response_time",
 			ConstLabels: map[string]string{
-				telemetry.EnvironmentLabel: string(environment),
+				EnvironmentLabel: string(environment),
 			},
-			Buckets: telemetry.ResponseTimeBuckets,
+			Buckets: ResponseTimeBuckets,
 		},
 		[]string{"path"})
 	httpOutgoingRequestCountMetric := prometheus.NewCounterVec(
@@ -85,7 +84,7 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			Subsystem: serviceName,
 			Name:      "http_outgoing_request_count",
 			ConstLabels: map[string]string{
-				telemetry.EnvironmentLabel: string(environment),
+				EnvironmentLabel: string(environment),
 			},
 		},
 		[]string{"target", "path"})
@@ -95,9 +94,9 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			Subsystem: serviceName,
 			Name:      "http_outgoing_request_response_time",
 			ConstLabels: map[string]string{
-				telemetry.EnvironmentLabel: string(environment),
+				EnvironmentLabel: string(environment),
 			},
-			Buckets: telemetry.ResponseTimeBuckets,
+			Buckets: ResponseTimeBuckets,
 		},
 		[]string{"target", "path"})
 	grpcIncomingRequestCountMetric := prometheus.NewCounterVec(
@@ -106,7 +105,7 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			Subsystem: serviceName,
 			Name:      "grpc_incoming_request_count",
 			ConstLabels: map[string]string{
-				telemetry.EnvironmentLabel: string(environment),
+				EnvironmentLabel: string(environment),
 			},
 		},
 		[]string{"method"})
@@ -116,9 +115,9 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			Subsystem: serviceName,
 			Name:      "grpc_incoming_request_response_time",
 			ConstLabels: map[string]string{
-				telemetry.EnvironmentLabel: string(environment),
+				EnvironmentLabel: string(environment),
 			},
-			Buckets: telemetry.ResponseTimeBuckets,
+			Buckets: ResponseTimeBuckets,
 		},
 		[]string{"method"})
 	grpcOutgoingRequestCountMetric := prometheus.NewCounterVec(
@@ -127,7 +126,7 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			Subsystem: serviceName,
 			Name:      "grpc_outgoing_request_count",
 			ConstLabels: map[string]string{
-				telemetry.EnvironmentLabel: string(environment),
+				EnvironmentLabel: string(environment),
 			},
 		},
 		[]string{"target", "method"})
@@ -137,9 +136,9 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			Subsystem: serviceName,
 			Name:      "grpc_outgoing_request_response_time",
 			ConstLabels: map[string]string{
-				telemetry.EnvironmentLabel: string(environment),
+				EnvironmentLabel: string(environment),
 			},
-			Buckets: telemetry.ResponseTimeBuckets,
+			Buckets: ResponseTimeBuckets,
 		},
 		[]string{"target", "method"})
 	prometheus.MustRegister(httpIncomingRequestCountMetric)
