@@ -9,7 +9,7 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/libs/errs"
@@ -20,6 +20,9 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+const uploadSessionIDParam = "uploadSessionId"
+const fileIDParam = "fileId"
 
 type File struct {
 	dataCollector telemetry.DataCollector
@@ -33,33 +36,33 @@ var _ proto.FileServer = (*File)(nil)
 func (f File) Start(rn *runner.ServiceRunner) *errs.Error {
 	rn.RegisterWebRoutes([]runner.WebRoute{
 		{
-			Path:        path.Join(filePathPrefix, "upload-sessions", "{uploadSessionId}"),
 			Method:      http.MethodGet,
+			Pattern:     path.Join(filePathPrefix, "upload-sessions", runner.Param(uploadSessionIDParam)),
 			HandlerFunc: f.webGetUploadSession,
 		},
 		{
-			Path:        path.Join(filePathPrefix, "upload-sessions", "{uploadSessionId}", "init"),
 			Method:      http.MethodPut,
+			Pattern:     path.Join(filePathPrefix, "upload-sessions", runner.Param(uploadSessionIDParam), "init"),
 			HandlerFunc: f.webInitUploadSession,
 		},
 		{
-			Path:        path.Join(filePathPrefix, "upload-sessions", "{uploadSessionId}", "delete"),
 			Method:      http.MethodDelete,
+			Pattern:     path.Join(filePathPrefix, "upload-sessions", runner.Param(uploadSessionIDParam), "delete"),
 			HandlerFunc: f.webDeleteUploadSession,
 		},
 		{
-			Path:        path.Join(filePathPrefix, "upload-sessions", "{uploadSessionId}", "chunks", "add"),
 			Method:      http.MethodPost,
+			Pattern:     path.Join(filePathPrefix, "upload-sessions", runner.Param(uploadSessionIDParam), "chunks", "add"),
 			HandlerFunc: f.webAddChunk,
 		},
 		{
-			Path:        path.Join(filePathPrefix, "files", "{fileId}", "metadata"),
 			Method:      http.MethodGet,
+			Pattern:     path.Join(filePathPrefix, "files", runner.Param(fileIDParam), "metadata"),
 			HandlerFunc: f.webGetFileMetadata,
 		},
 		{
-			Path:        path.Join(filePathPrefix, "files", "{fileId}"),
 			Method:      http.MethodGet,
+			Pattern:     path.Join(filePathPrefix, "files", runner.Param(fileIDParam)),
 			HandlerFunc: f.webGetFile,
 		},
 	})
@@ -109,8 +112,8 @@ func (f File) FindUploadSession(ct context.Context, req *proto.FindUploadSession
 
 func (f File) webGetUploadSession(writer http.ResponseWriter, request *http.Request) {
 	ct := request.Context()
-	uploadSessionIDParam := mux.Vars(request)["uploadSessionId"]
-	uploadSessionID, err := strconv.ParseUint(uploadSessionIDParam, 10, 64)
+	uploadSessionIDRaw := chi.URLParam(request, uploadSessionIDParam)
+	uploadSessionID, err := strconv.ParseUint(uploadSessionIDRaw, 10, 64)
 	if err != nil {
 		internalErr := &errs.Error{
 			Code:     errs.InvalidArgument,
@@ -133,8 +136,8 @@ func (f File) webGetUploadSession(writer http.ResponseWriter, request *http.Requ
 
 func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Request) {
 	ct := request.Context()
-	uploadSessionIDParam := mux.Vars(request)["uploadSessionId"]
-	uploadSessionID, err := strconv.ParseUint(uploadSessionIDParam, 10, 64)
+	uploadSessionIDRaw := chi.URLParam(request, uploadSessionIDParam)
+	uploadSessionID, err := strconv.ParseUint(uploadSessionIDRaw, 10, 64)
 	if err != nil {
 		internalErr := &errs.Error{
 			Code:     errs.InvalidArgument,
@@ -197,8 +200,8 @@ func (f File) webDeleteUploadSession(writer http.ResponseWriter, request *http.R
 
 func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 	ct := request.Context()
-	uploadSessionIDParam := mux.Vars(request)["uploadSessionId"]
-	uploadSessionID, err := strconv.ParseUint(uploadSessionIDParam, 10, 64)
+	uploadSessionIDRaw := chi.URLParam(request, uploadSessionIDParam)
+	uploadSessionID, err := strconv.ParseUint(uploadSessionIDRaw, 10, 64)
 	if err != nil {
 		internalErr := &errs.Error{
 			Code:     errs.InvalidArgument,
@@ -232,8 +235,8 @@ func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 
 func (f File) webGetFileMetadata(writer http.ResponseWriter, request *http.Request) {
 	ct := request.Context()
-	fileIDParam := mux.Vars(request)["fileId"]
-	fileID, err := strconv.ParseUint(fileIDParam, 10, 64)
+	fileIDRaw := chi.URLParam(request, fileIDParam)
+	fileID, err := strconv.ParseUint(fileIDRaw, 10, 64)
 	if err != nil {
 		internalErr := &errs.Error{
 			Code:     errs.InvalidArgument,
@@ -256,8 +259,8 @@ func (f File) webGetFileMetadata(writer http.ResponseWriter, request *http.Reque
 
 func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 	ct := request.Context()
-	fileIDParam := mux.Vars(request)["fileId"]
-	fileID, err := strconv.ParseUint(fileIDParam, 10, 64)
+	fileIDRaw := chi.URLParam(request, fileIDParam)
+	fileID, err := strconv.ParseUint(fileIDRaw, 10, 64)
 	if err != nil {
 		internalErr := &errs.Error{
 			Code:     errs.InvalidArgument,

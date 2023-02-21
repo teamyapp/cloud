@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/libs/errs"
@@ -22,8 +22,8 @@ import (
 const EnvConfigErr errs.ErrorCode = "EnvConfig"
 
 type WebRoute struct {
-	Path        string
 	Method      string
+	Pattern     string
 	HandlerFunc http.HandlerFunc
 }
 
@@ -55,7 +55,7 @@ type ServiceRunner struct {
 	prometheus             metrics.Prometheus
 	config                 ServiceRunnerConfig
 	httpClient             web.HTTPClient
-	webRouter              *mux.Router
+	webRouter              chi.Router
 	gRPCServer             *grpc.Server
 	services               []Service
 	includeIdentityWebFunc middleware.IncludeIdentityWebFunc
@@ -150,7 +150,7 @@ func (s *ServiceRunner) startMonitoringServer() {
 
 func (s *ServiceRunner) RegisterWebRoutes(routes []WebRoute) {
 	for _, route := range routes {
-		s.webRouter.HandleFunc(route.Path, route.HandlerFunc).Methods(route.Method)
+		s.webRouter.MethodFunc(route.Method, route.Pattern, route.HandlerFunc)
 	}
 }
 
@@ -188,7 +188,7 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 		prometheus:    s.prometheus,
 		config:        s.config,
 		httpClient:    s.httpClient,
-		webRouter:     mux.NewRouter(),
+		webRouter:     chi.NewRouter(),
 		gRPCServer: grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
 				middleware.ServerGRPCWithMetrics(s.prometheus),
@@ -232,4 +232,8 @@ func NewServiceRunnerBuilder(
 		includeIdentityGRPCFunc: func(info *grpc.UnaryServerInfo) bool {
 			return true
 		}}
+}
+
+func Param(paramName string) string {
+	return fmt.Sprintf(`"{%s}"`, paramName)
 }

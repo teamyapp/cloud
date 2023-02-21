@@ -21,8 +21,8 @@ var _ runner.Service = (*Telemetry)(nil)
 func (t *Telemetry) Start(rn *runner.ServiceRunner) *errs.Error {
 	rn.RegisterWebRoutes([]runner.WebRoute{
 		{
-			Path:        path.Join(telemetryPathPrefix, "upload-log"),
 			Method:      http.MethodPost,
+			Pattern:     path.Join(telemetryPathPrefix, "upload-log"),
 			HandlerFunc: t.uploadLog,
 		},
 	})
