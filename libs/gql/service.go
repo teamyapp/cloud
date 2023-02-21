@@ -39,8 +39,8 @@ func (s Service[Resolver]) Start(rn *runner.ServiceRunner) *errs.Error {
 	relayHandler := relay.Handler{Schema: schema}
 	rn.RegisterWebRoutes([]runner.WebRoute{
 		{
-			Path:        s.pathPrefix,
 			Method:      http.MethodPost,
+			Pattern:     s.pathPrefix,
 			HandlerFunc: relayHandler.ServeHTTP,
 		},
 	})
