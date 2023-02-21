@@ -9,6 +9,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+type GetPatternFunc func(request *http.Request) (string, bool)
+
 type ServerHTTPMetrics interface {
 	ReportHTTPIncomingRequest(method string, pattern string)
 	ReportHTTPIncomingRequestResponseTime(method string, pattern string, duration time.Duration)
@@ -29,17 +31,23 @@ type ClientGRPCMetrics interface {
 	ReportGRPCOutgoingRequestResponseTime(target string, method string, duration time.Duration)
 }
 
-func ServerHTTPWithMetrics(metrics ServerHTTPMetrics, getPattern func(request *http.Request) string) Middleware[http.HandlerFunc] {
+func ServerHTTPWithMetrics(metrics ServerHTTPMetrics, getPattern GetPatternFunc) Middleware[http.HandlerFunc] {
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		return func(writer http.ResponseWriter, request *http.Request) {
-			pattern := getPattern(request)
-			metrics.ReportHTTPIncomingRequest(request.Method, pattern)
-			startAt := time.Now()
+			pattern, found := getPattern(request)
+
+			var startAt time.Time
+			if found {
+				metrics.ReportHTTPIncomingRequest(request.Method, pattern)
+				startAt = time.Now()
+			}
 
 			handlerFunc(writer, request)
 
-			responseTime := time.Now().Sub(startAt)
-			metrics.ReportHTTPIncomingRequestResponseTime(request.Method, pattern, responseTime)
+			if found {
+				responseTime := time.Now().Sub(startAt)
+				metrics.ReportHTTPIncomingRequestResponseTime(request.Method, pattern, responseTime)
+			}
 		}
 	}
 }
@@ -62,17 +70,24 @@ func ServerGRPCWithMetrics(metrics ServerGRPCMetrics) grpc.UnaryServerIntercepto
 	}
 }
 
-func ClientHTTPWithMetrics(metrics ClientHTTPMetrics, getPattern func(request *http.Request) string) Middleware[web.HTTPClient] {
+func ClientHTTPWithMetrics(metrics ClientHTTPMetrics, getPattern GetPatternFunc) Middleware[web.HTTPClient] {
 	return func(client web.HTTPClient) web.HTTPClient {
 		return func(ct context.Context, req *http.Request) (*http.Response, error) {
-			pattern := getPattern(req)
-			metrics.ReportHTTPOutgoingRequest(req.URL.Host, req.Method, pattern)
-			startAt := time.Now()
+			pattern, found := getPattern(req)
+
+			var startAt time.Time
+			if found {
+				metrics.ReportHTTPOutgoingRequest(req.URL.Host, req.Method, pattern)
+				startAt = time.Now()
+			}
 
 			res, err := client.Do(ct, req)
 
-			responseTime := time.Now().Sub(startAt)
-			metrics.ReportHTTPOutgoingRequestResponseTime(req.URL.Host, req.Method, pattern, responseTime)
+			if found {
+				responseTime := time.Now().Sub(startAt)
+				metrics.ReportHTTPOutgoingRequestResponseTime(req.URL.Host, req.Method, pattern, responseTime)
+			}
+
 			return res, err
 		}
 	}

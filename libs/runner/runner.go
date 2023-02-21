@@ -145,7 +145,7 @@ type ServiceRunnerBuilder struct {
 	services                        []Service
 	includeIdentityWebFunc          middleware.IncludeIdentityWebFunc
 	includeIdentityGRPCFunc         middleware.IncludeIdentityGRPCFunc
-	getClientHTTPRequestPatternFunc func(request *http.Request) string
+	getClientHTTPRequestPatternFunc middleware.GetPatternFunc
 }
 
 func (s *ServiceRunnerBuilder) IncludeIdentityWebFunc(
@@ -163,7 +163,7 @@ func (s *ServiceRunnerBuilder) IncludeIdentityGRPCFunc(
 }
 
 func (s *ServiceRunnerBuilder) GetClientHTTPRequestPatternFunc(
-	getClientHTTPRequestPatternFunc func(request *http.Request) string,
+	getClientHTTPRequestPatternFunc middleware.GetPatternFunc,
 ) *ServiceRunnerBuilder {
 	s.getClientHTTPRequestPatternFunc = getClientHTTPRequestPatternFunc
 	return s
@@ -178,9 +178,20 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 		func(ct context.Context, req *http.Request) (*http.Response, error) {
 			return http.DefaultClient.Do(req)
 		}, httpClientMiddlewares)
+	webRouter := chi.NewRouter()
 	httpServerMiddlewares := []middleware.Middleware[http.HandlerFunc]{
-		middleware.ServerHTTPWithMetrics(s.prometheus, func(request *http.Request) string {
-			return chi.RouteContext(request.Context()).RoutePattern()
+		middleware.ServerHTTPWithMetrics(s.prometheus, func(request *http.Request) (string, bool) {
+			rctx := chi.RouteContext(request.Context())
+			if pattern := rctx.RoutePattern(); len(pattern) > 0 {
+				return pattern, true
+			}
+
+			tmpCtx := chi.NewRouteContext()
+			if !rctx.Routes.Match(tmpCtx, request.Method, request.URL.Path) {
+				return "", false
+			}
+
+			return tmpCtx.RoutePattern(), true
 		}),
 		middleware.ServerHTTPEnableCORS,
 		middleware.ServerHTTPWithRequestID(s.dataCollector),
@@ -197,7 +208,6 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 			s.config.IdentityAPIEndpoint,
 			s.includeIdentityWebFunc),
 	}
-	webRouter := chi.NewRouter()
 	webRouter.Use(func(handler http.Handler) http.Handler {
 		return middleware.WithMiddlewares[http.HandlerFunc](handler.ServeHTTP, httpServerMiddlewares)
 	})
@@ -241,8 +251,8 @@ func NewServiceRunnerBuilder(
 		includeIdentityGRPCFunc: func(info *grpc.UnaryServerInfo) bool {
 			return true
 		},
-		getClientHTTPRequestPatternFunc: func(request *http.Request) string {
-			return request.URL.Path
+		getClientHTTPRequestPatternFunc: func(request *http.Request) (string, bool) {
+			return request.URL.Path, true
 		}}
 }
 
