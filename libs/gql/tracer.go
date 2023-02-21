@@ -66,7 +66,7 @@ func NewPrometheusTracer(appMame string, serviceName string, environment env.Env
 		prometheus.HistogramOpts{
 			Namespace: appMame,
 			Subsystem: serviceName,
-			Name:      "graphql_incoming_response_time",
+			Name:      "graphql_incoming_request_response_time",
 			ConstLabels: map[string]string{
 				metrics.EnvironmentLabel: string(environment),
 			},
