@@ -96,29 +96,7 @@ func (s *ServiceRunner) startWebServer() {
 	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
 		telemetry.MessageProp: fmt.Sprintf("service runner Web server started at %v", s.config.WebServerPort),
 	})
-	serveMux := http.NewServeMux()
-	middlewares := []middleware.Middleware[http.HandlerFunc]{
-		middleware.ServerHTTPWithMetrics(s.prometheus, func(request *http.Request) string {
-			return chi.RouteContext(request.Context()).RoutePattern()
-		}),
-		middleware.ServerHTTPEnableCORS,
-		middleware.ServerHTTPWithRequestID(s.dataCollector),
-		middleware.ServerHTTPWithTimeout(s.config.RequestTimeout),
-		middleware.ServerHTTPLogRequest(s.dataCollector),
-		middleware.ServerHTTPWithIdentity(
-			s.dataCollector,
-			s.httpClient,
-			s.config.IdentityAPIEndpoint,
-			s.includeIdentityWebFunc),
-		middleware.ServerWebSocketWithIdentity(
-			s.dataCollector,
-			s.httpClient,
-			s.config.IdentityAPIEndpoint,
-			s.includeIdentityWebFunc),
-	}
-	handlerFunc := middleware.WithMiddlewares[http.HandlerFunc](s.webRouter.ServeHTTP, middlewares)
-	serveMux.HandleFunc("/", handlerFunc)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.WebServerPort), serveMux); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.WebServerPort), s.webRouter); err != nil {
 		panic(err)
 	}
 }
@@ -143,9 +121,9 @@ func (s *ServiceRunner) startMonitoringServer() {
 	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
 		telemetry.MessageProp: fmt.Sprintf("service runner Monitoring server started at %v", s.config.MonitoringServerPort),
 	})
-	serveMux := http.NewServeMux()
-	serveMux.Handle("/metrics", promhttp.Handler())
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.MonitoringServerPort), serveMux); err != nil {
+	router := chi.NewRouter()
+	router.Handle("/metrics", promhttp.Handler())
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.MonitoringServerPort), router); err != nil {
 		panic(err)
 	}
 }
@@ -192,20 +170,43 @@ func (s *ServiceRunnerBuilder) GetClientHTTPRequestPatternFunc(
 }
 
 func (s *ServiceRunnerBuilder) Build() ServiceRunner {
-	middlewares := []middleware.Middleware[web.HTTPClient]{
+	httpClientMiddlewares := []middleware.Middleware[web.HTTPClient]{
 		middleware.ClientHTTPWithMetrics(s.prometheus, s.getClientHTTPRequestPatternFunc),
 		middleware.ClientHTTPWithRequestID(s.dataCollector),
 	}
 	httpClient := middleware.WithMiddlewares[web.HTTPClient](
 		func(ct context.Context, req *http.Request) (*http.Response, error) {
 			return http.DefaultClient.Do(req)
-		}, middlewares)
+		}, httpClientMiddlewares)
+	httpServerMiddlewares := []middleware.Middleware[http.HandlerFunc]{
+		middleware.ServerHTTPWithMetrics(s.prometheus, func(request *http.Request) string {
+			return chi.RouteContext(request.Context()).RoutePattern()
+		}),
+		middleware.ServerHTTPEnableCORS,
+		middleware.ServerHTTPWithRequestID(s.dataCollector),
+		middleware.ServerHTTPWithTimeout(s.config.RequestTimeout),
+		middleware.ServerHTTPLogRequest(s.dataCollector),
+		middleware.ServerHTTPWithIdentity(
+			s.dataCollector,
+			httpClient,
+			s.config.IdentityAPIEndpoint,
+			s.includeIdentityWebFunc),
+		middleware.ServerWebSocketWithIdentity(
+			s.dataCollector,
+			httpClient,
+			s.config.IdentityAPIEndpoint,
+			s.includeIdentityWebFunc),
+	}
+	webRouter := chi.NewRouter()
+	webRouter.Use(func(handler http.Handler) http.Handler {
+		return middleware.WithMiddlewares[http.HandlerFunc](handler.ServeHTTP, httpServerMiddlewares)
+	})
 	return ServiceRunner{
 		dataCollector: s.dataCollector,
 		prometheus:    s.prometheus,
 		config:        s.config,
 		httpClient:    httpClient,
-		webRouter:     chi.NewRouter(),
+		webRouter:     webRouter,
 		gRPCServer: grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
 				middleware.ServerGRPCWithMetrics(s.prometheus),
@@ -246,5 +247,5 @@ func NewServiceRunnerBuilder(
 }
 
 func Param(paramName string) string {
-	return fmt.Sprintf(`"{%s}"`, paramName)
+	return fmt.Sprintf(`{%s}`, paramName)
 }
