@@ -10,13 +10,13 @@ import (
 )
 
 type ServerHTTPMetrics interface {
-	ReportHTTPIncomingRequest(path string)
-	ReportHTTPIncomingRequestResponseTime(path string, duration time.Duration)
+	ReportHTTPIncomingRequest(path string, method string)
+	ReportHTTPIncomingRequestResponseTime(path string, method string, duration time.Duration)
 }
 
 type ClientHTTPMetrics interface {
-	ReportHTTPOutgoingRequest(target string, path string)
-	ReportHTTPOutgoingRequestResponseTime(target string, path string, duration time.Duration)
+	ReportHTTPOutgoingRequest(target string, path string, method string)
+	ReportHTTPOutgoingRequestResponseTime(target string, path string, method string, duration time.Duration)
 }
 
 type ServerGRPCMetrics interface {
@@ -33,13 +33,13 @@ func ServerHTTPWithMetrics(metrics ServerHTTPMetrics) Middleware[http.HandlerFun
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		return func(writer http.ResponseWriter, request *http.Request) {
 			path := request.URL.Path
-			metrics.ReportHTTPIncomingRequest(path)
+			metrics.ReportHTTPIncomingRequest(path, request.Method)
 			startAt := time.Now()
 
 			handlerFunc(writer, request)
 
 			responseTime := time.Now().Sub(startAt)
-			metrics.ReportHTTPIncomingRequestResponseTime(path, responseTime)
+			metrics.ReportHTTPIncomingRequestResponseTime(path, request.Method, responseTime)
 		}
 	}
 }
@@ -65,13 +65,13 @@ func ServerGRPCWithMetrics(metrics ServerGRPCMetrics) grpc.UnaryServerIntercepto
 func ClientHTTPWithMetrics(metrics ClientHTTPMetrics) Middleware[web.HTTPClient] {
 	return func(client web.HTTPClient) web.HTTPClient {
 		return func(ct context.Context, req *http.Request) (*http.Response, error) {
-			metrics.ReportHTTPOutgoingRequest(req.URL.Host, req.URL.Path)
+			metrics.ReportHTTPOutgoingRequest(req.URL.Host, req.URL.Path, req.Method)
 			startAt := time.Now()
 
 			res, err := client.Do(ct, req)
 
 			responseTime := time.Now().Sub(startAt)
-			metrics.ReportHTTPOutgoingRequestResponseTime(req.URL.Host, req.URL.Path, responseTime)
+			metrics.ReportHTTPOutgoingRequestResponseTime(req.URL.Host, req.URL.Path, req.Method, responseTime)
 			return res, err
 		}
 	}

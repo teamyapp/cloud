@@ -24,20 +24,20 @@ var _ middleware.ClientHTTPMetrics = (*Prometheus)(nil)
 var _ middleware.ServerGRPCMetrics = (*Prometheus)(nil)
 var _ middleware.ClientGRPCMetrics = (*Prometheus)(nil)
 
-func (p Prometheus) ReportHTTPIncomingRequest(path string) {
-	p.httpIncomingRequestCountMetric.WithLabelValues(path).Inc()
+func (p Prometheus) ReportHTTPIncomingRequest(path string, method string) {
+	p.httpIncomingRequestCountMetric.WithLabelValues(path, method).Inc()
 }
 
-func (p Prometheus) ReportHTTPIncomingRequestResponseTime(path string, duration time.Duration) {
-	p.httpIncomingResponseTimeMetric.WithLabelValues(path).Observe(float64(duration.Milliseconds()))
+func (p Prometheus) ReportHTTPIncomingRequestResponseTime(path string, method string, duration time.Duration) {
+	p.httpIncomingResponseTimeMetric.WithLabelValues(path, method).Observe(float64(duration.Milliseconds()))
 }
 
-func (p Prometheus) ReportHTTPOutgoingRequest(target string, path string) {
-	p.httpOutgoingRequestCountMetric.WithLabelValues(target, path).Inc()
+func (p Prometheus) ReportHTTPOutgoingRequest(target string, method string, path string) {
+	p.httpOutgoingRequestCountMetric.WithLabelValues(target, path, method).Inc()
 }
 
-func (p Prometheus) ReportHTTPOutgoingRequestResponseTime(target string, path string, duration time.Duration) {
-	p.httpOutgoingResponseTimeMetric.WithLabelValues(target, path).Observe(float64(duration.Milliseconds()))
+func (p Prometheus) ReportHTTPOutgoingRequestResponseTime(target string, path string, method string, duration time.Duration) {
+	p.httpOutgoingResponseTimeMetric.WithLabelValues(target, path, method).Observe(float64(duration.Milliseconds()))
 }
 
 func (p Prometheus) ReportGRPCIncomingRequest(method string) {
@@ -66,7 +66,7 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 				EnvironmentLabel: string(environment),
 			},
 		},
-		[]string{"path"})
+		[]string{"path", "method"})
 	httpIncomingRequestResponseTimeMetric := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: appMame,
@@ -77,7 +77,7 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			},
 			Buckets: ResponseTimeBuckets,
 		},
-		[]string{"path"})
+		[]string{"path", "method"})
 	httpOutgoingRequestCountMetric := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: appMame,
@@ -87,7 +87,7 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 				EnvironmentLabel: string(environment),
 			},
 		},
-		[]string{"target", "path"})
+		[]string{"target", "path", "method"})
 	httpOutgoingRequestResponseTimeMetric := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: appMame,
@@ -98,7 +98,7 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			},
 			Buckets: ResponseTimeBuckets,
 		},
-		[]string{"target", "path"})
+		[]string{"target", "path", "method"})
 	grpcIncomingRequestCountMetric := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: appMame,
