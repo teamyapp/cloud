@@ -98,7 +98,9 @@ func (s *ServiceRunner) startWebServer() {
 	})
 	serveMux := http.NewServeMux()
 	middlewares := []middleware.Middleware[http.HandlerFunc]{
-		middleware.ServerHTTPWithMetrics(s.prometheus),
+		middleware.ServerHTTPWithMetrics(s.prometheus, func(request *http.Request) string {
+			return chi.RouteContext(request.Context()).RoutePattern()
+		}),
 		middleware.ServerHTTPEnableCORS,
 		middleware.ServerHTTPWithRequestID(s.dataCollector),
 		middleware.ServerHTTPWithTimeout(s.config.RequestTimeout),
@@ -159,13 +161,13 @@ func (s *ServiceRunner) WithGRPCServer(withGRPCServer func(server *grpc.Server))
 }
 
 type ServiceRunnerBuilder struct {
-	dataCollector           telemetry.DataCollector
-	prometheus              metrics.Prometheus
-	config                  ServiceRunnerConfig
-	httpClient              web.HTTPClient
-	services                []Service
-	includeIdentityWebFunc  middleware.IncludeIdentityWebFunc
-	includeIdentityGRPCFunc middleware.IncludeIdentityGRPCFunc
+	dataCollector                   telemetry.DataCollector
+	prometheus                      metrics.Prometheus
+	config                          ServiceRunnerConfig
+	services                        []Service
+	includeIdentityWebFunc          middleware.IncludeIdentityWebFunc
+	includeIdentityGRPCFunc         middleware.IncludeIdentityGRPCFunc
+	getClientHTTPRequestPatternFunc func(request *http.Request) string
 }
 
 func (s *ServiceRunnerBuilder) IncludeIdentityWebFunc(
@@ -182,12 +184,27 @@ func (s *ServiceRunnerBuilder) IncludeIdentityGRPCFunc(
 	return s
 }
 
+func (s *ServiceRunnerBuilder) GetClientHTTPRequestPatternFunc(
+	getClientHTTPRequestPatternFunc func(request *http.Request) string,
+) *ServiceRunnerBuilder {
+	s.getClientHTTPRequestPatternFunc = getClientHTTPRequestPatternFunc
+	return s
+}
+
 func (s *ServiceRunnerBuilder) Build() ServiceRunner {
+	middlewares := []middleware.Middleware[web.HTTPClient]{
+		middleware.ClientHTTPWithMetrics(s.prometheus, s.getClientHTTPRequestPatternFunc),
+		middleware.ClientHTTPWithRequestID(s.dataCollector),
+	}
+	httpClient := middleware.WithMiddlewares[web.HTTPClient](
+		func(ct context.Context, req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		}, middlewares)
 	return ServiceRunner{
 		dataCollector: s.dataCollector,
 		prometheus:    s.prometheus,
 		config:        s.config,
-		httpClient:    s.httpClient,
+		httpClient:    httpClient,
 		webRouter:     chi.NewRouter(),
 		gRPCServer: grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
@@ -197,7 +214,7 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 				middleware.ServerGRPCLogRequest(s.dataCollector),
 				middleware.ServerGRPCWithIdentity(
 					s.dataCollector,
-					s.httpClient,
+					httpClient,
 					s.config.IdentityAPIEndpoint,
 					s.includeIdentityGRPCFunc),
 			)),
@@ -212,25 +229,19 @@ func NewServiceRunnerBuilder(
 	config ServiceRunnerConfig,
 	services []Service,
 ) *ServiceRunnerBuilder {
-	middlewares := []middleware.Middleware[web.HTTPClient]{
-		middleware.ClientHTTPWithMetrics(prometheus),
-		middleware.ClientHTTPWithRequestID(dataCollector),
-	}
-	httpClient := middleware.WithMiddlewares[web.HTTPClient](
-		func(ct context.Context, req *http.Request) (*http.Response, error) {
-			return http.DefaultClient.Do(req)
-		}, middlewares)
 	return &ServiceRunnerBuilder{
 		dataCollector: dataCollector,
 		prometheus:    prometheus,
 		config:        config,
-		httpClient:    httpClient,
 		services:      services,
 		includeIdentityWebFunc: func(request *http.Request) bool {
 			return true
 		},
 		includeIdentityGRPCFunc: func(info *grpc.UnaryServerInfo) bool {
 			return true
+		},
+		getClientHTTPRequestPatternFunc: func(request *http.Request) string {
+			return request.URL.Path
 		}}
 }
 

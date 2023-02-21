@@ -10,13 +10,13 @@ import (
 )
 
 type ServerHTTPMetrics interface {
-	ReportHTTPIncomingRequest(path string, method string)
-	ReportHTTPIncomingRequestResponseTime(path string, method string, duration time.Duration)
+	ReportHTTPIncomingRequest(method string, pattern string)
+	ReportHTTPIncomingRequestResponseTime(method string, pattern string, duration time.Duration)
 }
 
 type ClientHTTPMetrics interface {
-	ReportHTTPOutgoingRequest(target string, path string, method string)
-	ReportHTTPOutgoingRequestResponseTime(target string, path string, method string, duration time.Duration)
+	ReportHTTPOutgoingRequest(target string, method string, pattern string)
+	ReportHTTPOutgoingRequestResponseTime(target string, method string, pattern string, duration time.Duration)
 }
 
 type ServerGRPCMetrics interface {
@@ -29,17 +29,17 @@ type ClientGRPCMetrics interface {
 	ReportGRPCOutgoingRequestResponseTime(target string, method string, duration time.Duration)
 }
 
-func ServerHTTPWithMetrics(metrics ServerHTTPMetrics) Middleware[http.HandlerFunc] {
+func ServerHTTPWithMetrics(metrics ServerHTTPMetrics, getPattern func(request *http.Request) string) Middleware[http.HandlerFunc] {
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		return func(writer http.ResponseWriter, request *http.Request) {
-			path := request.URL.Path
-			metrics.ReportHTTPIncomingRequest(path, request.Method)
+			pattern := getPattern(request)
+			metrics.ReportHTTPIncomingRequest(request.Method, pattern)
 			startAt := time.Now()
 
 			handlerFunc(writer, request)
 
 			responseTime := time.Now().Sub(startAt)
-			metrics.ReportHTTPIncomingRequestResponseTime(path, request.Method, responseTime)
+			metrics.ReportHTTPIncomingRequestResponseTime(request.Method, pattern, responseTime)
 		}
 	}
 }
@@ -62,16 +62,17 @@ func ServerGRPCWithMetrics(metrics ServerGRPCMetrics) grpc.UnaryServerIntercepto
 	}
 }
 
-func ClientHTTPWithMetrics(metrics ClientHTTPMetrics) Middleware[web.HTTPClient] {
+func ClientHTTPWithMetrics(metrics ClientHTTPMetrics, getPattern func(request *http.Request) string) Middleware[web.HTTPClient] {
 	return func(client web.HTTPClient) web.HTTPClient {
 		return func(ct context.Context, req *http.Request) (*http.Response, error) {
-			metrics.ReportHTTPOutgoingRequest(req.URL.Host, req.URL.Path, req.Method)
+			pattern := getPattern(req)
+			metrics.ReportHTTPOutgoingRequest(req.URL.Host, req.Method, pattern)
 			startAt := time.Now()
 
 			res, err := client.Do(ct, req)
 
 			responseTime := time.Now().Sub(startAt)
-			metrics.ReportHTTPOutgoingRequestResponseTime(req.URL.Host, req.URL.Path, req.Method, responseTime)
+			metrics.ReportHTTPOutgoingRequestResponseTime(req.URL.Host, req.Method, pattern, responseTime)
 			return res, err
 		}
 	}
