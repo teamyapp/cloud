@@ -3,6 +3,9 @@ package errs
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+
+	"github.com/teamyapp/cloud/libs/collect"
 )
 
 type ErrorCode string
@@ -54,6 +57,24 @@ func (e Error) String() string {
 
 func (e Error) ToError() error {
 	return fmt.Errorf("[Code=%v Message=%v EmbedErr=%v]", e.Code, e.Message, formatErr(e.EmbedErr))
+}
+
+func MergeErrs(errs []*Error) *Error {
+	// TODO(szheng2207): find a better way to handle multiple errors instead
+	if len(errs) == 0 {
+		return nil
+	}
+
+	if len(errs) == 1 {
+		return errs[0]
+	}
+
+	return &Error{
+		Code: Unknown,
+		Message: strings.Join(collect.Map(errs, func(err *Error, _ int) string {
+			return err.String()
+		}), "\n"),
+	}
 }
 
 func formatErr(err error) string {
