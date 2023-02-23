@@ -18,7 +18,7 @@ type graphQLRequest struct {
 }
 
 type GraphQLResponse[Data any, Error any] struct {
-	Data   Data    `json:"data"`
+	Data   *Data   `json:"data"`
 	Errors []Error `json:"errors"`
 }
 
