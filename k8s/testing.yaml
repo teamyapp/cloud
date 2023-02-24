@@ -172,5 +172,5 @@ spec:
           port: 81
           scheme: h2c
   tls:
-    secretName: certs-teamyapp.com
+    secretName: cert-teamyapp.com
 
