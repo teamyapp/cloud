@@ -74,6 +74,5 @@ func InitTracerProvider(
 		propagation.NewCompositeTextMapPropagator(
 			propagation.TraceContext{},
 			propagation.Baggage{}))
-
 	return tracerProvider.Shutdown, nil
 }
