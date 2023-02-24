@@ -28,11 +28,12 @@ type WebRoute struct {
 }
 
 type ServiceRunnerConfig struct {
-	WebServerPort        int           `envconfig:"SERVICE_RUNNER_WEB_SERVER_PORT" default:"9011"`
-	GRPCServerPort       int           `envconfig:"SERVICE_RUNNER_GRPC_SERVER_PORT" default:"9012"`
-	MonitoringServerPort int           `envconfig:"SERVICE_RUNNER_MONITORING_SERVER_PORT" default:"10000"`
-	IdentityAPIEndpoint  string        `envconfig:"SERVICE_RUNNER_IDENTITY_API_ENDPOINT" default:"http://localhost:9500/identity"`
-	RequestTimeout       time.Duration `envconfig:"REQUEST_TIMEOUT" default:"10s"`
+	WebServerPort          int           `envconfig:"SERVICE_RUNNER_WEB_SERVER_PORT" default:"9011"`
+	GRPCServerPort         int           `envconfig:"SERVICE_RUNNER_GRPC_SERVER_PORT" default:"9012"`
+	MonitoringServerPort   int           `envconfig:"SERVICE_RUNNER_MONITORING_SERVER_PORT" default:"10000"`
+	IdentityAPIEndpoint    string        `envconfig:"SERVICE_RUNNER_IDENTITY_API_ENDPOINT" default:"http://localhost:9500/identity"`
+	RequestTimeout         time.Duration `envconfig:"REQUEST_TIMEOUT" default:"10s"`
+	TraceCollectorEndpoint string        `envconfig:"TRACE_COLLECTOR_ENDPOINT" default:"localhost:4317"`
 }
 
 func ServiceRunnerConfigFromEnv(dataCollector telemetry.DataCollector) (ServiceRunnerConfig, *errs.Error) {
@@ -54,6 +55,7 @@ type ServiceRunner struct {
 	dataCollector          telemetry.DataCollector
 	prometheus             metrics.Prometheus
 	config                 ServiceRunnerConfig
+	serviceName            string
 	httpClient             web.HTTPClient
 	webRouter              chi.Router
 	gRPCServer             *grpc.Server
@@ -62,10 +64,15 @@ type ServiceRunner struct {
 }
 
 func (s *ServiceRunner) Start() {
+	shutdown, err := telemetry.InitTracerProvider(s.dataCollector, s.config.TraceCollectorEndpoint, s.serviceName)
+	if err != nil {
+		s.dataCollector.Logger.Warning(err.String())
+	}
+
 	for _, service := range s.services {
-		err := service.Start(s)
+		err = service.Start(s)
 		if err != nil {
-			s.dataCollector.Logger.Log(telemetry.Fatal, telemetry.Props{telemetry.CauseProp: err})
+			s.dataCollector.Logger.Fatal(err)
 			panic(err)
 		}
 	}
@@ -90,6 +97,7 @@ func (s *ServiceRunner) Start() {
 	}()
 
 	wg.Wait()
+	_ = shutdown(context.Background())
 }
 
 func (s *ServiceRunner) startWebServer() {
@@ -146,6 +154,7 @@ type ServiceRunnerBuilder struct {
 	includeIdentityWebFunc          middleware.IncludeIdentityWebFunc
 	includeIdentityGRPCFunc         middleware.IncludeIdentityGRPCFunc
 	getClientHTTPRequestPatternFunc middleware.GetPatternFunc
+	serviceName                     string
 }
 
 func (s *ServiceRunnerBuilder) IncludeIdentityWebFunc(
@@ -172,6 +181,7 @@ func (s *ServiceRunnerBuilder) GetClientHTTPRequestPatternFunc(
 func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 	httpClientMiddlewares := []middleware.Middleware[web.HTTPClient]{
 		middleware.ClientHTTPWithMetrics(s.prometheus, s.getClientHTTPRequestPatternFunc),
+		middleware.ClientHTTPWithOpenTelemetry(s.getClientHTTPRequestPatternFunc),
 		middleware.ClientHTTPWithRequestID(s.dataCollector),
 	}
 	httpClient := middleware.WithMiddlewares[web.HTTPClient](
@@ -180,19 +190,8 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 		}, httpClientMiddlewares)
 	webRouter := chi.NewRouter()
 	httpServerMiddlewares := []middleware.Middleware[http.HandlerFunc]{
-		middleware.ServerHTTPWithMetrics(s.prometheus, func(request *http.Request) (string, bool) {
-			rctx := chi.RouteContext(request.Context())
-			if pattern := rctx.RoutePattern(); len(pattern) > 0 {
-				return pattern, true
-			}
-
-			tmpCtx := chi.NewRouteContext()
-			if !rctx.Routes.Match(tmpCtx, request.Method, request.URL.Path) {
-				return "", false
-			}
-
-			return tmpCtx.RoutePattern(), true
-		}),
+		middleware.ServerHTTPWithMetrics(s.prometheus, getClientHTTPRequestPatternFunc),
+		middleware.ServerHTTPWithOpenTelemetry(getClientHTTPRequestPatternFunc),
 		middleware.ServerHTTPEnableCORS,
 		middleware.ServerHTTPWithRequestID(s.dataCollector),
 		middleware.ServerHTTPWithTimeout(s.config.RequestTimeout),
@@ -215,11 +214,13 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 		dataCollector: s.dataCollector,
 		prometheus:    s.prometheus,
 		config:        s.config,
+		serviceName:   s.serviceName,
 		httpClient:    httpClient,
 		webRouter:     webRouter,
 		gRPCServer: grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
 				middleware.ServerGRPCWithMetrics(s.prometheus),
+				middleware.ServerGRPCUnaryWithOpenTelemetry(),
 				middleware.ServerGRPCWithTimeout(s.config.RequestTimeout),
 				middleware.ServerGRPCWithRequestID(s.dataCollector),
 				middleware.ServerGRPCLogRequest(s.dataCollector),
@@ -238,12 +239,14 @@ func NewServiceRunnerBuilder(
 	dataCollector telemetry.DataCollector,
 	prometheus metrics.Prometheus,
 	config ServiceRunnerConfig,
+	serviceName string,
 	services []Service,
 ) *ServiceRunnerBuilder {
 	return &ServiceRunnerBuilder{
 		dataCollector: dataCollector,
 		prometheus:    prometheus,
 		config:        config,
+		serviceName:   serviceName,
 		services:      services,
 		includeIdentityWebFunc: func(request *http.Request) bool {
 			return true
@@ -258,4 +261,18 @@ func NewServiceRunnerBuilder(
 
 func Param(paramName string) string {
 	return fmt.Sprintf(`{%s}`, paramName)
+}
+
+func getClientHTTPRequestPatternFunc(request *http.Request) (string, bool) {
+	rctx := chi.RouteContext(request.Context())
+	if pattern := rctx.RoutePattern(); len(pattern) > 0 {
+		return pattern, true
+	}
+
+	tmpCtx := chi.NewRouteContext()
+	if !rctx.Routes.Match(tmpCtx, request.Method, request.URL.Path) {
+		return "", false
+	}
+
+	return tmpCtx.RoutePattern(), true
 }

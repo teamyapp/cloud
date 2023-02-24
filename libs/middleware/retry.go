@@ -10,15 +10,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-func ClientGRPCWithRetry(retry retry.Retry) grpc.UnaryClientInterceptor {
-	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		_, err := retry.WithRetry(func() *errs.Error {
-			return errs.FromGRPCErr(invoker(ct, method, req, reply, cc, opts...))
-		})
-		return errs.ToGRPCErr(err)
-	}
-}
-
 type HttpClientExecutor interface {
 	Do(req *http.Request) (*http.Response, error)
 }
@@ -62,4 +53,13 @@ func ClientHTTPWithRetry(dataCollector telemetry.DataCollector, retry retry.Retr
 		})
 	}
 
+}
+
+func ClientGRPCWithRetry(retry retry.Retry) grpc.UnaryClientInterceptor {
+	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		_, err := retry.WithRetry(func() *errs.Error {
+			return errs.FromGRPCErr(invoker(ct, method, req, reply, cc, opts...))
+		})
+		return errs.ToGRPCErr(err)
+	}
 }

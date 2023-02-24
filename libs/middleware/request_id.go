@@ -24,6 +24,17 @@ func ServerHTTPWithRequestID(dataCollector telemetry.DataCollector) Middleware[h
 	}
 }
 
+func ClientHTTPWithRequestID(dataCollector telemetry.DataCollector) Middleware[web.HTTPClient] {
+	return func(client web.HTTPClient) web.HTTPClient {
+		return func(ct context.Context, req *http.Request) (*http.Response, error) {
+			requestID := ctx.GetRequestIDHttp(ct, req)
+			requestID = generateRequestIdIfNot(dataCollector, ct, requestID)
+			ctx.SetRequestIDHttp(req, requestID)
+			return client.Do(ct, req)
+		}
+	}
+}
+
 func ServerGRPCWithRequestID(dataCollector telemetry.DataCollector) grpc.UnaryServerInterceptor {
 	return func(
 		ct context.Context,
@@ -44,17 +55,6 @@ func ClientGRPCWithRequestID(dataCollector telemetry.DataCollector) grpc.UnaryCl
 		requestID = generateRequestIdIfNot(dataCollector, ct, requestID)
 		ct = ctx.MetadataWithRequestID(ct, requestID)
 		return invoker(ct, method, req, reply, cc, opts...)
-	}
-}
-
-func ClientHTTPWithRequestID(dataCollector telemetry.DataCollector) Middleware[web.HTTPClient] {
-	return func(client web.HTTPClient) web.HTTPClient {
-		return func(ct context.Context, req *http.Request) (*http.Response, error) {
-			requestID := ctx.GetRequestIDHttp(ct, req)
-			requestID = generateRequestIdIfNot(dataCollector, ct, requestID)
-			ctx.SetRequestIDHttp(req, requestID)
-			return client.Do(ct, req)
-		}
 	}
 }
 

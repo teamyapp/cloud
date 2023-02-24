@@ -32,6 +32,27 @@ func NewServiceLogInterceptor(serviceName string) LogInterceptor {
 	}
 }
 
+func TraceLogInterceptor(ct context.Context, level LogLevel, props Props) Props {
+	newProps := Props{}
+	for key, value := range props {
+		newProps[key] = value
+	}
+
+	traceID, ok := ctx.GetTraceID(ct)
+	if ok {
+		newProps[TraceIDProp] = traceID
+	}
+
+	spanID, ok := ctx.GetSpanID(ct)
+	if ok {
+		newProps[SpanIDProp] = spanID
+	}
+
+	return newProps
+}
+
+var _ LogInterceptor = TraceLogInterceptor
+
 func RequestLogInterceptor(ct context.Context, level LogLevel, props Props) Props {
 	newProps := Props{}
 	for key, value := range props {

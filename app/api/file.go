@@ -297,7 +297,7 @@ func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 
 	for chunkResult := range file.ChunksBuffer {
 		if chunkResult.Error != nil {
-			f.dataCollector.Logger.LogWithContext(ct, telemetry.Error, telemetry.Props{telemetry.CauseProp: chunkResult.Error})
+			f.dataCollector.Logger.ErrorWithContext(ct, chunkResult.Error)
 			errs.SetHTTPErr(chunkResult.Error, writer)
 			return
 		}

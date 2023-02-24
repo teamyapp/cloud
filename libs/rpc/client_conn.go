@@ -41,6 +41,7 @@ func NewClientConnection(
 		grpc.WithTransportCredentials(cred),
 		grpc.WithChainUnaryInterceptor(
 			middleware.ClientGRPCWithMetrics(clientGRPCMetrics),
+			middleware.ClientGRPCUnaryWithOpenTelemetry(),
 			middleware.ClientGRPCWithRetry(retry),
 			middleware.ClientGRPCWithRequestID(dataCollector),
 			middleware.ClientGRPCWithTimout(cfg.RequestTimeout),
