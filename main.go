@@ -50,6 +50,7 @@ func main() {
 		[]telemetry.LogInterceptor{
 			telemetry.NewCommitLogInterceptor(cfg.GitLongCommitHash),
 			telemetry.NewServiceLogInterceptor(strings.Join(serviceLabelsWithEnv, "/")),
+			telemetry.TraceLogInterceptor,
 			telemetry.RequestLogInterceptor,
 			telemetry.ClientLogInterceptor,
 		},
@@ -152,9 +153,12 @@ func main() {
 		}
 
 		telemetryAPI := dep.InitTelemetryAPI(dataCollector)
-		rn := runner.NewServiceRunnerBuilder(dataCollector,
+		rn := runner.NewServiceRunnerBuilder(
+			dataCollector,
 			metrics.NewPrometheus(appName, serviceName, cfg.Environment),
-			runnerConfig, []runner.Service{
+			runnerConfig,
+			fullServiceName,
+			[]runner.Service{
 				identityAPI,
 				generatorAPI,
 				authorizationAPI,
@@ -184,6 +188,8 @@ func newLineFormatter(environment env.Environment) telemetry.LineFormatter {
 			telemetry.SeverityProp,
 			telemetry.FileNameProp,
 			telemetry.LineNumberProp,
+			telemetry.TraceIDProp,
+			telemetry.SpanIDProp,
 			telemetry.RequestIDProp,
 			telemetry.ClientIDProp,
 			middleware.ProtocolProp,

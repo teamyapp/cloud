@@ -49,6 +49,8 @@ spec:
               value: "8081"
             - name: SERVICE_RUNNER_MONITORING_SERVER_PORT
               value: "10000"
+            - name: TRACE_COLLECTOR_ENDPOINT
+              value: "tempo.monitoring:4317"
             - name: SERVICE_RUNNER_IDENTITY_API_ENDPOINT
               value: "http://localhost:8080/identity"
             - name: DB_HOST

@@ -9,8 +9,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-type GetPatternFunc func(request *http.Request) (string, bool)
-
 type ServerHTTPMetrics interface {
 	ReportHTTPIncomingRequest(method string, pattern string)
 	ReportHTTPIncomingRequestResponseTime(method string, pattern string, duration time.Duration)
