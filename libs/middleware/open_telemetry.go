@@ -29,12 +29,14 @@ import (
 const gRPCStatusCodeKey = attribute.Key("rpc.grpc.status_code")
 
 type responseRecorder struct {
+	dataCollector telemetry.DataCollector
 	http.ResponseWriter
 	statusCode int
 }
 
 var _ http.ResponseWriter = (*responseRecorder)(nil)
 var _ http.Hijacker = (*responseRecorder)(nil)
+var _ http.Flusher = (*responseRecorder)(nil)
 
 func (r *responseRecorder) Header() http.Header {
 	return r.ResponseWriter.Header()
@@ -59,7 +61,18 @@ func (r *responseRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return hijacker.Hijack()
 }
 
+func (r *responseRecorder) Flush() {
+	flusher, ok := r.ResponseWriter.(http.Flusher)
+	if !ok {
+		r.dataCollector.Logger.Warning("response does not implement http.Flusher")
+		return
+	}
+
+	flusher.Flush()
+}
+
 func ServerHTTPWithOpenTelemetry(
+	dataCollector telemetry.DataCollector,
 	getPatternFunc GetPatternFunc,
 ) Middleware[http.HandlerFunc] {
 	traceProvider := otel.GetTracerProvider()
@@ -85,6 +98,7 @@ func ServerHTTPWithOpenTelemetry(
 			ct = ctx.NewContextWithSpanID(ct, spanContext.SpanID().String())
 
 			resWriter := &responseRecorder{
+				dataCollector:  dataCollector,
 				ResponseWriter: writer,
 				statusCode:     http.StatusOK,
 			}
