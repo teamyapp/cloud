@@ -9,6 +9,12 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
+type ResponseWriter interface {
+	http.ResponseWriter
+	http.Hijacker
+	http.Flusher
+}
+
 func WriteJSONToResponse(ct context.Context, dataCollector telemetry.DataCollector, writer http.ResponseWriter, body interface{}) *errs.Error {
 	buf, err := json.MarshalIndent(body, "", "  ")
 	if err != nil {

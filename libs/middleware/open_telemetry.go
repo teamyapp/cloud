@@ -34,9 +34,7 @@ type responseRecorder struct {
 	statusCode int
 }
 
-var _ http.ResponseWriter = (*responseRecorder)(nil)
-var _ http.Hijacker = (*responseRecorder)(nil)
-var _ http.Flusher = (*responseRecorder)(nil)
+var _ web.ResponseWriter = (*responseRecorder)(nil)
 
 func (r *responseRecorder) Header() http.Header {
 	return r.ResponseWriter.Header()
@@ -54,8 +52,9 @@ func (r *responseRecorder) WriteHeader(statusCode int) {
 func (r *responseRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	hijacker, ok := r.ResponseWriter.(http.Hijacker)
 	if !ok {
-		err := errors.New("response does not implement http.Hijacker")
-		return nil, nil, err
+		message := "response does not implement http.Hijacker"
+		r.dataCollector.Logger.Warning(message)
+		return nil, nil, errors.New(message)
 	}
 
 	return hijacker.Hijack()
