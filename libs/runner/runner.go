@@ -198,7 +198,7 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 	webRouter := chi.NewRouter()
 	httpServerMiddlewares := []middleware.Middleware[http.HandlerFunc]{
 		middleware.ServerHTTPWithMetrics(s.prometheus, getClientHTTPRequestPatternFunc),
-		middleware.ServerHTTPWithOpenTelemetry(getClientHTTPRequestPatternFunc),
+		middleware.ServerHTTPWithOpenTelemetry(s.dataCollector, getClientHTTPRequestPatternFunc),
 		middleware.ServerHTTPEnableCORS,
 		middleware.ServerHTTPWithRequestID(s.dataCollector),
 		middleware.ServerHTTPWithTimeout(s.config.RequestTimeout),
