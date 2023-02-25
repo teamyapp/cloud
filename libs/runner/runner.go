@@ -32,8 +32,9 @@ type ServiceRunnerConfig struct {
 	GRPCServerPort         int           `envconfig:"SERVICE_RUNNER_GRPC_SERVER_PORT" default:"9012"`
 	MonitoringServerPort   int           `envconfig:"SERVICE_RUNNER_MONITORING_SERVER_PORT" default:"10000"`
 	IdentityAPIEndpoint    string        `envconfig:"SERVICE_RUNNER_IDENTITY_API_ENDPOINT" default:"http://localhost:9500/identity"`
-	RequestTimeout         time.Duration `envconfig:"REQUEST_TIMEOUT" default:"10s"`
-	TraceCollectorEndpoint string        `envconfig:"TRACE_COLLECTOR_ENDPOINT" default:"localhost:4317"`
+	RequestTimeout         time.Duration `envconfig:"SERVICE_RUNNER_REQUEST_TIMEOUT" default:"10s"`
+	EnableTracing          bool          `envconfig:"SERVICE_RUNNER_ENABLE_TRACING" default:"false"`
+	TraceCollectorEndpoint string        `envconfig:"SERVICE_RUNNER_TRACE_COLLECTOR_ENDPOINT" default:"localhost:4317"`
 }
 
 func ServiceRunnerConfigFromEnv(dataCollector telemetry.DataCollector) (ServiceRunnerConfig, *errs.Error) {
@@ -64,13 +65,17 @@ type ServiceRunner struct {
 }
 
 func (s *ServiceRunner) Start() {
-	shutdown, err := telemetry.InitTracerProvider(s.dataCollector, s.config.TraceCollectorEndpoint, s.serviceName)
-	if err != nil {
-		s.dataCollector.Logger.Warning(err.String())
+	var shutdown func(ct context.Context) error
+	if s.config.EnableTracing {
+		var internalErr *errs.Error
+		shutdown, internalErr = telemetry.InitTracerProvider(s.dataCollector, s.config.TraceCollectorEndpoint, s.serviceName)
+		if internalErr != nil {
+			s.dataCollector.Logger.Warning(internalErr.String())
+		}
 	}
 
 	for _, service := range s.services {
-		err = service.Start(s)
+		err := service.Start(s)
 		if err != nil {
 			s.dataCollector.Logger.Fatal(err)
 			panic(err)
@@ -97,7 +102,9 @@ func (s *ServiceRunner) Start() {
 	}()
 
 	wg.Wait()
-	_ = shutdown(context.Background())
+	if s.config.EnableTracing {
+		_ = shutdown(context.Background())
+	}
 }
 
 func (s *ServiceRunner) startWebServer() {
