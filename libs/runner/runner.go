@@ -70,7 +70,7 @@ func (s *ServiceRunner) Start() {
 		var internalErr *errs.Error
 		shutdown, internalErr = telemetry.InitTracerProvider(s.dataCollector, s.config.TraceCollectorEndpoint, s.serviceName)
 		if internalErr != nil {
-			s.dataCollector.Logger.Warning(internalErr.String())
+			s.dataCollector.Logger.Error(internalErr)
 		}
 	}
 
