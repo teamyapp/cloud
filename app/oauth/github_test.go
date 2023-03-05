@@ -28,7 +28,6 @@ func TestGithub_GetUser(t *testing.T) {
 	lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{})
 	logger := telemetry.NewLogger(lineFormatter, os.Stdout, telemetry.Off, []telemetry.LogInterceptor{})
 	dataCollector := telemetry.NewDataCollector(logger)
-
 	virtualNetwork := networktest.NewVirtualNetwork()
 
 	runnerConfig := runner.ServiceRunnerConfig{
@@ -53,10 +52,11 @@ func TestGithub_GetUser(t *testing.T) {
 		}).
 		Build()
 	waitBootstrapCh := make(chan struct{})
+	githubProxyRoutes := fakeapi.GithubProxyRoutes(runnerConfig.WebServerPort)
 	go func() {
 		internalErr := rn.Start(func(listeners []net.Listener) *errs.Error {
-			for _, listener := range listeners {
-				for _, proxyRoute := range fakeapi.GithubProxyRoutes {
+			for _, proxyRoute := range githubProxyRoutes {
+				for _, listener := range listeners {
 					if proxyRoute.MatchTarget(listener.Addr()) {
 						bindErr := virtualNetwork.BindProxyEndpoint(proxyRoute.Endpoint, listener)
 						assert.Nil(t, bindErr)

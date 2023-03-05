@@ -20,21 +20,23 @@ import (
 	"github.com/teamyapp/cloud/libs/web"
 )
 
-var GithubProxyRoutes = []networktest.ProxyRoute{
-	{
-		Endpoint: "github.com:80",
-		MatchTarget: func(addr net.Addr) bool {
-			return addr.Network() == "tcp" &&
-				strings.HasSuffix(addr.String(), ":80")
+func GithubProxyRoutes(apiServerPort int) []networktest.ProxyRoute {
+	return []networktest.ProxyRoute{
+		{
+			Endpoint: "github.com:80",
+			MatchTarget: func(addr net.Addr) bool {
+				return addr.Network() == "tcp" &&
+					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", apiServerPort))
+			},
 		},
-	},
-	{
-		Endpoint: "api.github.com:80",
-		MatchTarget: func(addr net.Addr) bool {
-			return addr.Network() == "tcp" &&
-				strings.HasSuffix(addr.String(), ":80")
+		{
+			Endpoint: "api.github.com:80",
+			MatchTarget: func(addr net.Addr) bool {
+				return addr.Network() == "tcp" &&
+					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", apiServerPort))
+			},
 		},
-	},
+	}
 }
 
 type thirdPartyClient struct {
