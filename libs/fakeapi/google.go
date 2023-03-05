@@ -1,6 +1,7 @@
 package fakeapi
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"path"
@@ -11,21 +12,23 @@ import (
 	"github.com/teamyapp/cloud/libs/runner"
 )
 
-var GoogleProxyRoutes = []networktest.ProxyRoute{
-	{
-		Endpoint: "accounts.google.com:80",
-		MatchTarget: func(addr net.Addr) bool {
-			return addr.Network() == "tcp" &&
-				strings.HasSuffix(addr.String(), ":80")
+func GoogleProxyRoutes(webAPIServerPort int) []networktest.ProxyRoute {
+	return []networktest.ProxyRoute{
+		{
+			Endpoint: "accounts.google.com:80",
+			MatchTarget: func(addr net.Addr) bool {
+				return addr.Network() == "tcp" &&
+					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webAPIServerPort))
+			},
 		},
-	},
-	{
-		Endpoint: "oauth2.googleapis.com:80",
-		MatchTarget: func(addr net.Addr) bool {
-			return addr.Network() == "tcp" &&
-				strings.HasSuffix(addr.String(), ":80")
+		{
+			Endpoint: "oauth2.googleapis.com:80",
+			MatchTarget: func(addr net.Addr) bool {
+				return addr.Network() == "tcp" &&
+					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webAPIServerPort))
+			},
 		},
-	},
+	}
 }
 
 type Google struct {

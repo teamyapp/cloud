@@ -92,6 +92,7 @@ func TestGithub_GetUser(t *testing.T) {
 		return
 	}
 
+	// Simulate browser to navigate to the signInURL
 	req, err := http.NewRequest(http.MethodGet, signInURL, nil)
 	assert.Nil(t, err)
 	if err != nil {
@@ -111,6 +112,7 @@ func TestGithub_GetUser(t *testing.T) {
 		return
 	}
 
+	// Simulate user select and sign in an account
 	selectUserURI := string(buf)
 	req, err = http.NewRequest(http.MethodPost, selectUserURI, nil)
 	assert.Nil(t, err)
@@ -130,6 +132,8 @@ func TestGithub_GetUser(t *testing.T) {
 		return
 	}
 
+	// Simulate user is redirected to cloud identity API after selecting external
+	// OAuth account
 	rawRedirectURI := response.Header.Get("Location")
 	redirectURI, err := url.Parse(rawRedirectURI)
 	assert.Nil(t, err)
@@ -148,6 +152,5 @@ func TestGithub_GetUser(t *testing.T) {
 		ID:    strconv.FormatUint(githubUser1.ID, 10),
 		Label: githubUser1.Login,
 	}
-
 	assert.Equal(t, expectedExternalUser, externalUser)
 }

@@ -1,6 +1,7 @@
 package fakeapi
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"path"
@@ -11,14 +12,16 @@ import (
 	"github.com/teamyapp/cloud/libs/runner"
 )
 
-var SlackProxyRoutes = []networktest.ProxyRoute{
-	{
-		Endpoint: "slack.com:80",
-		MatchTarget: func(addr net.Addr) bool {
-			return addr.Network() == "tcp" &&
-				strings.HasSuffix(addr.String(), ":80")
+func SlackProxyRoutes(webAPIServerPort int) []networktest.ProxyRoute {
+	return []networktest.ProxyRoute{
+		{
+			Endpoint: "slack.com:80",
+			MatchTarget: func(addr net.Addr) bool {
+				return addr.Network() == "tcp" &&
+					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webAPIServerPort))
+			},
 		},
-	},
+	}
 }
 
 type Slack struct {
