@@ -7,6 +7,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+<<<<<<< HEAD
 type ResourceTypeOperationsRow struct {
 	ResourceType string   `yaml:"resourceType"`
 	Operations   []string `yaml:"operations"`
