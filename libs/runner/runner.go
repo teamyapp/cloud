@@ -104,8 +104,8 @@ func (s *ServiceRunner) Start(afterServicesStarted func(listeners []net.Listener
 		s.dataCollector.Logger.Error(err)
 		return err
 	}
-	listeners = append(listeners, lis)
 
+	listeners = append(listeners, lis)
 	if afterServicesStarted != nil {
 		err = afterServicesStarted(listeners)
 		if err != nil {
