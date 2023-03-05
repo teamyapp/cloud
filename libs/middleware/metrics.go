@@ -70,7 +70,7 @@ func ServerGRPCWithMetrics(metrics ServerGRPCMetrics) grpc.UnaryServerIntercepto
 
 func ClientHTTPWithMetrics(metrics ClientHTTPMetrics, getPattern GetPatternFunc) Middleware[web.HTTPClient] {
 	return func(client web.HTTPClient) web.HTTPClient {
-		return func(ct context.Context, req *http.Request) (*http.Response, error) {
+		return web.HTTPClientFunc(func(req *http.Request) (*http.Response, error) {
 			pattern, found := getPattern(req)
 
 			var startAt time.Time
@@ -79,15 +79,14 @@ func ClientHTTPWithMetrics(metrics ClientHTTPMetrics, getPattern GetPatternFunc)
 				startAt = time.Now()
 			}
 
-			res, err := client.Do(ct, req)
-
+			res, err := client.Do(req)
 			if found {
 				responseTime := time.Now().Sub(startAt)
 				metrics.ReportHTTPOutgoingRequestResponseTime(req.URL.Host, req.Method, pattern, responseTime)
 			}
 
 			return res, err
-		}
+		})
 	}
 }
 

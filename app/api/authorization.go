@@ -25,6 +25,13 @@ type Authorization struct {
 var _ runner.Service = (*Authorization)(nil)
 var _ proto.AuthorizationServer = (*Authorization)(nil)
 
+func (a Authorization) Start(rn *runner.ServiceRunner) *errs.Error {
+	rn.WithGRPCServer(func(server *grpc.Server) {
+		proto.RegisterAuthorizationServer(server, a)
+	})
+	return nil
+}
+
 func (a Authorization) HasPermission(ct context.Context, req *proto.HasPermissionRequest) (*proto.HasPermissionResponse, error) {
 	hasPermission, err := a.authorizationService.HasPermission(ct, req.ResourceType, req.ResourceId, req.Operation, req.UserId)
 	if err != nil {
@@ -523,13 +530,6 @@ func (a Authorization) RemovePermission(ct context.Context, request *proto.Remov
 	}
 
 	return &emptypb.Empty{}, nil
-}
-
-func (a Authorization) Start(rn *runner.ServiceRunner) *errs.Error {
-	rn.WithGRPCServer(func(server *grpc.Server) {
-		proto.RegisterAuthorizationServer(server, a)
-	})
-	return nil
 }
 
 func NewAuthorization(

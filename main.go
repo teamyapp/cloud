@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,9 +14,9 @@ import (
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/errs"
-	tmio "github.com/teamyapp/cloud/libs/io"
 	"github.com/teamyapp/cloud/libs/metrics"
 	"github.com/teamyapp/cloud/libs/middleware"
+	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
@@ -35,7 +34,10 @@ func main() {
 	}
 
 	lineFormatter := newLineFormatter(cfg.Environment)
-	logOutput, err := newLogOutput(cfg.Environment, fullServiceName)
+
+	logFileName := fmt.Sprintf("%v.log", serviceName)
+	logFilePath := getEnv("LOG_OUTPUT_FILE", filepath.Join("..", "logs", logFileName))
+	logOutput, err := telemetry.NewLogOutput(cfg.Environment, logFilePath)
 	if err != nil {
 		panic(err)
 	}
@@ -80,17 +82,17 @@ func main() {
 
 		webAPIBaseURL := dep.WebAPIBaseURL(cfg.WebAPIBaseURL)
 		oauthProviders := []oauth.Provider{
+			dep.InitGitHubOAuthProvider(
+				dataCollector,
+				webAPIBaseURL,
+				dep.ClientID(cfg.GitHubClientID),
+				dep.ClientSecret(cfg.GitHubClientSecret)),
 			dep.InitGoogleOAuthProvider(
 				dataCollector,
 				webAPIBaseURL,
 				dep.JWTSigningKey(cfg.JWTSigningKey),
 				dep.ClientID(cfg.GoogleClientID),
 				dep.ClientSecret(cfg.GoogleClientSecret)),
-			dep.InitGitHubOAuthProvider(
-				dataCollector,
-				webAPIBaseURL,
-				dep.ClientID(cfg.GitHubClientID),
-				dep.ClientSecret(cfg.GitHubClientSecret)),
 			dep.InitSlackOAuthProvider(
 				dataCollector,
 				webAPIBaseURL,
@@ -155,6 +157,7 @@ func main() {
 		telemetryAPI := dep.InitTelemetryAPI(dataCollector)
 		rn := runner.NewServiceRunnerBuilder(
 			dataCollector,
+			network.NewSocket(),
 			metrics.NewPrometheus(appName, serviceName, cfg.Environment),
 			runnerConfig,
 			fullServiceName,
@@ -167,8 +170,7 @@ func main() {
 			}).
 			IncludeIdentityWebFunc(api.IncludeIdentityWebFunc).
 			Build()
-		rn.Start()
-		return nil
+		return rn.Start(nil)
 	})
 }
 
@@ -208,34 +210,4 @@ func newLineFormatter(environment env.Environment) telemetry.LineFormatter {
 	}
 
 	return telemetry.NewJSONLineFormatter()
-}
-
-func newLogOutput(environment env.Environment, serviceName string) (io.WriteCloser, *errs.Error) {
-	if environment == env.DevelopmentEnv {
-		logFileName := fmt.Sprintf("%v.log", serviceName)
-		logFilePath := getEnv("LOG_OUTPUT_FILE", filepath.Join("..", "logs", logFileName))
-		logDir := filepath.Dir(logFilePath)
-
-		// MkdirAll requires at least 700 permission:
-		// https://github.com/golang/go/issues/22323
-		err := os.MkdirAll(logDir, 0744)
-		if err != nil {
-			return nil, &errs.Error{
-				Code:     errs.OS,
-				EmbedErr: err,
-			}
-		}
-
-		file, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0640)
-		if err != nil {
-			return nil, &errs.Error{
-				Code:     errs.OS,
-				EmbedErr: err,
-			}
-		}
-
-		return tmio.NewMultiWriteCloser(file, os.Stdout), nil
-	}
-
-	return os.Stdout, nil
 }

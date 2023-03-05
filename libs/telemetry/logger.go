@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
+	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/errs"
+	tmio "github.com/teamyapp/cloud/libs/io"
 )
 
 const maxStackDepth = 100
@@ -137,4 +141,32 @@ func NewLogger(
 		visibleLevel:    visibleLevel,
 		logInterceptors: logInterceptors,
 	}
+}
+
+func NewLogOutput(environment env.Environment, logFilePath string) (io.WriteCloser, *errs.Error) {
+	if environment == env.DevelopmentEnv {
+		logDir := filepath.Dir(logFilePath)
+
+		// MkdirAll requires at least 700 permission:
+		// https://github.com/golang/go/issues/22323
+		err := os.MkdirAll(logDir, 0744)
+		if err != nil {
+			return nil, &errs.Error{
+				Code:     errs.OS,
+				EmbedErr: err,
+			}
+		}
+
+		file, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0640)
+		if err != nil {
+			return nil, &errs.Error{
+				Code:     errs.OS,
+				EmbedErr: err,
+			}
+		}
+
+		return tmio.NewMultiWriteCloser(file, os.Stdout), nil
+	}
+
+	return os.Stdout, nil
 }

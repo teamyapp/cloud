@@ -6,9 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/teamyapp/cloud/app/dao/dao_test"
+	"github.com/teamyapp/cloud/app/dao/daotest"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/gen"
+	"github.com/teamyapp/cloud/libs/collect"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -447,25 +448,48 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
+			inMemoryDB := daotest.NewInMemoryDB()
+			inMemoryDB.CreateTable(daotest.OperationTableName)
+			inMemoryDB.CreateTable(daotest.ResourceTypeTableName)
+			inMemoryDB.CreateTable(daotest.ResourceTableName)
+			inMemoryDB.CreateTable(daotest.UserGroupTableName)
+			inMemoryDB.InitTable(
+				daotest.AllocatedRangeTableName,
+				collect.Map(allocatedRanges, func(allocatedRange entity.AllocatedRange, index int) interface{} {
+					return allocatedRange
+				}))
+			inMemoryDB.InitTable(
+				daotest.ResourceRelationTableName,
+				collect.Map(resourceRelations, func(resourceRelation entity.ResourceRelation, index int) interface{} {
+					return resourceRelation
+				}))
+			inMemoryDB.InitTable(
+				daotest.UserGroupMemberTableName,
+				collect.Map(userGroupMembers, func(userGroupMember entity.UserGroupMember, index int) interface{} {
+					return userGroupMember
+				}))
+			inMemoryDB.InitTable(
+				daotest.PermissionTableName,
+				collect.Map(permissions, func(permission entity.Permission, index int) interface{} {
+					return permission
+				}))
+			inMemoryDB.InitTable(
+				daotest.OperationRelationTableName,
+				collect.Map(operationRelations, func(operationRelation entity.OperationRelation, index int) interface{} {
+					return operationRelation
+				}))
 
-			mockAuthorization := Authorization{
-				permissionDao:        dao_test.NewPermission(permissions),
-				userGroupMemberDao:   dao_test.NewUserGroupMember(userGroupMembers),
-				operationRelationDao: dao_test.NewOperationRelation(operationRelations),
-				resourceRelationDao:  dao_test.NewResourceRelation(resourceRelations),
-			}
-
-			mockAllocatedRange := dao_test.NewAllocatedRange(allocatedRanges)
+			mockAllocatedRange := daotest.NewAllocatedRange(inMemoryDB)
 			mockAuthorization, err := NewAuthorization(
 				dataCollector,
-				dao_test.NewResourceRelation(resourceRelations),
-				dao_test.NewUserGroupMember(userGroupMembers),
-				dao_test.NewPermission(permissions),
-				dao_test.NewOperationRelation(operationRelations),
-				dao_test.NewOperation(make([]entity.Operation, 0)),
-				dao_test.NewResourceType(make([]entity.ResourceType, 0)),
-				dao_test.NewResource(make([]entity.Resource, 0)),
-				dao_test.NewUserGroup(make([]entity.UserGroup, 0)),
+				daotest.NewResourceRelation(inMemoryDB),
+				daotest.NewUserGroupMember(inMemoryDB),
+				daotest.NewPermission(inMemoryDB),
+				daotest.NewOperationRelation(inMemoryDB),
+				daotest.NewOperation(inMemoryDB),
+				daotest.NewResourceType(inMemoryDB),
+				daotest.NewResource(inMemoryDB),
+				daotest.NewUserGroup(inMemoryDB),
 				gen.NewUniqueNumberFactory(dataCollector, mockAllocatedRange, 0),
 			)
 			assert.Nil(t, err)

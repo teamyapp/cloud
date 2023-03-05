@@ -26,8 +26,9 @@ func getValueGRPC(ctx context.Context, key key) string {
 	return values[0]
 }
 
-func getValueHttp(ctx context.Context, request *http.Request, key key) string {
-	value, ok := ctx.Value(key).(string)
+func getValueHttp(request *http.Request, key key) string {
+	ct := request.Context()
+	value, ok := ct.Value(key).(string)
 	if ok && len(value) > 0 {
 		return value
 	}

@@ -4,6 +4,7 @@ package dep
 
 import (
 	"database/sql"
+	"net/http"
 	"time"
 
 	"github.com/google/wire"
@@ -15,8 +16,10 @@ import (
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/app/storage"
 	"github.com/teamyapp/cloud/libs/env"
+	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/security"
 	"github.com/teamyapp/cloud/libs/telemetry"
+	"github.com/teamyapp/cloud/libs/web"
 )
 
 type OAuthProviders []oauth.Provider
@@ -32,20 +35,6 @@ type S3Endpoint string
 type S3AccessKeyID string
 type S3AccessKey string
 type S3BucketName string
-
-func InitGoogleOAuthProvider(
-	dataCollector telemetry.DataCollector,
-	webAPIBaseURL WebAPIBaseURL,
-	jwtSigningKey JWTSigningKey,
-	clientID ClientID,
-	clientSecret ClientSecret,
-) oauth.Google {
-	wire.Build(
-		newJWTAuthority,
-		newGoogleOAuthProvider,
-	)
-	return oauth.Google{}
-}
 
 var daoSet = wire.NewSet(
 	wire.Bind(new(dao.UserLink), new(sqldb.UserLink)),
@@ -174,23 +163,40 @@ func newS3Bucket(
 		string(s3BucketName))
 }
 
-func newGoogleOAuthProvider(
-	dataCollector telemetry.DataCollector,
-	jwtAuthority security.JWTAuthority,
-	webAPIBaseURL WebAPIBaseURL,
-	clientID ClientID,
-	clientSecret ClientSecret,
-) oauth.Google {
-	return oauth.NewGoogle(dataCollector, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
-}
-
 func InitGitHubOAuthProvider(
 	dataCollector telemetry.DataCollector,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.GitHub {
-	return oauth.NewGitHub(dataCollector, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	wire.Build(
+		wire.Bind(new(network.Network), new(network.Socket)),
+		wire.Bind(new(web.HTTPClient), new(*http.Client)),
+
+		network.NewSocket,
+		web.NewHTTPClient,
+		newGithubOAuthProvider,
+	)
+	return oauth.GitHub{}
+}
+
+func InitGoogleOAuthProvider(
+	dataCollector telemetry.DataCollector,
+	webAPIBaseURL WebAPIBaseURL,
+	jwtSigningKey JWTSigningKey,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.Google {
+	wire.Build(
+		wire.Bind(new(network.Network), new(network.Socket)),
+		wire.Bind(new(web.HTTPClient), new(*http.Client)),
+
+		network.NewSocket,
+		web.NewHTTPClient,
+		newJWTAuthority,
+		newGoogleOAuthProvider,
+	)
+	return oauth.Google{}
 }
 
 func InitSlackOAuthProvider(
@@ -201,20 +207,47 @@ func InitSlackOAuthProvider(
 	clientSecret ClientSecret,
 ) oauth.Slack {
 	wire.Build(
+		wire.Bind(new(network.Network), new(network.Socket)),
+		wire.Bind(new(web.HTTPClient), new(*http.Client)),
+
+		network.NewSocket,
+		web.NewHTTPClient,
 		newJWTAuthority,
 		newSlackOAuthProvider,
 	)
 	return oauth.Slack{}
 }
 
+func newGithubOAuthProvider(
+	dataCollector telemetry.DataCollector,
+	httpClient web.HTTPClient,
+	webAPIBaseURL WebAPIBaseURL,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.GitHub {
+	return oauth.NewGitHub(dataCollector, httpClient, string(webAPIBaseURL), string(clientID), string(clientSecret))
+}
+
+func newGoogleOAuthProvider(
+	dataCollector telemetry.DataCollector,
+	httpClient web.HTTPClient,
+	jwtAuthority security.JWTAuthority,
+	webAPIBaseURL WebAPIBaseURL,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.Google {
+	return oauth.NewGoogle(dataCollector, httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
+}
+
 func newSlackOAuthProvider(
 	dataCollector telemetry.DataCollector,
+	httpClient web.HTTPClient,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.Slack {
-	return oauth.NewSlack(dataCollector, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewSlack(dataCollector, httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newJWTAuthority(dataCollector telemetry.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {

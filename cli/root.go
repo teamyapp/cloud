@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
-	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -14,7 +12,6 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
 	addDBCmd()
 }
 
