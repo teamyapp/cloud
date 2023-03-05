@@ -96,7 +96,8 @@ func (c *Client) sendRequest(
 		return internalErr
 	}
 
-	res, err := c.httpClient.Do(ct, req)
+	req = req.WithContext(ct)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		internalErr = &errs.Error{
 			Code:     errs.Unknown,
