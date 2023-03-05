@@ -7,23 +7,29 @@ import (
 	"io/ioutil"
 )
 
-type Config struct {
-	ResourceTypeOperations []struct {
-		ResourceType string   `yaml:"resourceType"`
-		Operations   []string `yaml:"operations"`
-	} `yaml:"resourceTypeOperations"`
-	OperationRelations []struct {
-		ResourceType     string `yaml:"resourceType"`
-		Operation        string `yaml:"operation"`
-		ParentOperations []struct {
-			ParentResourceType string `yaml:"resourceType"`
-			ParentOperation    string `yaml:"operation"`
-		} `yaml:"parents"`
-	} `yaml:"operationRelations"`
+type ResourceTypeOperationsRow struct {
+	ResourceType string   `yaml:"resourceType"`
+	Operations   []string `yaml:"operations"`
 }
 
-func Parse(configPath string, dataCollector telemetry.DataCollector) (*Config, error) {
-	yamlFile, err := ioutil.ReadFile(configPath)
+type ParentOperation struct {
+	ParentResourceType string `yaml:"resourceType"`
+	ParentOperation    string `yaml:"operation"`
+}
+
+type OperationRelationsRow struct {
+	ResourceType     string            `yaml:"resourceType"`
+	Operation        string            `yaml:"operation"`
+	ParentOperations []ParentOperation `yaml:"parents"`
+}
+
+type Config struct {
+	ResourceTypeOperations []ResourceTypeOperationsRow `yaml:"resourceTypeOperations"`
+	OperationRelations     []OperationRelationsRow     `yaml:"operationRelations"`
+}
+
+func ParseConfig(configPath string, dataCollector telemetry.DataCollector) (*Config, error) {
+	yamlConfigContent, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		fileReadErr := &errs.Error{
 			Code:     errs.IO,
@@ -34,8 +40,7 @@ func Parse(configPath string, dataCollector telemetry.DataCollector) (*Config, e
 	}
 
 	authorizationConfig := Config{}
-
-	err = yaml.Unmarshal(yamlFile, &authorizationConfig)
+	err = yaml.Unmarshal(yamlConfigContent, &authorizationConfig)
 	if err != nil {
 		parseErr := &errs.Error{
 			Code:     errs.Deserialization,
