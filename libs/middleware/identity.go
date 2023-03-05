@@ -7,10 +7,10 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/teamyapp/cloud/libs/ctx"
 	"github.com/teamyapp/cloud/libs/errs"
+	"github.com/teamyapp/cloud/libs/identity"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
 	"google.golang.org/grpc"
@@ -28,38 +28,12 @@ func ServerHTTPWithIdentity(
 	identityAPIEndpoint string,
 	includeIdentity IncludeIdentityWebFunc,
 ) Middleware[http.HandlerFunc] {
-	return withIdentity(dataCollector, httpClient, identityAPIEndpoint, func(request *http.Request) (string, *errs.Error) {
-		ct := request.Context()
-		value := request.Header.Get("Authorization")
-		if len(value) == 0 {
-			internalErr := &errs.Error{
-				Code:    errs.NotFound,
-				Message: "authorization header not found",
-			}
-			return "", internalErr
-		}
-
-		parts := strings.Split(value, " ")
-		if len(parts) != 2 {
-			internalErr := &errs.Error{
-				Code:    errs.InvalidFormat,
-				Message: fmt.Sprintf("authotization header must have 2 parts: header=%v", value),
-			}
-			dataCollector.Logger.ErrorWithContext(ct, internalErr)
-			return "", internalErr
-		}
-
-		if parts[0] != "Bearer" {
-			internalErr := &errs.Error{
-				Code:    errs.InvalidFormat,
-				Message: fmt.Sprintf("missing beginning Bearer: header=%v", value),
-			}
-			dataCollector.Logger.ErrorWithContext(ct, internalErr)
-			return "", internalErr
-		}
-
-		return parts[1], nil
-	}, includeIdentity)
+	return withIdentity(
+		dataCollector,
+		httpClient,
+		identityAPIEndpoint,
+		identity.GetBearerToken,
+		includeIdentity)
 }
 
 func ServerWebSocketWithIdentity(
@@ -180,7 +154,8 @@ func ctxWithUserID(
 	}
 
 	req.Header.Set("Content-Type", "text/plain")
-	res, err := httpClient.Do(ct, req)
+	req = req.WithContext(ct)
+	res, err := httpClient.Do(req)
 	if err != nil {
 		internalErr := &errs.Error{
 			Code:     errs.Unknown,

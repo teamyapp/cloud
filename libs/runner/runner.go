@@ -14,6 +14,7 @@ import (
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/metrics"
 	"github.com/teamyapp/cloud/libs/middleware"
+	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
 	"google.golang.org/grpc"
@@ -54,7 +55,7 @@ func ServiceRunnerConfigFromEnv(dataCollector telemetry.DataCollector) (ServiceR
 
 type ServiceRunner struct {
 	dataCollector          telemetry.DataCollector
-	prometheus             metrics.Prometheus
+	network                network.Network
 	config                 ServiceRunnerConfig
 	serviceName            string
 	httpClient             web.HTTPClient
@@ -64,7 +65,7 @@ type ServiceRunner struct {
 	includeIdentityWebFunc middleware.IncludeIdentityWebFunc
 }
 
-func (s *ServiceRunner) Start() {
+func (s *ServiceRunner) Start(afterServicesStarted func(listeners []net.Listener) *errs.Error) *errs.Error {
 	var shutdown func(ct context.Context) error
 	if s.config.EnableTracing {
 		var internalErr *errs.Error
@@ -77,70 +78,132 @@ func (s *ServiceRunner) Start() {
 	for _, service := range s.services {
 		err := service.Start(s)
 		if err != nil {
-			s.dataCollector.Logger.Fatal(err)
-			panic(err)
+			s.dataCollector.Logger.Error(err)
+			return err
 		}
 	}
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		s.startWebServer()
-	}()
+	listeners := make([]net.Listener, 0)
+	lis, err := s.startWebServer(&wg)
+	if err != nil {
+		s.dataCollector.Logger.Error(err)
+		return err
+	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		s.startGRPCServer()
-	}()
+	listeners = append(listeners, lis)
+	lis, err = s.startGRPCServer(&wg)
+	if err != nil {
+		s.dataCollector.Logger.Error(err)
+		return err
+	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		s.startMonitoringServer()
-	}()
+	listeners = append(listeners, lis)
+	s.startMonitoringServer(&wg)
+	if err != nil {
+		s.dataCollector.Logger.Error(err)
+		return err
+	}
+	listeners = append(listeners, lis)
+
+	if afterServicesStarted != nil {
+		err = afterServicesStarted(listeners)
+		if err != nil {
+			s.dataCollector.Logger.Error(err)
+			return err
+		}
+	}
 
 	wg.Wait()
 	if s.config.EnableTracing {
 		_ = shutdown(context.Background())
 	}
+
+	return nil
 }
 
-func (s *ServiceRunner) startWebServer() {
+func (s *ServiceRunner) startWebServer(wg *sync.WaitGroup) (net.Listener, *errs.Error) {
 	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
 		telemetry.MessageProp: fmt.Sprintf("service runner Web server started at %v", s.config.WebServerPort),
 	})
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.WebServerPort), s.webRouter); err != nil {
-		panic(err)
+	addressAndPort := fmt.Sprintf(":%d", s.config.WebServerPort)
+	lis, err := s.network.Listen("tcp", addressAndPort)
+	if err != nil {
+		return nil, &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
 	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err = http.Serve(lis, s.webRouter); err != nil {
+			s.dataCollector.Logger.Fatal(&errs.Error{
+				Code:     errs.Unknown,
+				EmbedErr: err,
+			})
+		}
+	}()
+	return lis, nil
 }
 
-func (s *ServiceRunner) startGRPCServer() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.config.GRPCServerPort))
+func (s *ServiceRunner) startGRPCServer(wg *sync.WaitGroup) (net.Listener, *errs.Error) {
+	hostAndPort := fmt.Sprintf(":%d", s.config.GRPCServerPort)
+	lis, err := s.network.Listen("tcp", hostAndPort)
 	if err != nil {
-		panic(err)
+		return nil, &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
 	}
 
 	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
 		telemetry.MessageProp: fmt.Sprintf("service runner gRPC server started at %v", s.config.GRPCServerPort),
 	})
-	err = s.gRPCServer.Serve(lis)
-	if err != nil {
-		s.dataCollector.Logger.Log(telemetry.Fatal, telemetry.Props{telemetry.CauseProp: err})
-		panic(err)
-	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = s.gRPCServer.Serve(lis)
+		if err != nil {
+			s.dataCollector.Logger.Fatal(&errs.Error{
+				Code:     errs.Unknown,
+				EmbedErr: err,
+			})
+		}
+	}()
+	return lis, nil
 }
 
-func (s *ServiceRunner) startMonitoringServer() {
+func (s *ServiceRunner) startMonitoringServer(wg *sync.WaitGroup) (net.Listener, *errs.Error) {
 	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
 		telemetry.MessageProp: fmt.Sprintf("service runner Monitoring server started at %v", s.config.MonitoringServerPort),
 	})
 	router := chi.NewRouter()
 	router.Handle("/metrics", promhttp.Handler())
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.MonitoringServerPort), router); err != nil {
-		panic(err)
+
+	hostAndPort := fmt.Sprintf(":%d", s.config.MonitoringServerPort)
+	lis, err := s.network.Listen("tcp", hostAndPort)
+	if err != nil {
+		return nil, &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
 	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = http.Serve(lis, router)
+		if err != nil {
+			s.dataCollector.Logger.Fatal(&errs.Error{
+				Code:     errs.Unknown,
+				EmbedErr: err,
+			})
+		}
+	}()
+	return lis, nil
 }
 
 func (s *ServiceRunner) RegisterWebRoutes(routes []WebRoute) {
@@ -155,13 +218,14 @@ func (s *ServiceRunner) WithGRPCServer(withGRPCServer func(server *grpc.Server))
 
 type ServiceRunnerBuilder struct {
 	dataCollector                   telemetry.DataCollector
+	network                         network.Network
 	prometheus                      metrics.Prometheus
 	config                          ServiceRunnerConfig
+	serviceName                     string
 	services                        []Service
 	includeIdentityWebFunc          middleware.IncludeIdentityWebFunc
 	includeIdentityGRPCFunc         middleware.IncludeIdentityGRPCFunc
 	getClientHTTPRequestPatternFunc middleware.GetPatternFunc
-	serviceName                     string
 }
 
 func (s *ServiceRunnerBuilder) IncludeIdentityWebFunc(
@@ -186,15 +250,13 @@ func (s *ServiceRunnerBuilder) GetClientHTTPRequestPatternFunc(
 }
 
 func (s *ServiceRunnerBuilder) Build() ServiceRunner {
+	rawHttpClient := web.NewHTTPClient(s.network)
 	httpClientMiddlewares := []middleware.Middleware[web.HTTPClient]{
 		middleware.ClientHTTPWithMetrics(s.prometheus, s.getClientHTTPRequestPatternFunc),
 		middleware.ClientHTTPWithOpenTelemetry(s.getClientHTTPRequestPatternFunc),
 		middleware.ClientHTTPWithRequestID(s.dataCollector),
 	}
-	httpClient := middleware.WithMiddlewares[web.HTTPClient](
-		func(ct context.Context, req *http.Request) (*http.Response, error) {
-			return http.DefaultClient.Do(req)
-		}, httpClientMiddlewares)
+	httpClient := middleware.WithMiddlewares[web.HTTPClient](rawHttpClient, httpClientMiddlewares)
 	webRouter := chi.NewRouter()
 	httpServerMiddlewares := []middleware.Middleware[http.HandlerFunc]{
 		middleware.ServerHTTPWithMetrics(s.prometheus, getClientHTTPRequestPatternFunc),
@@ -219,7 +281,7 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 	})
 	return ServiceRunner{
 		dataCollector: s.dataCollector,
-		prometheus:    s.prometheus,
+		network:       s.network,
 		config:        s.config,
 		serviceName:   s.serviceName,
 		httpClient:    httpClient,
@@ -244,6 +306,7 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 
 func NewServiceRunnerBuilder(
 	dataCollector telemetry.DataCollector,
+	network network.Network,
 	prometheus metrics.Prometheus,
 	config ServiceRunnerConfig,
 	serviceName string,
@@ -251,6 +314,7 @@ func NewServiceRunnerBuilder(
 ) *ServiceRunnerBuilder {
 	return &ServiceRunnerBuilder{
 		dataCollector: dataCollector,
+		network:       network,
 		prometheus:    prometheus,
 		config:        config,
 		serviceName:   serviceName,

@@ -300,13 +300,13 @@ func (a Authorization) CreateUserGroup(ct context.Context, name string, descript
 		CreatorUserID: userID,
 	}
 
-	createdUserGroup, err := a.userGroupDao.CreateGroup(ct, userGroup)
+	err = a.userGroupDao.CreateGroup(ct, userGroup)
 	if err != nil {
 		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return entity.UserGroup{}, err
 	}
 
-	return createdUserGroup, nil
+	return userGroup, nil
 }
 
 func (a Authorization) UpdateUserGroup(ct context.Context, groupID uint64, name *string, description *string) *errs.Error {

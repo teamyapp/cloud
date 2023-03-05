@@ -4,6 +4,7 @@ import (
 	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/middleware"
+	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/retry"
 	"github.com/teamyapp/cloud/libs/rpc"
 	"github.com/teamyapp/cloud/libs/telemetry"
@@ -52,11 +53,12 @@ func (c *ClientRegistry) FileClient() proto.FileClient {
 
 func NewClientRegistry(
 	dataCollector telemetry.DataCollector,
+	network network.Network,
 	clientGRPCMetrics middleware.ClientGRPCMetrics,
 	connCfg rpc.ConnectionConfig,
 	retry retry.Retry,
 ) (*ClientRegistry, error) {
-	conn, err := rpc.NewClientConnection(dataCollector, clientGRPCMetrics, connCfg, retry)
+	conn, err := rpc.NewClientConnection(dataCollector, network, clientGRPCMetrics, connCfg, retry)
 	if err != nil {
 		dataCollector.Logger.Error(&errs.Error{
 			Code:     errs.Unknown,

@@ -14,8 +14,8 @@ import (
 func ServerHTTPWithRequestID(dataCollector telemetry.DataCollector) Middleware[http.HandlerFunc] {
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		return func(writer http.ResponseWriter, request *http.Request) {
+			requestID := ctx.GetRequestIDHttp(request)
 			ct := request.Context()
-			requestID := ctx.GetRequestIDHttp(ct, request)
 			requestID = generateRequestIdIfNot(dataCollector, ct, requestID)
 			ct = ctx.NewContextWithRequestID(ct, requestID)
 			request = request.WithContext(ct)
@@ -26,12 +26,13 @@ func ServerHTTPWithRequestID(dataCollector telemetry.DataCollector) Middleware[h
 
 func ClientHTTPWithRequestID(dataCollector telemetry.DataCollector) Middleware[web.HTTPClient] {
 	return func(client web.HTTPClient) web.HTTPClient {
-		return func(ct context.Context, req *http.Request) (*http.Response, error) {
-			requestID := ctx.GetRequestIDHttp(ct, req)
+		return web.HTTPClientFunc(func(req *http.Request) (*http.Response, error) {
+			requestID := ctx.GetRequestIDHttp(req)
+			ct := req.Context()
 			requestID = generateRequestIdIfNot(dataCollector, ct, requestID)
 			ctx.SetRequestIDHttp(req, requestID)
-			return client.Do(ct, req)
-		}
+			return client.Do(req)
+		})
 	}
 }
 

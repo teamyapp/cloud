@@ -1,19 +1,19 @@
 package rpc
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"time"
 
-	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/middleware"
+	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/retry"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
-
-const ConnectionErr errs.ErrorCode = "Connection"
 
 type ConnectionConfig struct {
 	Host           string
@@ -25,6 +25,7 @@ type ConnectionConfig struct {
 
 func NewClientConnection(
 	dataCollector telemetry.DataCollector,
+	network network.Network,
 	clientGRPCMetrics middleware.ClientGRPCMetrics,
 	cfg ConnectionConfig,
 	retry retry.Retry,
@@ -46,5 +47,8 @@ func NewClientConnection(
 			middleware.ClientGRPCWithRequestID(dataCollector),
 			middleware.ClientGRPCWithTimout(cfg.RequestTimeout),
 			middleware.ClientGRPCWithIdentity(cfg.GetAccessToken),
-		))
+		),
+		grpc.WithContextDialer(func(ctx context.Context, hostAndPort string) (net.Conn, error) {
+			return network.Dial("tcp", hostAndPort)
+		}))
 }

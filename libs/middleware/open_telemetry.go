@@ -116,7 +116,7 @@ func ClientHTTPWithOpenTelemetry(
 	tracer := traceProvider.Tracer(telemetry.TeamyOpenTelemetryTracerName)
 	spanKindOpt := trace.WithSpanKind(trace.SpanKindClient)
 	return func(client web.HTTPClient) web.HTTPClient {
-		return func(ct context.Context, request *http.Request) (*http.Response, error) {
+		return web.HTTPClientFunc(func(request *http.Request) (*http.Response, error) {
 			spanRequestOpt := trace.WithAttributes(httpconv.ClientRequest(request)...)
 			pattern, found := getPatternFunc(request)
 			if !found {
@@ -124,6 +124,7 @@ func ClientHTTPWithOpenTelemetry(
 			}
 
 			spanName := fmt.Sprintf("(HTTP)(%v)%v", request.Method, pattern)
+			ct := request.Context()
 			ct, span := tracer.Start(ct, spanName, spanKindOpt, spanRequestOpt)
 			defer span.End()
 
@@ -133,7 +134,7 @@ func ClientHTTPWithOpenTelemetry(
 
 			textMapProvider.Inject(ct, propagation.HeaderCarrier(request.Header))
 			request = request.WithContext(ct)
-			response, err := client.Do(ct, request)
+			response, err := client.Do(request)
 			if err != nil {
 				span.RecordError(err)
 				span.SetStatus(codes.Error, err.Error())
@@ -143,7 +144,7 @@ func ClientHTTPWithOpenTelemetry(
 			span.SetAttributes(httpconv.ClientResponse(response)...)
 			span.SetStatus(httpconv.ClientStatus(response.StatusCode))
 			return response, nil
-		}
+		})
 	}
 }
 

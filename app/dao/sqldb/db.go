@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	migrate "github.com/rubenv/sql-migrate"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/io"
+	"github.com/teamyapp/cloud/libs/randgen"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -110,9 +110,9 @@ func New(dataCollector telemetry.DataCollector, dbName string) {
 		specialChars,
 	})
 	dbNamePostfixAlphabet := concatenate([]string{lowerCaseLetters, upperCaseLetters, digits})
-	dbNamePostfix := randString(dbNamePostfixAlphabet, 5)
+	dbNamePostfix := randgen.String(dbNamePostfixAlphabet, 5)
 	fullDBName := fmt.Sprintf("%s-%s", dbName, dbNamePostfix)
-	password := randString(alphabet, dbPasswordLen)
+	password := randgen.String(alphabet, dbPasswordLen)
 	dataCollector.Logger.Info(strings.TrimSpace(fmt.Sprintf(`
 user: %s
 password: %s
@@ -242,18 +242,4 @@ func migrateDB(
 
 func concatenate(src []string) []rune {
 	return []rune(strings.Join(src, ""))
-}
-
-func randString(alphabet []rune, length int) string {
-	alphabetEndIndex := len(alphabet) - 1
-	result := make([]rune, length)
-	for i := 0; i < length; i++ {
-		randomIndex := randInt(0, alphabetEndIndex)
-		result[i] = alphabet[randomIndex]
-	}
-	return string(result)
-}
-
-func randInt(min int, max int) int {
-	return min + rand.Intn(max-min+1)
 }

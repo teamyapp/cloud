@@ -14,6 +14,7 @@ import (
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/security"
 	"github.com/teamyapp/cloud/libs/telemetry"
+	"github.com/teamyapp/cloud/libs/web"
 )
 
 const slackName = "slack"
@@ -24,6 +25,7 @@ const slackTokenURL = "https://slack.com/api/openid.connect.token"
 
 type Slack struct {
 	dataCollector telemetry.DataCollector
+	httpClient    web.HTTPClient
 	jwtAuthority  security.JWTAuthority
 	clientID      string
 	clientSecret  string
@@ -63,8 +65,8 @@ func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.Ext
 	}, nil
 }
 
-func (s Slack) GetStateID(ct context.Context, request *http.Request) (uint64, *errs.Error) {
-	num, err := strconv.ParseUint(request.URL.Query().Get("state"), 10, 64)
+func (s Slack) GetStateID(ct context.Context, fullURL *url.URL) (uint64, *errs.Error) {
+	num, err := strconv.ParseUint(fullURL.Query().Get("state"), 10, 64)
 	if err != nil {
 		internalErr := &errs.Error{
 			Code:     errs.InvalidFormat,
@@ -77,8 +79,8 @@ func (s Slack) GetStateID(ct context.Context, request *http.Request) (uint64, *e
 	return num, nil
 }
 
-func (s Slack) GetAuthorizationCode(ct context.Context, request *http.Request) string {
-	return request.URL.Query().Get("code")
+func (s Slack) GetAuthorizationCode(ct context.Context, fullURL *url.URL) string {
+	return fullURL.Query().Get("code")
 }
 
 func (s Slack) GetSignInURL(ct context.Context, stateID uint64) (string, *errs.Error) {
@@ -123,7 +125,7 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 	}
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	res, err := http.DefaultClient.Do(req)
+	res, err := s.httpClient.Do(req)
 	if err != nil {
 		internalErr := &errs.Error{
 			Code:     errs.Unknown,
@@ -185,6 +187,7 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 
 func NewSlack(
 	dataCollector telemetry.DataCollector,
+	httpClient web.HTTPClient,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL string,
 	clientID string,
@@ -192,6 +195,7 @@ func NewSlack(
 ) Slack {
 	return Slack{
 		dataCollector: dataCollector,
+		httpClient:    httpClient,
 		jwtAuthority:  jwtAuthority,
 		clientID:      clientID,
 		clientSecret:  clientSecret,

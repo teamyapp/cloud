@@ -23,7 +23,7 @@ type ChunksIterator struct {
 
 var _ entity.Iterator[[]byte] = (*ChunksIterator)(nil)
 
-func (c ChunksIterator) HasNext() (bool, *errs.Error) {
+func (c *ChunksIterator) HasNext() (bool, *errs.Error) {
 	return c.nextChunkIndex < len(c.chunkIDs), nil
 }
 

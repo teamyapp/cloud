@@ -13,6 +13,7 @@ import (
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
+	"github.com/teamyapp/cloud/libs/web"
 )
 
 const GitHubName = "github"
@@ -24,6 +25,7 @@ var githubUserURL = "https://api.github.com/user"
 
 type GitHub struct {
 	dataCollector telemetry.DataCollector
+	httpClient    web.HTTPClient
 	clientID      string
 	clientSecret  string
 	redirectURI   string
@@ -46,7 +48,7 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 
 	// https://docs.github.com/en/developers/apps/building-github-apps/identifying-and-authorizing-
 	// users-for-github-apps#3-your-github-app-accesses-the-api-with-the-users-access-token
-	req, err := http.NewRequest("GET", githubUserURL, nil)
+	req, err := http.NewRequest(http.MethodGet, githubUserURL, nil)
 	if err != nil {
 		internalErr = &errs.Error{
 			Code:     errs.Unknown,
@@ -58,7 +60,7 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	res, err := http.DefaultClient.Do(req)
+	res, err := g.httpClient.Do(req)
 	if err != nil {
 		internalErr = &errs.Error{
 			Code:     errs.Unknown,
@@ -107,8 +109,8 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 	}, nil
 }
 
-func (g GitHub) GetStateID(ct context.Context, request *http.Request) (uint64, *errs.Error) {
-	num, err := strconv.ParseUint(request.URL.Query().Get("state"), 10, 64)
+func (g GitHub) GetStateID(ct context.Context, fullURL *url.URL) (uint64, *errs.Error) {
+	num, err := strconv.ParseUint(fullURL.Query().Get("state"), 10, 64)
 	if err != nil {
 		internalErr := &errs.Error{
 			Code:     errs.InvalidFormat,
@@ -121,8 +123,8 @@ func (g GitHub) GetStateID(ct context.Context, request *http.Request) (uint64, *
 	return num, nil
 }
 
-func (g GitHub) GetAuthorizationCode(ct context.Context, request *http.Request) string {
-	return request.URL.Query().Get("code")
+func (g GitHub) GetAuthorizationCode(ct context.Context, fullURL *url.URL) string {
+	return fullURL.Query().Get("code")
 }
 
 func (g GitHub) GetSignInURL(ct context.Context, stateID uint64) (string, *errs.Error) {
@@ -178,7 +180,7 @@ func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (st
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-	res, err := http.DefaultClient.Do(req)
+	res, err := g.httpClient.Do(req)
 	if err != nil {
 		internalErr := &errs.Error{
 			Code:     errs.Unknown,
@@ -227,9 +229,16 @@ func (g GitHub) getAccessToken(ct context.Context, authorizationCode string) (st
 	return body.AccessToken, nil
 }
 
-func NewGitHub(dataCollector telemetry.DataCollector, webAPIBaseURL string, clientID string, clientSecret string) GitHub {
+func NewGitHub(
+	dataCollector telemetry.DataCollector,
+	httpClient web.HTTPClient,
+	webAPIBaseURL string,
+	clientID string,
+	clientSecret string,
+) GitHub {
 	return GitHub{
 		dataCollector: dataCollector,
+		httpClient:    httpClient,
 		clientID:      clientID,
 		clientSecret:  clientSecret,
 		redirectURI:   fmt.Sprintf("%s/identity/sign-in/oauth/%s/finish", webAPIBaseURL, GitHubName),

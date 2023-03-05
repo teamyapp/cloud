@@ -174,14 +174,14 @@ func (i Identity) webFinishOAuthSignIn(writer http.ResponseWriter, request *http
 		return
 	}
 
-	stateID, err := provider.GetStateID(ct, request)
+	stateID, err := provider.GetStateID(ct, request.URL)
 	if err != nil {
 		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		errs.SetHTTPErr(err, writer)
 		return
 	}
 
-	authorizationCode := provider.GetAuthorizationCode(ct, request)
+	authorizationCode := provider.GetAuthorizationCode(ct, request.URL)
 	url, err := i.identityService.FinishOAuthSignIn(ct, oauthProviderName, authorizationCode, stateID)
 	if err != nil {
 		i.dataCollector.Logger.ErrorWithContext(ct, err)

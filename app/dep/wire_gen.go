@@ -8,6 +8,8 @@ package dep
 
 import (
 	"database/sql"
+	"time"
+
 	"github.com/google/wire"
 	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/dao"
@@ -17,18 +19,13 @@ import (
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/app/storage"
 	"github.com/teamyapp/cloud/libs/env"
+	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/security"
 	"github.com/teamyapp/cloud/libs/telemetry"
-	"time"
+	"github.com/teamyapp/cloud/libs/web"
 )
 
 // Injectors from wire.go:
-
-func InitGoogleOAuthProvider(dataCollector telemetry.DataCollector, webAPIBaseURL WebAPIBaseURL, jwtSigningKey JWTSigningKey, clientID ClientID, clientSecret ClientSecret) oauth.Google {
-	jwtAuthority := newJWTAuthority(dataCollector, jwtSigningKey)
-	google := newGoogleOAuthProvider(dataCollector, jwtAuthority, webAPIBaseURL, clientID, clientSecret)
-	return google
-}
 
 func InitTelemetryAPI(dataCollector telemetry.DataCollector) *api.Telemetry {
 	apiTelemetry := api.NewTelemetry(dataCollector)
@@ -94,9 +91,26 @@ func InitFileAPI(dataCollector telemetry.DataCollector, env2 env.Environment, sq
 	return apiFile, nil
 }
 
-func InitSlackOAuthProvider(dataCollector telemetry.DataCollector, webAPIBaseURL WebAPIBaseURL, jwtSigningKey JWTSigningKey, clientID ClientID, clientSecret ClientSecret) oauth.Slack {
+func InitGitHubOAuthProvider(dataCollector telemetry.DataCollector, webAPIBaseURL WebAPIBaseURL, clientID ClientID, clientSecret ClientSecret) oauth.GitHub {
+	socket := network.NewSocket()
+	client := web.NewHTTPClient(socket)
+	gitHub := newGithubOAuthProvider(dataCollector, client, webAPIBaseURL, clientID, clientSecret)
+	return gitHub
+}
+
+func InitGoogleOAuthProvider(dataCollector telemetry.DataCollector, webAPIBaseURL WebAPIBaseURL, jwtSigningKey JWTSigningKey, clientID ClientID, clientSecret ClientSecret) oauth.Google {
+	socket := network.NewSocket()
+	client := web.NewHTTPClient(socket)
 	jwtAuthority := newJWTAuthority(dataCollector, jwtSigningKey)
-	slack := newSlackOAuthProvider(dataCollector, jwtAuthority, webAPIBaseURL, clientID, clientSecret)
+	google := newGoogleOAuthProvider(dataCollector, client, jwtAuthority, webAPIBaseURL, clientID, clientSecret)
+	return google
+}
+
+func InitSlackOAuthProvider(dataCollector telemetry.DataCollector, webAPIBaseURL WebAPIBaseURL, jwtSigningKey JWTSigningKey, clientID ClientID, clientSecret ClientSecret) oauth.Slack {
+	socket := network.NewSocket()
+	client := web.NewHTTPClient(socket)
+	jwtAuthority := newJWTAuthority(dataCollector, jwtSigningKey)
+	slack := newSlackOAuthProvider(dataCollector, client, jwtAuthority, webAPIBaseURL, clientID, clientSecret)
 	return slack
 }
 
@@ -143,33 +157,36 @@ func newS3Bucket(
 		string(s3AccessKey), env2, string(s3BucketName))
 }
 
+func newGithubOAuthProvider(
+	dataCollector telemetry.DataCollector,
+	httpClient web.HTTPClient,
+	webAPIBaseURL WebAPIBaseURL,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.GitHub {
+	return oauth.NewGitHub(dataCollector, httpClient, string(webAPIBaseURL), string(clientID), string(clientSecret))
+}
+
 func newGoogleOAuthProvider(
 	dataCollector telemetry.DataCollector,
+	httpClient web.HTTPClient,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.Google {
-	return oauth.NewGoogle(dataCollector, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
-}
-
-func InitGitHubOAuthProvider(
-	dataCollector telemetry.DataCollector,
-	webAPIBaseURL WebAPIBaseURL,
-	clientID ClientID,
-	clientSecret ClientSecret,
-) oauth.GitHub {
-	return oauth.NewGitHub(dataCollector, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewGoogle(dataCollector, httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newSlackOAuthProvider(
 	dataCollector telemetry.DataCollector,
+	httpClient web.HTTPClient,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.Slack {
-	return oauth.NewSlack(dataCollector, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewSlack(dataCollector, httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newJWTAuthority(dataCollector telemetry.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {

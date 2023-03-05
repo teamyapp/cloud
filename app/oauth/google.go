@@ -1,7 +1,6 @@
 package oauth
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/security"
 	"github.com/teamyapp/cloud/libs/telemetry"
+	"github.com/teamyapp/cloud/libs/web"
 )
 
 const GoogleName = "google"
@@ -24,6 +24,7 @@ var googleTokenURL = "https://oauth2.googleapis.com/token"
 
 type Google struct {
 	dataCollector telemetry.DataCollector
+	httpClient    web.HTTPClient
 	jwtAuthority  security.JWTAuthority
 	clientID      string
 	clientSecret  string
@@ -65,8 +66,8 @@ func (g Google) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 	}, err
 }
 
-func (g Google) GetStateID(ct context.Context, request *http.Request) (uint64, *errs.Error) {
-	num, err := strconv.ParseUint(request.URL.Query().Get("state"), 10, 64)
+func (g Google) GetStateID(ct context.Context, fullURL *url.URL) (uint64, *errs.Error) {
+	num, err := strconv.ParseUint(fullURL.Query().Get("state"), 10, 64)
 	if err != nil {
 		internalErr := &errs.Error{
 			Code:     errs.InvalidFormat,
@@ -79,8 +80,8 @@ func (g Google) GetStateID(ct context.Context, request *http.Request) (uint64, *
 	return num, nil
 }
 
-func (g Google) GetAuthorizationCode(ct context.Context, request *http.Request) string {
-	return request.URL.Query().Get("code")
+func (g Google) GetAuthorizationCode(ct context.Context, fullURL *url.URL) string {
+	return fullURL.Query().Get("code")
 }
 
 func (g Google) GetSignInURL(ct context.Context, stateID uint64) (string, *errs.Error) {
@@ -129,7 +130,18 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 		return "", internalErr
 	}
 
-	res, err := http.Post(googleTokenURL, "application/json", bytes.NewReader(buf))
+	req, err := http.NewRequest(http.MethodPost, googleTokenURL, nil)
+	if err != nil {
+		internalErr := &errs.Error{
+			Code:     errs.Unknown,
+			EmbedErr: err,
+		}
+		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		return "", internalErr
+	}
+
+	web.WriteJSONToRequest(ct, g.dataCollector, req, buf)
+	res, err := g.httpClient.Do(req)
 	if err != nil {
 		internalErr := &errs.Error{
 			Code:     errs.Unknown,
@@ -180,6 +192,7 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 
 func NewGoogle(
 	dataCollector telemetry.DataCollector,
+	httpClient web.HTTPClient,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL string,
 	clientID string,
@@ -187,6 +200,7 @@ func NewGoogle(
 ) Google {
 	return Google{
 		dataCollector: dataCollector,
+		httpClient:    httpClient,
 		jwtAuthority:  jwtAuthority,
 		clientID:      clientID,
 		clientSecret:  clientSecret,

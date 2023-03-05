@@ -119,7 +119,7 @@ func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, *errs.
 	return groups, nil
 }
 
-func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) (entity.UserGroup, *errs.Error) {
+func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) *errs.Error {
 	_, err := u.db.Exec(`
 		INSERT INTO user_group
 		(
@@ -145,10 +145,10 @@ func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) (enti
 			EmbedErr: err,
 		}
 		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UserGroup{}, internalErr
+		return internalErr
 	}
 
-	return group, nil
+	return nil
 }
 
 func (u UserGroup) UpdateGroup(ct context.Context, group entity.UserGroup) *errs.Error {
