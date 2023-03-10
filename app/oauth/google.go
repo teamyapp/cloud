@@ -120,16 +120,6 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 		RedirectURI:  g.redirectURI,
 	}
 
-	buf, err := json.Marshal(tokenBody)
-	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Serialization,
-			EmbedErr: err,
-		}
-		g.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return "", internalErr
-	}
-
 	req, err := http.NewRequest(http.MethodPost, googleTokenURL, nil)
 	if err != nil {
 		internalErr := &errs.Error{
@@ -140,7 +130,7 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 		return "", internalErr
 	}
 
-	web.WriteJSONToRequest(ct, g.dataCollector, req, buf)
+	web.WriteJSONToRequest(ct, g.dataCollector, req, tokenBody)
 	res, err := g.httpClient.Do(req)
 	if err != nil {
 		internalErr := &errs.Error{
@@ -159,7 +149,7 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 		return "", internalErr
 	}
 
-	buf, err = io.ReadAll(res.Body)
+	buf, err := io.ReadAll(res.Body)
 	if err != nil {
 		internalErr = &errs.Error{
 			Code:     errs.IO,
