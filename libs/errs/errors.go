@@ -10,6 +10,8 @@ import (
 
 type ErrorCode string
 
+const maxStackDepth = 100
+
 const (
 	Unknown           ErrorCode = "Unknown"
 	Cancelled         ErrorCode = "Cancelled"
@@ -34,29 +36,48 @@ const (
 )
 
 type Error struct {
-	Code     ErrorCode
-	EmbedErr error
-	Message  string
+	Code       ErrorCode
+	EmbedErr   error
+	Message    string
+	StackTrace *stackTrace
 }
 
 var _ json.Marshaler = (*Error)(nil)
 
+func NewError(code ErrorCode, message string) Error {
+	stackTrace := newStackTrace(maxStackDepth, 1)
+	return Error{
+		Code:       code,
+		Message:    message,
+		StackTrace: &stackTrace,
+	}
+}
+
 func (e Error) MarshalJSON() ([]byte, error) {
 	fields := map[string]string{
-		"Code":     string(e.Code),
-		"Message":  e.Message,
-		"EmbedErr": formatErr(e.EmbedErr),
+		"Code":       string(e.Code),
+		"Message":    e.Message,
+		"EmbedErr":   formatErr(e.EmbedErr),
+		"StackTrace": e.StackTraceString(),
 	}
 
 	return json.Marshal(fields)
 }
 
+func (e Error) StackTraceString() string {
+	if e.StackTrace == nil {
+		return ""
+	}
+
+	return e.StackTrace.String()
+}
+
 func (e Error) String() string {
-	return fmt.Sprintf("[Code=%v Message=%v EmbedErr=%v]", e.Code, e.Message, formatErr(e.EmbedErr))
+	return fmt.Sprintf("[Code=%v Message=%v EmbedErr=%v, StackTrace=%v]", e.Code, e.Message, formatErr(e.EmbedErr), e.StackTraceString())
 }
 
 func (e Error) ToError() error {
-	return fmt.Errorf("[Code=%v Message=%v EmbedErr=%v]", e.Code, e.Message, formatErr(e.EmbedErr))
+	return fmt.Errorf("[Code=%v Message=%v EmbedErr=%v, StackTrace=%v]", e.Code, e.Message, formatErr(e.EmbedErr), e.StackTraceString())
 }
 
 func MergeErrs(errs []*Error) *Error {
