@@ -1,6 +1,7 @@
 package testkit
 
 import (
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -29,24 +30,9 @@ const serviceName = "backend"
 var serviceLabels = []string{appName, serviceName}
 var fullServiceName = strings.Join(serviceLabels, "-")
 
-type Config struct {
-	GenUniqueNumberRangeSize uint64
-	JWTSigningKey            string
-	AccessTokenTTL           time.Duration
-	WebAPIBaseURL            string
-	GithubClientID           string
-	GithubClientSecret       string
-	GoogleClientID           string
-	GoogleClientSecret       string
-	SlackClientID            string
-	SlackClientSecret        string
-	WebServerPort            int
-	GRPCServerPort           int
-}
-
 type TestKit struct {
-	InstanceRunner runner.ServiceRunner
-	Refs           Refs
+	ServiceInstanceRunner runner.ServiceRunner
+	Refs                  Refs
 }
 
 type Refs struct {
@@ -210,7 +196,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		IncludeIdentityWebFunc(api.IncludeIdentityWebFunc).
 		Build()
 	return TestKit{
-		InstanceRunner: serviceRunner,
+		ServiceInstanceRunner: serviceRunner,
 		Refs: Refs{
 			InMemoryDB:                   inMemoryDB,
 			UniqueNumberGeneratorFactory: uniqueNumberGeneratorFactory,
@@ -219,4 +205,34 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 			FileService:                  fileService,
 		},
 	}, nil
+}
+
+func StartServiceInstance(
+	config Config,
+	virtualNetwork *networktest.VirtualNetwork,
+	serviceRunner runner.ServiceRunner,
+) {
+	waitBootstrapCh := make(chan struct{})
+	cloudBackendProxyRoutes := proxyRoutes(
+		config.WebServerPort,
+		config.GRPCServerPort)
+	go func() *errs.Error {
+		internalErr := serviceRunner.Start(func(listeners []net.Listener) *errs.Error {
+			for _, proxyRoute := range cloudBackendProxyRoutes {
+				for _, listener := range listeners {
+					if proxyRoute.MatchTarget(listener.Addr()) {
+						bindErr := virtualNetwork.BindProxyEndpoint(proxyRoute.Endpoint, listener)
+						if bindErr != nil {
+							return bindErr
+						}
+					}
+				}
+			}
+
+			waitBootstrapCh <- struct{}{}
+			return nil
+		})
+		panic(internalErr)
+	}()
+	<-waitBootstrapCh
 }
