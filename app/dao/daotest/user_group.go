@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type UserGroup struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.UserGroup = (*UserGroup)(nil)
@@ -21,7 +22,7 @@ func (u UserGroup) FindGroupByID(ct context.Context, groupID uint64) (entity.Use
 		return entity.UserGroup{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		userGroup := rawRow.(entity.UserGroup)
 		if userGroup.ID == groupID {
 			return userGroup, nil
@@ -41,7 +42,7 @@ func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, *errs.
 	}
 
 	userGroups := make([]entity.UserGroup, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		userGroup := rawRow.(entity.UserGroup)
 		userGroups = append(userGroups, userGroup)
 	}
@@ -67,7 +68,7 @@ func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) *errs
 		return err
 	}
 
-	table.rows = append(table.rows, group)
+	table.Rows = append(table.Rows, group)
 	return nil
 }
 
@@ -79,7 +80,7 @@ func (u UserGroup) UpdateGroup(ct context.Context, group entity.UserGroup) *errs
 
 	var updated bool
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		userGroup := rawRow.(entity.UserGroup)
 		if userGroup.ID == group.ID {
 			rows = append(rows, group)
@@ -90,7 +91,7 @@ func (u UserGroup) UpdateGroup(ct context.Context, group entity.UserGroup) *errs
 	}
 
 	if updated {
-		table.rows = rows
+		table.Rows = rows
 		return nil
 	}
 
@@ -107,18 +108,18 @@ func (u UserGroup) DeleteGroup(ct context.Context, groupID uint64) *errs.Error {
 	}
 
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		userGroup := rawRow.(entity.UserGroup)
 		if userGroup.ID != groupID {
 			rows = append(rows, rawRow)
 		}
 	}
 
-	table.rows = rows
+	table.Rows = rows
 	return nil
 }
 
-func NewUserGroup(db *InMemoryDB) UserGroup {
+func NewUserGroup(db *dbtest.InMemoryDB) UserGroup {
 	return UserGroup{
 		db: db,
 	}

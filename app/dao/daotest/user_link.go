@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type UserLink struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.UserLink = (*UserLink)(nil)
@@ -21,7 +22,7 @@ func (u UserLink) FindUserLinkByExternalUserID(ct context.Context, authProvider 
 		return entity.UserLink{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		userLink := rawRow.(entity.UserLink)
 		if userLink.AuthProvider == authProvider &&
 			userLink.ExternalUserID == externalUserID {
@@ -44,7 +45,7 @@ func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUser
 	}
 
 	userLinks := make([]entity.UserLink, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		userLink := rawRow.(entity.UserLink)
 		if userLink.InternalUserID == internalUserID {
 			userLinks = append(userLinks, userLink)
@@ -72,7 +73,7 @@ func (u UserLink) CreateUserLink(ct context.Context, userLink entity.UserLink) *
 		return err
 	}
 
-	table.rows = append(table.rows, userLink)
+	table.Rows = append(table.Rows, userLink)
 	return nil
 }
 
@@ -83,7 +84,7 @@ func (u UserLink) DeleteUserLink(ct context.Context, authProvider string, intern
 	}
 
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		userLink := rawRow.(entity.UserLink)
 		if userLink.AuthProvider != authProvider ||
 			userLink.InternalUserID != internalUserID {
@@ -91,11 +92,11 @@ func (u UserLink) DeleteUserLink(ct context.Context, authProvider string, intern
 		}
 	}
 
-	table.rows = rows
+	table.Rows = rows
 	return nil
 }
 
-func NewUserLink(db *InMemoryDB) UserLink {
+func NewUserLink(db *dbtest.InMemoryDB) UserLink {
 	return UserLink{
 		db: db,
 	}

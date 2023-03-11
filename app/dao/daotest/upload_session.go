@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type UploadSession struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.UploadSession = (*UploadSession)(nil)
@@ -21,7 +22,7 @@ func (u UploadSession) FindUploadSessionByID(ct context.Context, uploadSessionID
 		return entity.UploadSession{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		uploadSession := rawRow.(entity.UploadSession)
 		if uploadSession.ID == uploadSessionID {
 			return uploadSession, nil
@@ -52,7 +53,7 @@ func (u UploadSession) CreateUploadSession(ct context.Context, uploadSession ent
 		return err
 	}
 
-	table.rows = append(table.rows, uploadSession)
+	table.Rows = append(table.Rows, uploadSession)
 	return nil
 }
 
@@ -64,7 +65,7 @@ func (u UploadSession) UpdateUploadSession(ct context.Context, uploadSession ent
 
 	var updated bool
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		currUploadSession := rawRow.(entity.UploadSession)
 		if currUploadSession.ID == uploadSession.ID {
 			rows = append(rows, uploadSession)
@@ -75,7 +76,7 @@ func (u UploadSession) UpdateUploadSession(ct context.Context, uploadSession ent
 	}
 
 	if updated {
-		table.rows = rows
+		table.Rows = rows
 		return nil
 	}
 
@@ -85,7 +86,7 @@ func (u UploadSession) UpdateUploadSession(ct context.Context, uploadSession ent
 	}
 }
 
-func NewUploadSession(db *InMemoryDB) UploadSession {
+func NewUploadSession(db *dbtest.InMemoryDB) UploadSession {
 	return UploadSession{
 		db: db,
 	}

@@ -15,11 +15,3 @@ const UploadSessionTableName = "uploadSession"
 const UserGroupTableName = "userGroup"
 const UserGroupMemberTableName = "userGroupMember"
 const UserLinkTableName = "userLink"
-
-type Table struct {
-	rows []interface{}
-}
-
-func newTable() *Table {
-	return &Table{rows: []interface{}{}}
-}

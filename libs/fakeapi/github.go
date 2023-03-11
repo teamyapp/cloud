@@ -20,20 +20,20 @@ import (
 	"github.com/teamyapp/cloud/libs/web"
 )
 
-func GithubProxyRoutes(webAPIServerPort int) []networktest.ProxyRoute {
+func githubProxyRoutes(webServerPort int) []networktest.ProxyRoute {
 	return []networktest.ProxyRoute{
 		{
 			Endpoint: "github.com:80",
 			MatchTarget: func(addr net.Addr) bool {
 				return addr.Network() == "tcp" &&
-					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webAPIServerPort))
+					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webServerPort))
 			},
 		},
 		{
 			Endpoint: "api.github.com:80",
 			MatchTarget: func(addr net.Addr) bool {
 				return addr.Network() == "tcp" &&
-					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webAPIServerPort))
+					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webServerPort))
 			},
 		},
 	}
@@ -253,4 +253,32 @@ func NewGithub(dataCollector telemetry.DataCollector) *Github {
 		thirdPartyClients: map[string]*thirdPartyClient{},
 		accessTokenToUser: map[string]*GithubUser{},
 	}
+}
+
+func StartGithubServiceInstance(
+	githubWebServerPort int,
+	virtualNetwork *networktest.VirtualNetwork,
+	serviceRunner runner.ServiceRunner,
+) {
+	waitBootstrapCh := make(chan struct{})
+	cloudBackendProxyRoutes := githubProxyRoutes(githubWebServerPort)
+	go func() *errs.Error {
+		internalErr := serviceRunner.Start(func(listeners []net.Listener) *errs.Error {
+			for _, proxyRoute := range cloudBackendProxyRoutes {
+				for _, listener := range listeners {
+					if proxyRoute.MatchTarget(listener.Addr()) {
+						bindErr := virtualNetwork.BindProxyEndpoint(proxyRoute.Endpoint, listener)
+						if bindErr != nil {
+							return bindErr
+						}
+					}
+				}
+			}
+
+			waitBootstrapCh <- struct{}{}
+			return nil
+		})
+		panic(internalErr)
+	}()
+	<-waitBootstrapCh
 }

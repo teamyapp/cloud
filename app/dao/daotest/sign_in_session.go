@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type SignInSession struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.SignInSession = (*SignInSession)(nil)
@@ -21,7 +22,7 @@ func (s SignInSession) FindSignInSessionByID(ct context.Context, sessionID uint6
 		return entity.SignInSession{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		signInSession := rawRow.(entity.SignInSession)
 		if signInSession.ID == sessionID {
 			return signInSession, nil
@@ -52,7 +53,7 @@ func (s SignInSession) CreateSignInSession(ct context.Context, session entity.Si
 		return err
 	}
 
-	table.rows = append(table.rows, session)
+	table.Rows = append(table.Rows, session)
 	return nil
 }
 
@@ -64,7 +65,7 @@ func (s SignInSession) UpdateSignInSession(ct context.Context, session entity.Si
 
 	var updated bool
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		currSignInSession := rawRow.(entity.SignInSession)
 		if currSignInSession.ID == session.ID {
 			rows = append(rows, session)
@@ -75,7 +76,7 @@ func (s SignInSession) UpdateSignInSession(ct context.Context, session entity.Si
 	}
 
 	if updated {
-		table.rows = rows
+		table.Rows = rows
 		return nil
 	}
 
@@ -92,18 +93,18 @@ func (s SignInSession) DeleteSignInSession(ct context.Context, sessionID uint64)
 	}
 
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		signInSession := rawRow.(entity.SignInSession)
 		if signInSession.ID != sessionID {
 			rows = append(rows, rawRow)
 		}
 	}
 
-	table.rows = rows
+	table.Rows = rows
 	return nil
 }
 
-func NewSignInSession(db *InMemoryDB) SignInSession {
+func NewSignInSession(db *dbtest.InMemoryDB) SignInSession {
 	return SignInSession{
 		db: db,
 	}

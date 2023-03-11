@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type Resource struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.Resource = (*Resource)(nil)
@@ -21,7 +22,7 @@ func (r Resource) FindResource(ct context.Context, resourceTypeName string, reso
 		return entity.Resource{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		resource := rawRow.(entity.Resource)
 		if resource.ResourceTypeName == resourceTypeName &&
 			resource.ResourceID == resourceID {
@@ -42,7 +43,7 @@ func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, *errs
 	}
 
 	resources := make([]entity.Resource, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		resource := rawRow.(entity.Resource)
 		resources = append(resources, resource)
 	}
@@ -70,7 +71,7 @@ func (r Resource) CreateResource(ct context.Context, resource entity.Resource) *
 		return err
 	}
 
-	table.rows = append(table.rows, resource)
+	table.Rows = append(table.Rows, resource)
 	return nil
 }
 
@@ -81,7 +82,7 @@ func (r Resource) DeleteResource(ct context.Context, resourceTypeName string, re
 	}
 
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		resource := rawRow.(entity.Resource)
 		if resource.ResourceTypeName != resourceTypeName ||
 			resource.ResourceID != resourceID {
@@ -89,11 +90,11 @@ func (r Resource) DeleteResource(ct context.Context, resourceTypeName string, re
 		}
 	}
 
-	table.rows = rows
+	table.Rows = rows
 	return nil
 }
 
-func NewResource(db *InMemoryDB) Resource {
+func NewResource(db *dbtest.InMemoryDB) Resource {
 	return Resource{
 		db: db,
 	}

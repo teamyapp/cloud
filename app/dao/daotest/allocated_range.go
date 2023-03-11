@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type AllocatedRange struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.AllocatedRange = (*AllocatedRange)(nil)
@@ -21,7 +22,7 @@ func (a AllocatedRange) FindAllocatedRangeByKey(ct context.Context, key string) 
 		return entity.AllocatedRange{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		allocatedRange := rawRow.(entity.AllocatedRange)
 		if allocatedRange.Key == key {
 			return allocatedRange, nil
@@ -52,7 +53,7 @@ func (a AllocatedRange) CreateAllocatedRange(ct context.Context, allocatedRange 
 		return err
 	}
 
-	table.rows = append(table.rows, allocatedRange)
+	table.Rows = append(table.Rows, allocatedRange)
 	return nil
 }
 
@@ -64,7 +65,7 @@ func (a AllocatedRange) UpdateAllocatedRange(ct context.Context, allocatedRange 
 
 	var updated bool
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		currAllocatedRange := rawRow.(entity.AllocatedRange)
 		if currAllocatedRange.Key == allocatedRange.Key {
 			rows = append(rows, allocatedRange)
@@ -75,7 +76,7 @@ func (a AllocatedRange) UpdateAllocatedRange(ct context.Context, allocatedRange 
 	}
 
 	if updated {
-		table.rows = rows
+		table.Rows = rows
 		return nil
 	}
 
@@ -85,7 +86,7 @@ func (a AllocatedRange) UpdateAllocatedRange(ct context.Context, allocatedRange 
 	}
 }
 
-func NewAllocatedRange(db *InMemoryDB) AllocatedRange {
+func NewAllocatedRange(db *dbtest.InMemoryDB) AllocatedRange {
 	return AllocatedRange{
 		db: db,
 	}

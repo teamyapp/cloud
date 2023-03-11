@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type Operation struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.Operation = (*Operation)(nil)
@@ -21,7 +22,7 @@ func (o Operation) FindOperation(ct context.Context, resourceTypeName string, op
 		return entity.Operation{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		operation := rawRow.(entity.Operation)
 		if operation.ResourceTypeName == resourceTypeName &&
 			operation.OperationName == operationName {
@@ -42,7 +43,7 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *e
 	}
 
 	operations := make([]entity.Operation, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		operation := rawRow.(entity.Operation)
 		operations = append(operations, operation)
 	}
@@ -70,7 +71,7 @@ func (o Operation) CreateOperation(ct context.Context, operation entity.Operatio
 		return err
 	}
 
-	table.rows = append(table.rows, operation)
+	table.Rows = append(table.Rows, operation)
 	return nil
 }
 
@@ -81,7 +82,7 @@ func (o Operation) DeleteOperation(ct context.Context, resourceTypeName string, 
 	}
 
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		operation := rawRow.(entity.Operation)
 		if operation.ResourceTypeName != resourceTypeName ||
 			operation.OperationName != operationName {
@@ -89,11 +90,11 @@ func (o Operation) DeleteOperation(ct context.Context, resourceTypeName string, 
 		}
 	}
 
-	table.rows = rows
+	table.Rows = rows
 	return nil
 }
 
-func NewOperation(db *InMemoryDB) Operation {
+func NewOperation(db *dbtest.InMemoryDB) Operation {
 	return Operation{
 		db: db,
 	}

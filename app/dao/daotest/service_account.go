@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type ServiceAccount struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.ServiceAccount = (*ServiceAccount)(nil)
@@ -22,7 +23,7 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 	}
 
 	serviceAccounts := make([]entity.ServiceAccount, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		serviceAccount := rawRow.(entity.ServiceAccount)
 		if serviceAccount.OwnerUserID == accountOwnerID {
 			serviceAccounts = append(serviceAccounts, serviceAccount)
@@ -38,7 +39,7 @@ func (s ServiceAccount) FindServiceAccountByID(ct context.Context, serviceAccoun
 		return entity.ServiceAccount{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		serviceAccount := rawRow.(entity.ServiceAccount)
 		if serviceAccount.ID == serviceAccountID {
 			return serviceAccount, nil
@@ -69,7 +70,7 @@ func (s ServiceAccount) CreateServiceAccount(ct context.Context, serviceAccount 
 		return err
 	}
 
-	table.rows = append(table.rows, serviceAccount)
+	table.Rows = append(table.Rows, serviceAccount)
 	return nil
 }
 
@@ -81,7 +82,7 @@ func (s ServiceAccount) UpdateServiceAccount(ct context.Context, serviceAccount 
 
 	var updated bool
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		currServiceAccount := rawRow.(entity.ServiceAccount)
 		if currServiceAccount.ID == serviceAccount.ID {
 			rows = append(rows, serviceAccount)
@@ -92,7 +93,7 @@ func (s ServiceAccount) UpdateServiceAccount(ct context.Context, serviceAccount 
 	}
 
 	if updated {
-		table.rows = rows
+		table.Rows = rows
 		return nil
 	}
 
@@ -109,18 +110,18 @@ func (s ServiceAccount) DeleteServiceAccount(ct context.Context, serviceAccountI
 	}
 
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		serviceAccount := rawRow.(entity.ServiceAccount)
 		if serviceAccount.ID != serviceAccountID {
 			rows = append(rows, rawRow)
 		}
 	}
 
-	table.rows = rows
+	table.Rows = rows
 	return nil
 }
 
-func NewServiceAccount(db *InMemoryDB) ServiceAccount {
+func NewServiceAccount(db *dbtest.InMemoryDB) ServiceAccount {
 	return ServiceAccount{
 		db: db,
 	}

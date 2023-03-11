@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type OperationRelation struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.OperationRelation = (*OperationRelation)(nil)
@@ -27,7 +28,7 @@ func (o OperationRelation) FindOperationRelation(
 		return entity.OperationRelation{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		operationRelation := rawRow.(entity.OperationRelation)
 		if operationRelation.ChildResourceType == childResourceType &&
 			operationRelation.ChildOperation == childOperation &&
@@ -54,7 +55,7 @@ func (o OperationRelation) FindOperationRelations(ct context.Context, childResou
 	}
 
 	operationRelations := make([]entity.OperationRelation, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		operationRelation := rawRow.(entity.OperationRelation)
 		if operationRelation.ChildResourceType == childResourceType &&
 			operationRelation.ChildOperation == childOperation {
@@ -72,7 +73,7 @@ func (o OperationRelation) FindAllOperationRelations(ct context.Context) ([]enti
 	}
 
 	operationRelations := make([]entity.OperationRelation, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		operationRelation := rawRow.(entity.OperationRelation)
 		operationRelations = append(operationRelations, operationRelation)
 	}
@@ -103,7 +104,7 @@ func (o OperationRelation) CreateOperationRelation(ct context.Context, operation
 		return err
 	}
 
-	table.rows = append(table.rows, operationRelation)
+	table.Rows = append(table.Rows, operationRelation)
 	return nil
 }
 
@@ -120,7 +121,7 @@ func (o OperationRelation) DeleteOperationRelation(
 	}
 
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		operationRelation := rawRow.(entity.OperationRelation)
 		if operationRelation.ChildResourceType != childResourceType ||
 			operationRelation.ChildOperation != childOperation ||
@@ -130,11 +131,11 @@ func (o OperationRelation) DeleteOperationRelation(
 		}
 	}
 
-	table.rows = rows
+	table.Rows = rows
 	return nil
 }
 
-func NewOperationRelation(db *InMemoryDB) OperationRelation {
+func NewOperationRelation(db *dbtest.InMemoryDB) OperationRelation {
 	return OperationRelation{
 		db: db,
 	}

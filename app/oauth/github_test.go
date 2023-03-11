@@ -3,7 +3,6 @@ package oauth
 import (
 	"context"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/env"
-	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/fakeapi"
 	"github.com/teamyapp/cloud/libs/metrics"
 	"github.com/teamyapp/cloud/libs/network/networktest"
@@ -51,28 +49,7 @@ func TestGithub_GetUser(t *testing.T) {
 			return false
 		}).
 		Build()
-	waitBootstrapCh := make(chan struct{})
-	githubProxyRoutes := fakeapi.GithubProxyRoutes(runnerConfig.WebServerPort)
-	go func() {
-		internalErr := rn.Start(func(listeners []net.Listener) *errs.Error {
-			for _, proxyRoute := range githubProxyRoutes {
-				for _, listener := range listeners {
-					if proxyRoute.MatchTarget(listener.Addr()) {
-						bindErr := virtualNetwork.BindProxyEndpoint(proxyRoute.Endpoint, listener)
-						assert.Nil(t, bindErr)
-						if bindErr != nil {
-							return bindErr
-						}
-					}
-				}
-			}
-
-			waitBootstrapCh <- struct{}{}
-			return nil
-		})
-		assert.Nil(t, internalErr)
-	}()
-	<-waitBootstrapCh
+	fakeapi.StartGithubServiceInstance(runnerConfig.WebServerPort, virtualNetwork, rn)
 	httpClient := webtest.InsecureHTTPClient(virtualNetwork)
 
 	clientID := "123"

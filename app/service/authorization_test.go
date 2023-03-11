@@ -10,6 +10,7 @@ import (
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/libs/collect"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -448,7 +449,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			inMemoryDB := daotest.NewInMemoryDB()
+			inMemoryDB := dbtest.NewInMemoryDB()
 			inMemoryDB.CreateTable(daotest.OperationTableName)
 			inMemoryDB.CreateTable(daotest.ResourceTypeTableName)
 			inMemoryDB.CreateTable(daotest.ResourceTableName)
