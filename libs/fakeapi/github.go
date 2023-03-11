@@ -8,11 +8,16 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strings"
+	"time"
 
+	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/identity"
+	"github.com/teamyapp/cloud/libs/metrics"
+	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/network/networktest"
 	"github.com/teamyapp/cloud/libs/randgen"
 	"github.com/teamyapp/cloud/libs/runner"
@@ -20,24 +25,11 @@ import (
 	"github.com/teamyapp/cloud/libs/web"
 )
 
-func githubProxyRoutes(webServerPort int) []networktest.ProxyRoute {
-	return []networktest.ProxyRoute{
-		{
-			Endpoint: "github.com:80",
-			MatchTarget: func(addr net.Addr) bool {
-				return addr.Network() == "tcp" &&
-					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webServerPort))
-			},
-		},
-		{
-			Endpoint: "api.github.com:80",
-			MatchTarget: func(addr net.Addr) bool {
-				return addr.Network() == "tcp" &&
-					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webServerPort))
-			},
-		},
-	}
-}
+const githubAppName = "github"
+const githubServiceName = "backend"
+
+var githubServiceLabels = []string{githubAppName, githubServiceName}
+var githubFullServiceName = strings.Join(githubServiceLabels, "-")
 
 type thirdPartyClient struct {
 	secret             string
@@ -255,6 +247,53 @@ func NewGithub(dataCollector telemetry.DataCollector) *Github {
 	}
 }
 
+type GithubTestKit struct {
+	ServiceInstanceRunner runner.ServiceRunner
+	Refs                  GithubTestKitRefs
+}
+
+type GithubTestKitRefs struct {
+	FakeGithubAPI *Github
+}
+
+type GithubTestKitConfig struct {
+	WebServerPort  int
+	GRPCServerPort int
+}
+
+func NewGithubTestKit(cfg GithubTestKitConfig, network network.Network) GithubTestKit {
+	lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{})
+	logger := telemetry.NewLogger(lineFormatter, os.Stdout, telemetry.Off, []telemetry.LogInterceptor{})
+	dataCollector := telemetry.NewDataCollector(logger)
+	runnerConfig := runner.ServiceRunnerConfig{
+		WebServerPort:        cfg.WebServerPort,
+		GRPCServerPort:       cfg.GRPCServerPort,
+		MonitoringServerPort: 1000,
+		RequestTimeout:       10 * time.Second,
+		EnableTracing:        false,
+	}
+	fakeGithubAPI := NewGithub(dataCollector)
+	serviceRunner := runner.NewServiceRunnerBuilder(
+		dataCollector,
+		network,
+		metrics.NewPrometheus(githubAppName, githubServiceName, env.DevelopmentEnv),
+		runnerConfig,
+		githubFullServiceName,
+		[]runner.Service{
+			fakeGithubAPI,
+		}).
+		IncludeIdentityWebFunc(func(request *http.Request) bool {
+			return false
+		}).
+		Build()
+	return GithubTestKit{
+		ServiceInstanceRunner: serviceRunner,
+		Refs: GithubTestKitRefs{
+			FakeGithubAPI: fakeGithubAPI,
+		},
+	}
+}
+
 func StartGithubServiceInstance(
 	githubWebServerPort int,
 	virtualNetwork *networktest.VirtualNetwork,
@@ -281,4 +320,23 @@ func StartGithubServiceInstance(
 		panic(internalErr)
 	}()
 	<-waitBootstrapCh
+}
+
+func githubProxyRoutes(webServerPort int) []networktest.ProxyRoute {
+	return []networktest.ProxyRoute{
+		{
+			Endpoint: "github.com:80",
+			MatchTarget: func(addr net.Addr) bool {
+				return addr.Network() == "tcp" &&
+					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webServerPort))
+			},
+		},
+		{
+			Endpoint: "api.github.com:80",
+			MatchTarget: func(addr net.Addr) bool {
+				return addr.Network() == "tcp" &&
+					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webServerPort))
+			},
+		},
+	}
 }

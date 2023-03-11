@@ -47,7 +47,6 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 	lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{})
 	logger := telemetry.NewLogger(lineFormatter, os.Stdout, telemetry.Off, []telemetry.LogInterceptor{})
 	dataCollector := telemetry.NewDataCollector(logger)
-	virtualNetwork := networktest.NewVirtualNetwork()
 	runnerConfig := runner.ServiceRunnerConfig{
 		WebServerPort:        cfg.WebServerPort,
 		GRPCServerPort:       cfg.GRPCServerPort,
@@ -182,7 +181,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 
 	serviceRunner := runner.NewServiceRunnerBuilder(
 		dataCollector,
-		virtualNetwork,
+		network,
 		metrics.NewPrometheus(appName, serviceName, env.DevelopmentEnv),
 		runnerConfig,
 		fullServiceName,
