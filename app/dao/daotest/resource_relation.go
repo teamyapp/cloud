@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type ResourceRelation struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.ResourceRelation = (*ResourceRelation)(nil)
@@ -27,7 +28,7 @@ func (r ResourceRelation) FindResourceRelation(
 		return entity.ResourceRelation{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		resourceRelation := rawRow.(entity.ResourceRelation)
 		if resourceRelation.ChildResourceType == childResourceType &&
 			resourceRelation.ChildResourceID == childResourceID &&
@@ -58,7 +59,7 @@ func (r ResourceRelation) FindResourceRelations(
 	}
 
 	resourceRelations := make([]entity.ResourceRelation, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		resourceRelation := rawRow.(entity.ResourceRelation)
 		if resourceRelation.ChildResourceType == childResourceType &&
 			resourceRelation.ChildResourceID == childResourceID {
@@ -76,7 +77,7 @@ func (r ResourceRelation) FindAllResourceRelations(ct context.Context) ([]entity
 	}
 
 	resourceRelations := make([]entity.ResourceRelation, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		resourceRelation := rawRow.(entity.ResourceRelation)
 		resourceRelations = append(resourceRelations, resourceRelation)
 	}
@@ -107,7 +108,7 @@ func (r ResourceRelation) CreateResourceRelation(ct context.Context, resourceRel
 		return err
 	}
 
-	table.rows = append(table.rows, resourceRelation)
+	table.Rows = append(table.Rows, resourceRelation)
 	return nil
 }
 
@@ -124,7 +125,7 @@ func (r ResourceRelation) DeleteResourceRelation(
 	}
 
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		resourceRelation := rawRow.(entity.ResourceRelation)
 		if resourceRelation.ChildResourceType != childResourceType ||
 			resourceRelation.ChildResourceID != childResourceID ||
@@ -134,11 +135,11 @@ func (r ResourceRelation) DeleteResourceRelation(
 		}
 	}
 
-	table.rows = rows
+	table.Rows = rows
 	return nil
 }
 
-func NewResourceRelation(db *InMemoryDB) ResourceRelation {
+func NewResourceRelation(db *dbtest.InMemoryDB) ResourceRelation {
 	return ResourceRelation{
 		db: db,
 	}

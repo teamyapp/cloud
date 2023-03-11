@@ -99,7 +99,7 @@ func (s *ServiceRunner) Start(afterServicesStarted func(listeners []net.Listener
 	}
 
 	listeners = append(listeners, lis)
-	s.startMonitoringServer(&wg)
+	lis, err = s.startMonitoringServer(&wg)
 	if err != nil {
 		s.dataCollector.Logger.Error(err)
 		return err

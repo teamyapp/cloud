@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type ResourceType struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.ResourceType = (*ResourceType)(nil)
@@ -21,7 +22,7 @@ func (r ResourceType) FindResourceType(ct context.Context, resourceTypeName stri
 		return entity.ResourceType{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		resourceType := rawRow.(entity.ResourceType)
 		if resourceType.ResourceTypeName == resourceTypeName {
 			return resourceType, nil
@@ -41,7 +42,7 @@ func (r ResourceType) FindAllResourceTypes(ct context.Context) ([]entity.Resourc
 	}
 
 	resourceTypes := make([]entity.ResourceType, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		resourceType := rawRow.(entity.ResourceType)
 		resourceTypes = append(resourceTypes, resourceType)
 	}
@@ -67,7 +68,7 @@ func (r ResourceType) CreateResourceType(ct context.Context, resourceType entity
 		return err
 	}
 
-	table.rows = append(table.rows, resourceType)
+	table.Rows = append(table.Rows, resourceType)
 	return nil
 }
 
@@ -78,18 +79,18 @@ func (r ResourceType) DeleteResourceType(ct context.Context, resourceTypeName st
 	}
 
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		resourceType := rawRow.(entity.ResourceType)
 		if resourceType.ResourceTypeName != resourceTypeName {
 			rows = append(rows, rawRow)
 		}
 	}
 
-	table.rows = rows
+	table.Rows = rows
 	return nil
 }
 
-func NewResourceType(db *InMemoryDB) ResourceType {
+func NewResourceType(db *dbtest.InMemoryDB) ResourceType {
 	return ResourceType{
 		db: db,
 	}

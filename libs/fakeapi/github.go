@@ -20,20 +20,20 @@ import (
 	"github.com/teamyapp/cloud/libs/web"
 )
 
-func GithubProxyRoutes(webAPIServerPort int) []networktest.ProxyRoute {
+func GithubProxyRoutes(webServerPort int) []networktest.ProxyRoute {
 	return []networktest.ProxyRoute{
 		{
 			Endpoint: "github.com:80",
 			MatchTarget: func(addr net.Addr) bool {
 				return addr.Network() == "tcp" &&
-					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webAPIServerPort))
+					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webServerPort))
 			},
 		},
 		{
 			Endpoint: "api.github.com:80",
 			MatchTarget: func(addr net.Addr) bool {
 				return addr.Network() == "tcp" &&
-					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webAPIServerPort))
+					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webServerPort))
 			},
 		},
 	}

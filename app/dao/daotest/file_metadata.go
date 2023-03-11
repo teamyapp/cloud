@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type FileMetadata struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.FileMetadata = (*FileMetadata)(nil)
@@ -21,7 +22,7 @@ func (f FileMetadata) FindMetadataByFileID(ct context.Context, fileID uint64) (e
 		return entity.FileMetadata{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		fileMetadata := rawRow.(entity.FileMetadata)
 		if fileMetadata.ID == fileID {
 			return fileMetadata, nil
@@ -52,7 +53,7 @@ func (f FileMetadata) CreateFileMetadata(ct context.Context, metadata entity.Fil
 		return err
 	}
 
-	table.rows = append(table.rows, metadata)
+	table.Rows = append(table.Rows, metadata)
 	return nil
 }
 
@@ -64,7 +65,7 @@ func (f FileMetadata) UpdateFileMetadata(ct context.Context, metadata entity.Fil
 
 	var updated bool
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		currFileMetadata := rawRow.(entity.FileMetadata)
 		if currFileMetadata.ID == metadata.ID {
 			rows = append(rows, metadata)
@@ -75,7 +76,7 @@ func (f FileMetadata) UpdateFileMetadata(ct context.Context, metadata entity.Fil
 	}
 
 	if updated {
-		table.rows = rows
+		table.Rows = rows
 		return nil
 	}
 
@@ -85,7 +86,7 @@ func (f FileMetadata) UpdateFileMetadata(ct context.Context, metadata entity.Fil
 	}
 }
 
-func NewFileMetadata(db *InMemoryDB) FileMetadata {
+func NewFileMetadata(db *dbtest.InMemoryDB) FileMetadata {
 	return FileMetadata{
 		db: db,
 	}

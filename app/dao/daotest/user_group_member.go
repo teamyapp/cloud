@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type UserGroupMember struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.UserGroupMember = (*UserGroupMember)(nil)
@@ -22,7 +23,7 @@ func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64)
 	}
 
 	userGroupIDs := make([]uint64, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		userGroupMember := rawRow.(entity.UserGroupMember)
 		if userGroupMember.UserID == userID {
 			userGroupIDs = append(userGroupIDs, userGroupMember.GroupID)
@@ -39,7 +40,7 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID
 	}
 
 	userGroupMembers := make([]entity.UserGroupMember, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		userGroupMember := rawRow.(entity.UserGroupMember)
 		if userGroupMember.UserID == userID {
 			userGroupMembers = append(userGroupMembers, userGroupMember)
@@ -56,7 +57,7 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, group
 	}
 
 	userGroupMembers := make([]entity.UserGroupMember, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		userGroupMember := rawRow.(entity.UserGroupMember)
 		if userGroupMember.GroupID == groupID {
 			userGroupMembers = append(userGroupMembers, userGroupMember)
@@ -72,7 +73,7 @@ func (u UserGroupMember) FindUserGroupMember(ct context.Context, groupID uint64,
 		return entity.UserGroupMember{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		userGroupMember := rawRow.(entity.UserGroupMember)
 		if userGroupMember.GroupID == groupID &&
 			userGroupMember.UserID == userID {
@@ -93,7 +94,7 @@ func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.U
 	}
 
 	userGroupMembers := make([]entity.UserGroupMember, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		userGroupMember := rawRow.(entity.UserGroupMember)
 		userGroupMembers = append(userGroupMembers, userGroupMember)
 	}
@@ -119,7 +120,7 @@ func (u UserGroupMember) CreateUserGroupMember(ct context.Context, userGroupMemb
 		return err
 	}
 
-	table.rows = append(table.rows, userGroupMember)
+	table.Rows = append(table.Rows, userGroupMember)
 	return nil
 }
 
@@ -130,7 +131,7 @@ func (u UserGroupMember) DeleteUserGroupMember(ct context.Context, groupID uint6
 	}
 
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		userGroupMember := rawRow.(entity.UserGroupMember)
 		if userGroupMember.GroupID != groupID ||
 			userGroupMember.UserID != userID {
@@ -138,11 +139,11 @@ func (u UserGroupMember) DeleteUserGroupMember(ct context.Context, groupID uint6
 		}
 	}
 
-	table.rows = rows
+	table.Rows = rows
 	return nil
 }
 
-func NewUserGroupMember(db *InMemoryDB) UserGroupMember {
+func NewUserGroupMember(db *dbtest.InMemoryDB) UserGroupMember {
 	return UserGroupMember{
 		db: db,
 	}

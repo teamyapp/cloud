@@ -25,7 +25,7 @@ type File struct {
 	mapBackend         storage.MapBackend
 	uploadSessionDao   dao.UploadSession
 	fileMetadataDao    dao.FileMetadata
-	chunkDao           dao.ChunkMetadata
+	chunkMetadataDao   dao.ChunkMetadata
 	uploadSessionIDGen *gen.UniqueNumber
 	chunkIDGen         *gen.UniqueNumber
 	fileIDGen          *gen.UniqueNumber
@@ -160,7 +160,7 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 		SizeInBytes: uint64(len(chunkData)),
 		CreatedAt:   now,
 	}
-	internalErr = f.chunkDao.CreateChunkMetadata(ct, chunkMetadata)
+	internalErr = f.chunkMetadataDao.CreateChunkMetadata(ct, chunkMetadata)
 	if internalErr != nil {
 		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
@@ -313,7 +313,7 @@ func NewFile(
 	uniqueNumberFactory gen.UniqueNumberFactory,
 	uploadSessionDao dao.UploadSession,
 	fileMetadataDao dao.FileMetadata,
-	chunkDao dao.ChunkMetadata,
+	chunkMetadataDao dao.ChunkMetadata,
 ) (File, error) {
 	uploadSessionIDGen, err := uniqueNumberFactory.MakeUniqueNumber("uploadSessionID")
 	if err != nil {
@@ -338,7 +338,7 @@ func NewFile(
 		mapBackend:         mapBackend,
 		uploadSessionDao:   uploadSessionDao,
 		fileMetadataDao:    fileMetadataDao,
-		chunkDao:           chunkDao,
+		chunkMetadataDao:   chunkMetadataDao,
 		uploadSessionIDGen: uploadSessionIDGen,
 		chunkIDGen:         chunkIDGen,
 		fileIDGen:          fileIDGen,

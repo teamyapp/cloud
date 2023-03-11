@@ -1,4 +1,4 @@
-package daotest
+package dbtest
 
 import (
 	"fmt"
@@ -29,7 +29,7 @@ func (i InMemoryDB) CreateTable(name string) {
 
 func (i InMemoryDB) InitTable(name string, rows []interface{}) {
 	table := newTable()
-	table.rows = rows
+	table.Rows = rows
 	i.tables[name] = table
 }
 

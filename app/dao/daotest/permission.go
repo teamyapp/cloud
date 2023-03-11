@@ -6,11 +6,12 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type Permission struct {
-	db *InMemoryDB
+	db *dbtest.InMemoryDB
 }
 
 var _ dao.Permission = (*Permission)(nil)
@@ -21,7 +22,7 @@ func (p Permission) FindPermission(ct context.Context, query entity.PermissionQu
 		return entity.Permission{}, err
 	}
 
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		permission := rawRow.(entity.Permission)
 		if permission.ResourceType == query.ResourceType &&
 			permission.ResourceID == query.ResourceID &&
@@ -44,7 +45,7 @@ func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission,
 	}
 
 	permissions := make([]entity.Permission, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		permission := rawRow.(entity.Permission)
 		permissions = append(permissions, permission)
 	}
@@ -76,7 +77,7 @@ func (p Permission) CreatePermission(ct context.Context, permission entity.Permi
 		return err
 	}
 
-	table.rows = append(table.rows, permission)
+	table.Rows = append(table.Rows, permission)
 	return nil
 }
 
@@ -87,7 +88,7 @@ func (p Permission) DeletePermission(ct context.Context, resourceType string, re
 	}
 
 	rows := make([]interface{}, 0)
-	for _, rawRow := range table.rows {
+	for _, rawRow := range table.Rows {
 		permission := rawRow.(entity.Permission)
 		if permission.ResourceType != resourceType ||
 			permission.ResourceID != resourceID ||
@@ -97,11 +98,11 @@ func (p Permission) DeletePermission(ct context.Context, resourceType string, re
 		}
 	}
 
-	table.rows = rows
+	table.Rows = rows
 	return nil
 }
 
-func NewPermission(db *InMemoryDB) Permission {
+func NewPermission(db *dbtest.InMemoryDB) Permission {
 	return Permission{
 		db: db,
 	}
