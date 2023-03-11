@@ -37,8 +37,9 @@ type thirdPartyClient struct {
 }
 
 type GithubUser struct {
-	ID    uint64 `json:"id"`
-	Login string `json:"login"`
+	ID     uint64 `json:"id"`
+	NodeID string `json:"node_id"`
+	Login  string `json:"login"`
 }
 
 type Github struct {

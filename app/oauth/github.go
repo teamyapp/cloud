@@ -90,7 +90,7 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 	}
 
 	var body struct {
-		UserID uint64 `json:"id"`
+		NodeID string `json:"node_id"`
 		Login  string `json:"login"`
 	}
 	err = json.Unmarshal(buf, &body)
@@ -104,7 +104,7 @@ func (g GitHub) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 	}
 
 	return entity.ExternalUser{
-		ID:    strconv.FormatUint(body.UserID, 10),
+		ID:    body.NodeID,
 		Label: body.Login,
 	}, nil
 }
