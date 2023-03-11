@@ -24,21 +24,21 @@ func TestGithub_GetUser(t *testing.T) {
 	dataCollector := telemetry.NewDataCollector(logger)
 	virtualNetwork := networktest.NewVirtualNetwork()
 
-	githubKitConfig := fakeapi.GithubTestKitConfig{
+	githubTestKitConfig := fakeapi.GithubTestKitConfig{
 		WebServerPort:  80,
 		GRPCServerPort: 81,
 	}
-	cloudTestKit := fakeapi.NewGithubTestKit(githubKitConfig, virtualNetwork)
+	githubTestKit := fakeapi.NewGithubTestKit(githubTestKitConfig, virtualNetwork)
 	fakeapi.StartGithubServiceInstance(
-		githubKitConfig.WebServerPort,
+		githubTestKitConfig.WebServerPort,
 		virtualNetwork,
-		cloudTestKit.ServiceInstanceRunner)
+		githubTestKit.ServiceInstanceRunner)
 
 	httpClient := webtest.InsecureHTTPClient(virtualNetwork)
 
 	clientID := "123"
 	secret := "randomSecret"
-	fakeGithubAPI := cloudTestKit.Refs.FakeGithubAPI
+	fakeGithubAPI := githubTestKit.Refs.FakeGithubAPI
 	fakeGithubAPI.RegisterClient(clientID, secret)
 	githubUser1 := fakeapi.GithubUser{
 		ID:    1,
