@@ -1,6 +1,7 @@
 package testkit
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -47,7 +48,6 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 	lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{})
 	logger := telemetry.NewLogger(lineFormatter, os.Stdout, telemetry.Off, []telemetry.LogInterceptor{})
 	dataCollector := telemetry.NewDataCollector(logger)
-	virtualNetwork := networktest.NewVirtualNetwork()
 	runnerConfig := runner.ServiceRunnerConfig{
 		WebServerPort:        cfg.WebServerPort,
 		GRPCServerPort:       cfg.GRPCServerPort,
@@ -182,7 +182,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 
 	serviceRunner := runner.NewServiceRunnerBuilder(
 		dataCollector,
-		virtualNetwork,
+		network,
 		metrics.NewPrometheus(appName, serviceName, env.DevelopmentEnv),
 		runnerConfig,
 		fullServiceName,
@@ -235,4 +235,28 @@ func StartServiceInstance(
 		panic(internalErr)
 	}()
 	<-waitBootstrapCh
+}
+
+const WebServerHost = "web.backend.cloud"
+const WebServerPort = 80
+const GRPCServerHost = "rpc.backend.cloud"
+const GRPCServerPort = 80
+
+func proxyRoutes(webListenerPort int, gRPCListenerPort int) []networktest.ProxyRoute {
+	return []networktest.ProxyRoute{
+		{
+			Endpoint: fmt.Sprintf("%s:%d", WebServerHost, WebServerPort),
+			MatchTarget: func(addr net.Addr) bool {
+				return addr.Network() == "tcp" &&
+					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", webListenerPort))
+			},
+		},
+		{
+			Endpoint: fmt.Sprintf("%s:%d", GRPCServerHost, GRPCServerPort),
+			MatchTarget: func(addr net.Addr) bool {
+				return addr.Network() == "tcp" &&
+					strings.HasSuffix(addr.String(), fmt.Sprintf(":%d", gRPCListenerPort))
+			},
+		},
+	}
 }

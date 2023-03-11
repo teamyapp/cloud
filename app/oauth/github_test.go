@@ -8,15 +8,11 @@ import (
 	"os"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/fakeapi"
-	"github.com/teamyapp/cloud/libs/metrics"
 	"github.com/teamyapp/cloud/libs/network/networktest"
-	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
 	"github.com/teamyapp/cloud/libs/web/webtest"
@@ -28,32 +24,21 @@ func TestGithub_GetUser(t *testing.T) {
 	dataCollector := telemetry.NewDataCollector(logger)
 	virtualNetwork := networktest.NewVirtualNetwork()
 
-	runnerConfig := runner.ServiceRunnerConfig{
-		WebServerPort:        80,
-		GRPCServerPort:       81,
-		MonitoringServerPort: 82,
-		RequestTimeout:       10 * time.Second,
-		EnableTracing:        false,
+	githubKitConfig := fakeapi.GithubTestKitConfig{
+		WebServerPort:  80,
+		GRPCServerPort: 81,
 	}
-	fakeGithubAPI := fakeapi.NewGithub(dataCollector)
-	rn := runner.NewServiceRunnerBuilder(
-		dataCollector,
+	cloudTestKit := fakeapi.NewGithubTestKit(githubKitConfig, virtualNetwork)
+	fakeapi.StartGithubServiceInstance(
+		githubKitConfig.WebServerPort,
 		virtualNetwork,
-		metrics.NewPrometheus("Github", "APIs", env.DevelopmentEnv),
-		runnerConfig,
-		"Github APIs",
-		[]runner.Service{
-			fakeGithubAPI,
-		}).
-		IncludeIdentityWebFunc(func(request *http.Request) bool {
-			return false
-		}).
-		Build()
-	fakeapi.StartGithubServiceInstance(runnerConfig.WebServerPort, virtualNetwork, rn)
+		cloudTestKit.ServiceInstanceRunner)
+
 	httpClient := webtest.InsecureHTTPClient(virtualNetwork)
 
 	clientID := "123"
 	secret := "randomSecret"
+	fakeGithubAPI := cloudTestKit.Refs.FakeGithubAPI
 	fakeGithubAPI.RegisterClient(clientID, secret)
 	githubUser1 := fakeapi.GithubUser{
 		ID:    1,
