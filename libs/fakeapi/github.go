@@ -247,12 +247,12 @@ func NewGithub(dataCollector telemetry.DataCollector) *Github {
 	}
 }
 
-type TestKit struct {
+type GithubTestKit struct {
 	ServiceInstanceRunner runner.ServiceRunner
-	Refs                  Refs
+	Refs                  GithubTestKitRefs
 }
 
-type Refs struct {
+type GithubTestKitRefs struct {
 	FakeGithubAPI *Github
 }
 
@@ -261,7 +261,7 @@ type GithubTestKitConfig struct {
 	GRPCServerPort int
 }
 
-func NewGithubTestKit(cfg GithubTestKitConfig, network network.Network) TestKit {
+func NewGithubTestKit(cfg GithubTestKitConfig, network network.Network) GithubTestKit {
 	lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{})
 	logger := telemetry.NewLogger(lineFormatter, os.Stdout, telemetry.Off, []telemetry.LogInterceptor{})
 	dataCollector := telemetry.NewDataCollector(logger)
@@ -286,9 +286,9 @@ func NewGithubTestKit(cfg GithubTestKitConfig, network network.Network) TestKit 
 			return false
 		}).
 		Build()
-	return TestKit{
+	return GithubTestKit{
 		ServiceInstanceRunner: serviceRunner,
-		Refs: Refs{
+		Refs: GithubTestKitRefs{
 			FakeGithubAPI: fakeGithubAPI,
 		},
 	}
