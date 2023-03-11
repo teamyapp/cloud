@@ -2,11 +2,11 @@ package oauth
 
 import (
 	"context"
+	"encoding/base64"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,9 +40,11 @@ func TestGithub_GetUser(t *testing.T) {
 	secret := "randomSecret"
 	fakeGithubAPI := githubTestKit.Refs.FakeGithubAPI
 	fakeGithubAPI.RegisterClient(clientID, secret)
+	user1NodeID := base64.StdEncoding.EncodeToString([]byte("04:User1"))
 	githubUser1 := fakeapi.GithubUser{
-		ID:    1,
-		Login: "Test",
+		ID:     1,
+		NodeID: user1NodeID,
+		Login:  "Test",
 	}
 	fakeGithubAPI.RegisterUser(&githubUser1)
 	githubOAuth := NewGitHub(dataCollector, httpClient, "http://localhost", clientID, secret)
@@ -111,7 +113,7 @@ func TestGithub_GetUser(t *testing.T) {
 	}
 
 	expectedExternalUser := entity.ExternalUser{
-		ID:    strconv.FormatUint(githubUser1.ID, 10),
+		ID:    githubUser1.NodeID,
 		Label: githubUser1.Login,
 	}
 	assert.Equal(t, expectedExternalUser, externalUser)
