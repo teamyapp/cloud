@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const maxStackDepth = 100
+
 type frame struct {
 	FunctionName string
 	FileName     string
@@ -25,17 +27,17 @@ func (f frame) String() string {
 	return fmt.Sprintf("%v:%v %v", f.FileName, f.LineNumber, f.shortFunctionName())
 }
 
-type stackTrace struct {
+type StackTrace struct {
 	frames []frame
 }
 
-var _ json.Marshaler = (*stackTrace)(nil)
+var _ json.Marshaler = (*StackTrace)(nil)
 
-func (s stackTrace) MarshalJSON() ([]byte, error) {
+func (s StackTrace) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
 }
 
-func (s stackTrace) String() string {
+func (s StackTrace) String() string {
 	var frameLines []string
 	for _, fm := range s.frames {
 		frameLines = append(frameLines, fm.String())
@@ -44,7 +46,7 @@ func (s stackTrace) String() string {
 	return strings.Join(frameLines, "\n")
 }
 
-func newStackTrace(maxStackSize int, skipCallers int) stackTrace {
+func newStackTrace(maxStackSize int, skipCallers int) StackTrace {
 	callers := make([]uintptr, maxStackSize)
 
 	// skip runtime.Callers and newStackTrace
@@ -66,5 +68,5 @@ func newStackTrace(maxStackSize int, skipCallers int) stackTrace {
 		})
 	}
 
-	return stackTrace{frames: frames}
+	return StackTrace{frames: frames}
 }
