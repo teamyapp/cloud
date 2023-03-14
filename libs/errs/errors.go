@@ -34,29 +34,45 @@ const (
 )
 
 type Error struct {
-	Code     ErrorCode
-	EmbedErr error
-	Message  string
+	Code ErrorCode
+	// Deprecated: EmbedErr is duplicate with Message and should not be used anymore.
+	EmbedErr   error
+	Message    string
+	stackTrace *StackTrace
 }
 
 var _ json.Marshaler = (*Error)(nil)
 
+func NewError(code ErrorCode, message string) Error {
+	stackTrace := newStackTrace(maxStackDepth, 1)
+	return Error{
+		Code:       code,
+		Message:    message,
+		stackTrace: &stackTrace,
+	}
+}
+
 func (e Error) MarshalJSON() ([]byte, error) {
-	fields := map[string]string{
-		"Code":     string(e.Code),
-		"Message":  e.Message,
-		"EmbedErr": formatErr(e.EmbedErr),
+	fields := map[string]interface{}{
+		"Code":       e.Code,
+		"Message":    e.Message,
+		"EmbedErr":   formatErr(e.EmbedErr),
+		"StackTrace": e.stackTrace,
 	}
 
 	return json.Marshal(fields)
 }
 
+func (e Error) StackTrace() *StackTrace {
+	return e.stackTrace
+}
+
 func (e Error) String() string {
-	return fmt.Sprintf("[Code=%v Message=%v EmbedErr=%v]", e.Code, e.Message, formatErr(e.EmbedErr))
+	return fmt.Sprintf("[Code=%v Message=%v EmbedErr=%v, StackTrace=%v]", e.Code, e.Message, formatErr(e.EmbedErr), e.stackTrace)
 }
 
 func (e Error) ToError() error {
-	return fmt.Errorf("[Code=%v Message=%v EmbedErr=%v]", e.Code, e.Message, formatErr(e.EmbedErr))
+	return fmt.Errorf("[Code=%v Message=%v EmbedErr=%v, StackTrace=%v]", e.Code, e.Message, formatErr(e.EmbedErr), e.stackTrace)
 }
 
 func MergeErrs(errs []*Error) *Error {
