@@ -34,7 +34,8 @@ const (
 )
 
 type Error struct {
-	Code       ErrorCode
+	Code ErrorCode
+	// Deprecated: EmbedErr is duplicate with Message and should not be used anymore.
 	EmbedErr   error
 	Message    string
 	stackTrace *StackTrace
