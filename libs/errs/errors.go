@@ -45,12 +45,11 @@ var _ json.Marshaler = (*Error)(nil)
 
 func NewError(code ErrorCode, message string) *Error {
 	stackTrace := newStackTrace(maxStackDepth, 1)
-	internalErr := Error{
+	return &Error{
 		Code:       code,
 		Message:    message,
 		stackTrace: &stackTrace,
 	}
-	return &internalErr
 }
 
 func (e Error) MarshalJSON() ([]byte, error) {
