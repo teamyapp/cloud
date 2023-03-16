@@ -43,13 +43,14 @@ type Error struct {
 
 var _ json.Marshaler = (*Error)(nil)
 
-func NewError(code ErrorCode, message string) Error {
+func NewError(code ErrorCode, message string) *Error {
 	stackTrace := newStackTrace(maxStackDepth, 1)
-	return Error{
+	internalErr := Error{
 		Code:       code,
 		Message:    message,
 		stackTrace: &stackTrace,
 	}
+	return &internalErr
 }
 
 func (e Error) MarshalJSON() ([]byte, error) {
