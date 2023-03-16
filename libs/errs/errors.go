@@ -43,9 +43,9 @@ type Error struct {
 
 var _ json.Marshaler = (*Error)(nil)
 
-func NewError(code ErrorCode, message string) Error {
+func NewError(code ErrorCode, message string) *Error {
 	stackTrace := newStackTrace(maxStackDepth, 1)
-	return Error{
+	return &Error{
 		Code:       code,
 		Message:    message,
 		stackTrace: &stackTrace,
