@@ -40,26 +40,17 @@ func GetFromHTTPErr(response *http.Response) *Error {
 
 	buf, err := io.ReadAll(response.Body)
 	if err != nil {
-		return &Error{
-			Code:     Unknown,
-			EmbedErr: err,
-		}
+		return NewErrorSkipCallers(Unknown, err.Error(), 1)
 	}
 
 	errRes := errorResponse{}
 	err = json.Unmarshal(buf, &errRes)
 	if err != nil {
-		return &Error{
-			Code:     Unknown,
-			EmbedErr: err,
-		}
+		return NewErrorSkipCallers(Unknown, err.Error(), 1)
 	}
 
 	response.Body = io.NopCloser(bytes.NewBuffer(buf))
-	return &Error{
-		Code:    errRes.Code,
-		Message: errRes.Message,
-	}
+	return NewErrorSkipCallers(errRes.Code, errRes.Message, 1)
 }
 
 func SetHTTPErr(err *Error, responseWriter http.ResponseWriter) {

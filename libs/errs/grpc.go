@@ -47,16 +47,10 @@ func FromGRPCErr(err error) *Error {
 	message := st.Message()
 	gRPCErrCode, ok := fromGRPCErrCode[st.Code()]
 	if !ok {
-		return &Error{
-			Code:    Unknown,
-			Message: message,
-		}
+		return NewErrorSkipCallers(Unknown, message, 1)
 	}
 
-	return &Error{
-		Code:    gRPCErrCode,
-		Message: message,
-	}
+	return NewErrorSkipCallers(gRPCErrCode, message, 1)
 }
 
 func ToGRPCErr(err *Error) error {

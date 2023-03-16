@@ -25,35 +25,51 @@ type Logger struct {
 
 func (l Logger) Fatal(err *errs.Error) {
 	props := Props{
-		CauseProp:      err,
-		StackTraceProp: newStackTrace(maxStackDepth, 1),
+		CauseProp: err,
 	}
+	// TODO(yuhang): remove this after we migrate to new constructor in all places
+	if err.StackTrace() == nil {
+		props[StackTraceProp] = newStackTrace(maxStackDepth, 1)
+	}
+
 	l.log(Fatal, props, 1)
 	panic(err)
 }
 
 func (l Logger) FatalWithContext(ct context.Context, err *errs.Error) {
 	props := Props{
-		CauseProp:      err,
-		StackTraceProp: newStackTrace(maxStackDepth, 1),
+		CauseProp: err,
 	}
+	// TODO(yuhang): remove this after we migrate to new constructor in all places
+	if err.StackTrace() == nil {
+		props[StackTraceProp] = newStackTrace(maxStackDepth, 1)
+	}
+
 	l.logWithContext(ct, Fatal, props, 1)
 	panic(err)
 }
 
 func (l Logger) Error(err *errs.Error) {
 	props := Props{
-		CauseProp:      err,
-		StackTraceProp: newStackTrace(maxStackDepth, 1),
+		CauseProp: err,
 	}
+	// TODO(yuhang): remove this after we migrate to new constructor in all places
+	if err.StackTrace() == nil {
+		props[StackTraceProp] = newStackTrace(maxStackDepth, 1)
+	}
+
 	l.log(Error, props, 1)
 }
 
 func (l Logger) ErrorWithContext(ct context.Context, err *errs.Error) {
 	props := Props{
-		CauseProp:      err,
-		StackTraceProp: newStackTrace(maxStackDepth, 1),
+		CauseProp: err,
 	}
+	// TODO(yuhang): remove this after we migrate to new constructor in all places
+	if err.StackTrace() == nil {
+		props[StackTraceProp] = newStackTrace(maxStackDepth, 1)
+	}
+
 	l.logWithContext(ct, Error, props, 1)
 }
 
