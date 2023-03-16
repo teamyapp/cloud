@@ -27,6 +27,7 @@ func (l Logger) Fatal(err *errs.Error) {
 	props := Props{
 		CauseProp: err,
 	}
+	// TODO(yuhang): remove this after we migrate to new constructor in all places
 	if err.StackTrace() == nil {
 		props[StackTraceProp] = newStackTrace(maxStackDepth, 1)
 	}
@@ -39,6 +40,7 @@ func (l Logger) FatalWithContext(ct context.Context, err *errs.Error) {
 	props := Props{
 		CauseProp: err,
 	}
+	// TODO(yuhang): remove this after we migrate to new constructor in all places
 	if err.StackTrace() == nil {
 		props[StackTraceProp] = newStackTrace(maxStackDepth, 1)
 	}
@@ -51,6 +53,7 @@ func (l Logger) Error(err *errs.Error) {
 	props := Props{
 		CauseProp: err,
 	}
+	// TODO(yuhang): remove this after we migrate to new constructor in all places
 	if err.StackTrace() == nil {
 		props[StackTraceProp] = newStackTrace(maxStackDepth, 1)
 	}
@@ -62,6 +65,7 @@ func (l Logger) ErrorWithContext(ct context.Context, err *errs.Error) {
 	props := Props{
 		CauseProp: err,
 	}
+	// TODO(yuhang): remove this after we migrate to new constructor in all places
 	if err.StackTrace() == nil {
 		props[StackTraceProp] = newStackTrace(maxStackDepth, 1)
 	}
