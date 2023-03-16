@@ -12,8 +12,8 @@ func (r ResolverError) Error() string {
 
 func (r ResolverError) Extensions() map[string]interface{} {
 	return map[string]interface{}{
-		"code":     r.err.Code,
-		"embedErr": r.err.EmbedErr,
+		"code":    r.err.Code,
+		"message": r.err.Message,
 	}
 }
 

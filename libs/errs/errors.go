@@ -52,6 +52,15 @@ func NewError(code ErrorCode, message string) *Error {
 	}
 }
 
+func NewErrorSkipCallers(code ErrorCode, message string, skipCallers int) *Error {
+	stackTrace := newStackTrace(maxStackDepth, skipCallers+1)
+	return &Error{
+		Code:       code,
+		Message:    message,
+		stackTrace: &stackTrace,
+	}
+}
+
 func (e Error) MarshalJSON() ([]byte, error) {
 	fields := map[string]interface{}{
 		"Code":       e.Code,
