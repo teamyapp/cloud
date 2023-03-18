@@ -5,7 +5,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/teamyapp/cloud/libs/env"
-	"github.com/teamyapp/cloud/libs/middleware"
 )
 
 type Prometheus struct {
@@ -19,10 +18,7 @@ type Prometheus struct {
 	grpcOutgoingResponseTimeMetric *prometheus.HistogramVec
 }
 
-var _ middleware.ServerHTTPMetrics = (*Prometheus)(nil)
-var _ middleware.ClientHTTPMetrics = (*Prometheus)(nil)
-var _ middleware.ServerGRPCMetrics = (*Prometheus)(nil)
-var _ middleware.ClientGRPCMetrics = (*Prometheus)(nil)
+var _ Metrics = (*Prometheus)(nil)
 
 func (p Prometheus) ReportHTTPIncomingRequest(method string, pattern string) {
 	p.httpIncomingRequestCountMetric.WithLabelValues(method, pattern).Inc()

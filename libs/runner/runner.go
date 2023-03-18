@@ -219,7 +219,7 @@ func (s *ServiceRunner) WithGRPCServer(withGRPCServer func(server *grpc.Server))
 type ServiceRunnerBuilder struct {
 	dataCollector                   telemetry.DataCollector
 	network                         network.Network
-	prometheus                      metrics.Prometheus
+	metrics                         metrics.Metrics
 	config                          ServiceRunnerConfig
 	serviceName                     string
 	services                        []Service
@@ -252,14 +252,14 @@ func (s *ServiceRunnerBuilder) GetClientHTTPRequestPatternFunc(
 func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 	rawHttpClient := web.NewHTTPClient(s.network)
 	httpClientMiddlewares := []middleware.Middleware[web.HTTPClient]{
-		middleware.ClientHTTPWithMetrics(s.prometheus, s.getClientHTTPRequestPatternFunc),
+		middleware.ClientHTTPWithMetrics(s.metrics, s.getClientHTTPRequestPatternFunc),
 		middleware.ClientHTTPWithOpenTelemetry(s.getClientHTTPRequestPatternFunc),
 		middleware.ClientHTTPWithRequestID(s.dataCollector),
 	}
 	httpClient := middleware.WithMiddlewares[web.HTTPClient](rawHttpClient, httpClientMiddlewares)
 	webRouter := chi.NewRouter()
 	httpServerMiddlewares := []middleware.Middleware[http.HandlerFunc]{
-		middleware.ServerHTTPWithMetrics(s.prometheus, getClientHTTPRequestPatternFunc),
+		middleware.ServerHTTPWithMetrics(s.metrics, getClientHTTPRequestPatternFunc),
 		middleware.ServerHTTPWithOpenTelemetry(s.dataCollector, getClientHTTPRequestPatternFunc),
 		middleware.ServerHTTPEnableCORS,
 		middleware.ServerHTTPWithRequestID(s.dataCollector),
@@ -288,7 +288,7 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 		webRouter:     webRouter,
 		gRPCServer: grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
-				middleware.ServerGRPCWithMetrics(s.prometheus),
+				middleware.ServerGRPCWithMetrics(s.metrics),
 				middleware.ServerGRPCUnaryWithOpenTelemetry(),
 				middleware.ServerGRPCWithTimeout(s.config.RequestTimeout),
 				middleware.ServerGRPCWithRequestID(s.dataCollector),
@@ -307,7 +307,7 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 func NewServiceRunnerBuilder(
 	dataCollector telemetry.DataCollector,
 	network network.Network,
-	prometheus metrics.Prometheus,
+	metrics metrics.Metrics,
 	config ServiceRunnerConfig,
 	serviceName string,
 	services []Service,
@@ -315,7 +315,7 @@ func NewServiceRunnerBuilder(
 	return &ServiceRunnerBuilder{
 		dataCollector: dataCollector,
 		network:       network,
-		prometheus:    prometheus,
+		metrics:       metrics,
 		config:        config,
 		serviceName:   serviceName,
 		services:      services,
