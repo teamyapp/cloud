@@ -13,9 +13,8 @@ import (
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/app/storage/storagetest"
 	"github.com/teamyapp/cloud/libs/dbtest"
-	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/metrics"
+	"github.com/teamyapp/cloud/libs/metrics/metricstest"
 	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/network/networktest"
 	"github.com/teamyapp/cloud/libs/runner"
@@ -182,7 +181,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 	serviceRunner := runner.NewServiceRunnerBuilder(
 		dataCollector,
 		network,
-		metrics.NewPrometheus(appName, serviceName, env.DevelopmentEnv),
+		metricstest.NewNoopMetrics(),
 		runnerConfig,
 		fullServiceName,
 		[]runner.Service{
