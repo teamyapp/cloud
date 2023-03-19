@@ -55,9 +55,10 @@ func ClientHTTPWithRetry(dataCollector telemetry.DataCollector, retry retry.Retr
 
 }
 
-func ClientGRPCWithRetry(retry retry.Retry) grpc.UnaryClientInterceptor {
+func ClientGRPCWithRetry(makeRetry func() retry.Retry) grpc.UnaryClientInterceptor {
 	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		_, err := retry.WithRetry(func() *errs.Error {
+		newRetry := makeRetry()
+		_, err := newRetry.WithRetry(func() *errs.Error {
 			return errs.FromGRPCErr(invoker(ct, method, req, reply, cc, opts...))
 		})
 		return errs.ToGRPCErr(err)
