@@ -301,10 +301,10 @@ func StartGithubServiceInstance(
 	serviceRunner runner.ServiceRunner,
 ) {
 	waitBootstrapCh := make(chan struct{})
-	cloudBackendProxyRoutes := githubProxyRoutes(githubWebServerPort)
+	proxyRoutes := githubProxyRoutes(githubWebServerPort)
 	go func() *errs.Error {
 		internalErr := serviceRunner.Start(func(listeners []net.Listener) *errs.Error {
-			for _, proxyRoute := range cloudBackendProxyRoutes {
+			for _, proxyRoute := range proxyRoutes {
 				for _, listener := range listeners {
 					if proxyRoute.MatchTarget(listener.Addr()) {
 						bindErr := virtualNetwork.BindProxyEndpoint(proxyRoute.Endpoint, listener)
