@@ -28,7 +28,7 @@ func NewClientConnection(
 	network network.Network,
 	clientGRPCMetrics middleware.ClientGRPCMetrics,
 	cfg ConnectionConfig,
-	retry retry.Retry,
+	makeRetry func() retry.Retry,
 ) (*grpc.ClientConn, error) {
 	var cred credentials.TransportCredentials
 	if cfg.ShouldEncrypt {
@@ -43,7 +43,7 @@ func NewClientConnection(
 		grpc.WithChainUnaryInterceptor(
 			middleware.ClientGRPCWithMetrics(clientGRPCMetrics),
 			middleware.ClientGRPCUnaryWithOpenTelemetry(),
-			middleware.ClientGRPCWithRetry(retry),
+			middleware.ClientGRPCWithRetry(makeRetry),
 			middleware.ClientGRPCWithRequestID(dataCollector),
 			middleware.ClientGRPCWithTimout(cfg.RequestTimeout),
 			middleware.ClientGRPCWithIdentity(cfg.GetAccessToken),

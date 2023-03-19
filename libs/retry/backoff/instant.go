@@ -17,6 +17,6 @@ func (i *Instant) Delay() time.Duration {
 	return 0
 }
 
-func NewInstant() Instant {
-	return Instant{}
+func NewInstant() *Instant {
+	return &Instant{}
 }
