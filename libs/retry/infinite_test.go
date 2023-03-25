@@ -112,7 +112,7 @@ func TestInfinite(t *testing.T) {
 			retry := 1
 			for retry <= testCase.sleepAwakeLoop {
 				<-beforeThreadSleepChan
-				assert.Equal(t, count, retry)
+				assert.Equal(t, retry, count)
 				assert.Equal(t, testCase.durations[retry-1], currDuration)
 				runtime.Awake()
 				retry++
