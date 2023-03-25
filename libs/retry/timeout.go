@@ -1,63 +1,96 @@
 package retry
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type Timeout struct {
+	dataCollector    telemetry.DataCollector
+	shortBackOff     backoff.BackOff
+	longBackOff      backoff.BackOff
 	runtime          runtime.Runtime
 	clock            runtime.Clock
-	backoff          backoff.BackOff
 	timeout          time.Duration
-	beforeRetryDelay func()
+	beforeRetryDelay *func()
+	beforeSkipRetry  *func()
 }
 
 var _ Retry = (*Timeout)(nil)
 
-func (t Timeout) WithRetry(execute func() *errs.Error) (int, *errs.Error) {
+func (t Timeout) WithRetry(ct context.Context, execute func() *errs.Error) (int, *errs.Error) {
 	timeoutAt := t.clock.Now().Add(t.timeout)
 	var retryCount int
 	var err *errs.Error
 	for {
 		err = execute()
+		retryCount++
 		if err == nil {
-			t.backoff.OnSuccess()
+			t.shortBackOff.OnSuccess()
+			t.longBackOff.OnSuccess()
 			break
 		}
 
 		if t.beforeRetryDelay != nil {
-			t.beforeRetryDelay()
+			(*t.beforeRetryDelay)()
 		}
 
-		t.backoff.OnFailure()
-		expectTime := t.clock.Now().Add(t.backoff.Delay())
-		if !expectTime.Before(timeoutAt) {
-			retryCount++
-			break
-		}
+		t.dataCollector.Logger.ErrorWithContext(ct, err)
+		category := errs.GetErrorCategory(err.Code)
+		t.dataCollector.Logger.WarningWithContext(ct, fmt.Sprintf("Err category: %s", category))
 
-		t.runtime.Sleep(t.backoff.Delay())
-		retryCount++
+		switch category {
+		case errs.ClientInteraction:
+			if t.beforeSkipRetry != nil {
+				(*t.beforeSkipRetry)()
+			}
+
+			return retryCount, err
+		case errs.Transient:
+			t.shortBackOff.OnFailure()
+			expectTime := t.clock.Now().Add(t.shortBackOff.Delay())
+			if !expectTime.Before(timeoutAt) {
+				return retryCount, err
+			}
+
+			t.runtime.Sleep(t.shortBackOff.Delay())
+		case errs.Outage:
+			t.longBackOff.OnFailure()
+			expectTime := t.clock.Now().Add(t.longBackOff.Delay())
+			if !expectTime.Before(timeoutAt) {
+				return retryCount, err
+			}
+
+			t.runtime.Sleep(t.longBackOff.Delay())
+		}
 	}
 
 	return retryCount, err
 }
 
 func NewTimeout(
+	dataCollector telemetry.DataCollector,
+	shortBackOff backoff.BackOff,
+	longBackOff backoff.BackOff,
 	runtime runtime.Runtime,
-	backoff backoff.BackOff,
 	clock runtime.Clock,
 	timeout time.Duration,
-	beforeRetryDelay func()) Timeout {
+	beforeRetryDelay *func(),
+	beforeSkipRetry *func()) Timeout {
 	return Timeout{
+		dataCollector:    dataCollector,
+		shortBackOff:     shortBackOff,
+		longBackOff:      longBackOff,
 		runtime:          runtime,
-		backoff:          backoff,
 		clock:            clock,
 		timeout:          timeout,
 		beforeRetryDelay: beforeRetryDelay,
+		beforeSkipRetry:  beforeSkipRetry,
 	}
 }

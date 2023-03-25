@@ -1,23 +1,51 @@
 package retry
 
 import (
+	"context"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/teamyapp/cloud/libs/errs"
+	"github.com/teamyapp/cloud/libs/randgen/randgen_test"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 func TestInfinite(t *testing.T) {
+	var transientTimeoutErr errs.ErrorCode = errs.Timeout
+	var clientInteractionAlreadyExistsErr errs.ErrorCode = errs.AlreadyExists
+	var outageUnimplementedErr errs.ErrorCode = errs.Unimplemented
+
 	testCases := []struct {
-		name    string
-		retries int
+		name           string
+		errCodes       [](*errs.ErrorCode)
+		durations      []time.Duration
+		resRetries     int
+		resErr         *errs.Error
+		sleepAwakeLoop int
 	}{
 		{
-			name:    "Should retry until succeed",
-			retries: 10,
+			name:     "Stop retry with ClientInteraction err category",
+			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &clientInteractionAlreadyExistsErr},
+			durations: []time.Duration{
+				401000000, 501000000, 501000000,
+			},
+			resRetries:     3,
+			resErr:         &errs.Error{Code: errs.InvalidArgument},
+			sleepAwakeLoop: 2,
+		},
+		{
+			name:     "Should retry until succeed with Transient and Outage err categories",
+			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &transientTimeoutErr, &outageUnimplementedErr, nil},
+			durations: []time.Duration{
+				401000000, 501000000, 801000000, 1001000000, 1001000000,
+			},
+			resRetries:     5,
+			resErr:         nil,
+			sleepAwakeLoop: 4,
 		},
 	}
 
@@ -25,9 +53,17 @@ func TestInfinite(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
+			randGen := randgen_test.NewBuiltinRanGen([]int{1})
 			beforeThreadSleepChan := make(chan bool)
-			backoff := backoff.NewExponentialBuilder().Build()
+			shortBackOff := backoff.NewExponentialBuilder().RandGenerator(randGen).Build()
+			longBackOff := backoff.NewExponentialBuilder().
+				RandGenerator(randGen).
+				MinDelay(250 * time.Millisecond).
+				ResetOnSuccess(true).
+				Build()
+			var curD time.Duration
 			runtime := runtime_test.NewTestRuntime(func(d time.Duration) {
+				curD = d
 				beforeThreadSleepChan <- true
 			})
 
@@ -35,27 +71,39 @@ func TestInfinite(t *testing.T) {
 			execute := func() *errs.Error {
 				prevCount := count
 				count++
-				if prevCount < testCase.retries {
+				if prevCount < testCase.resRetries {
+					if testCase.errCodes[prevCount] == nil {
+						return nil
+					}
+
 					return &errs.Error{
-						Code: errs.Unknown,
+						Code: *testCase.errCodes[prevCount],
 					}
 				}
 
 				return nil
 			}
-			infiniteExecutor := NewInfinite(runtime, backoff)
+
+			ct := context.Background()
+			lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{})
+			logger := telemetry.NewLogger(lineFormatter, os.Stdout, telemetry.Off, []telemetry.LogInterceptor{})
+			beforeSkipRetry := func() {
+				beforeThreadSleepChan <- true
+			}
+			infiniteExecutor := NewInfinite(telemetry.NewDataCollector(logger), runtime, shortBackOff, longBackOff, &beforeSkipRetry)
 
 			go func() {
-				retries, err := infiniteExecutor.WithRetry(execute)
+				retries, err := infiniteExecutor.WithRetry(ct, execute)
 
-				assert.Equal(t, retries, testCase.retries)
-				assert.Equal(t, (*errs.Error)(nil), err)
+				assert.Equal(t, retries, testCase.resRetries)
+				assert.Equal(t, testCase.resErr, err)
 			}()
 
 			retry := 1
-			for retry <= testCase.retries {
+			for retry <= testCase.sleepAwakeLoop {
 				<-beforeThreadSleepChan
 				assert.Equal(t, count, retry)
+				assert.Equal(t, curD, testCase.durations[retry-1])
 				runtime.Awake()
 				retry++
 			}

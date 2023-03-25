@@ -1,6 +1,8 @@
 package retry
 
 import (
+	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -9,95 +11,133 @@ import (
 	"github.com/teamyapp/cloud/libs/randgen/randgen_test"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 func TestTimeout(t *testing.T) {
-
+	var transientTimeoutErr errs.ErrorCode = errs.Timeout
+	var clientInteractionAlreadyExistsErr errs.ErrorCode = errs.AlreadyExists
+	var outageUnimplementedErr errs.ErrorCode = errs.Unimplemented
+	currentTime := time.Now()
+	testClock := runtime_test.NewTestClock(currentTime)
 	testCases := []struct {
-		name             string
-		timeout          time.Duration
-		err              *errs.Error
-		awaits           int
-		randomInts       []int
-		minDelay         time.Duration
-		maxDelay         time.Duration
-		scalingFactor    int
-		randomOffset     int
-		randomOffsetUnit time.Duration
+		name            string
+		errCodes        [](*errs.ErrorCode)
+		durations       []time.Duration
+		timeout         time.Duration
+		executeDuration []time.Duration
+		resRetries      int
+		resErr          *errs.Error
+		sleepAwakeLoop  int
 	}{
-
 		{
-			name:             "Should succeed before reaching timeout",
-			timeout:          19,
-			err:              nil,
-			awaits:           2,
-			randomInts:       []int{1},
-			minDelay:         2,
-			maxDelay:         60,
-			scalingFactor:    2,
-			randomOffset:     10,
-			randomOffsetUnit: time.Nanosecond,
+			name:     "Stop retry with ClientInteraction err category",
+			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &clientInteractionAlreadyExistsErr},
+			durations: []time.Duration{
+				401000000, 501000000, 501000000,
+			},
+			timeout:         10 * time.Second,
+			executeDuration: []time.Duration{2, 3, 4},
+			resRetries:      3,
+			resErr:          &errs.Error{Code: errs.InvalidArgument},
+			sleepAwakeLoop:  2,
 		},
 		{
-			name:             "Should get error when reaching timeout",
-			timeout:          18,
-			err:              &errs.Error{Code: errs.Serialization},
-			awaits:           1,
-			randomInts:       []int{1},
-			minDelay:         2,
-			maxDelay:         60,
-			scalingFactor:    2,
-			randomOffset:     10,
-			randomOffsetUnit: time.Nanosecond,
+			name:     "Succeed before reaching max timeout",
+			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, nil},
+			durations: []time.Duration{
+				401000000, 501000000, 501000000,
+			},
+			timeout:         10 * time.Second,
+			executeDuration: []time.Duration{2, 3, 4},
+			resRetries:      3,
+			resErr:          nil,
+			sleepAwakeLoop:  2,
+		},
+		{
+			name:     "Not Succeed, max timeout reached",
+			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &transientTimeoutErr},
+			durations: []time.Duration{
+				401000000, 501000000, 501000000,
+			},
+			timeout:         10 * time.Second,
+			executeDuration: []time.Duration{2 * time.Second, 3 * time.Second, 4 * time.Second},
+			resRetries:      3,
+			resErr:          &errs.Error{Code: transientTimeoutErr},
+			sleepAwakeLoop:  2,
 		},
 	}
 
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
-			currentTime := time.Now()
-			testClock := runtime_test.NewTestClock(currentTime)
-			beforeThreadSleepChan := make(chan bool)
-			randGen := randgen_test.NewBuiltinRanGen(testCase.randomInts)
-			backoff := backoff.NewExponentialBuilder().
+			t.Parallel()
+			randGen := randgen_test.NewBuiltinRanGen([]int{1})
+			shortBackOff := backoff.NewExponentialBuilder().RandGenerator(randGen).Build()
+			longBackOff := backoff.NewExponentialBuilder().
 				RandGenerator(randGen).
-				MinDelay(testCase.minDelay).
-				MaxDelay(testCase.maxDelay).
-				ScalingFactor(testCase.scalingFactor).
-				RandomOffset(testCase.randomOffset).
-				RandomOffsetUnit(testCase.randomOffsetUnit).
+				MinDelay(250 * time.Millisecond).
+				ResetOnSuccess(true).
 				Build()
-			builtinRuntime := runtime_test.NewTestRuntime(func(duration time.Duration) {
-				testClock.SetTime(testClock.Now().Add(duration))
+			beforeThreadSleepChan := make(chan bool)
+			var curD time.Duration
+			runtime := runtime_test.NewTestRuntime(func(d time.Duration) {
+				curD = d
+				testClock.SetTime(testClock.Now().Add(d))
 				beforeThreadSleepChan <- true
 			})
+
 			count := 0
 			execute := func() *errs.Error {
 				prevCount := count
 				count++
-				if prevCount < 2 {
+				if prevCount < testCase.resRetries {
+					if testCase.errCodes[prevCount] == nil {
+						return nil
+					}
+
 					return &errs.Error{
-						Code: errs.Serialization,
+						Code: *testCase.errCodes[prevCount],
 					}
 				}
 
 				return nil
 			}
-			timeoutExecutor := NewTimeout(builtinRuntime, backoff, &testClock, testCase.timeout, func() {
-				testClock.SetTime(testClock.Now().Add(2))
-			})
+
+			ct := context.Background()
+			lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{})
+			logger := telemetry.NewLogger(lineFormatter, os.Stdout, telemetry.Off, []telemetry.LogInterceptor{})
+			beforeSkipRetry := func() {
+				beforeThreadSleepChan <- true
+			}
+			beforeRetryDelay := func() {
+				testClock.SetTime(testClock.Now().Add(testCase.executeDuration[count-1]))
+			}
+			timeoutExecutor := NewTimeout(
+				telemetry.NewDataCollector(logger),
+				shortBackOff,
+				longBackOff,
+				runtime,
+				&testClock,
+				testCase.timeout,
+				&beforeRetryDelay,
+				&beforeSkipRetry,
+			)
 
 			go func() {
-				retries, err := timeoutExecutor.WithRetry(execute)
+				retries, err := timeoutExecutor.WithRetry(ct, execute)
 
-				assert.Equal(t, 2, retries)
-				assert.Equal(t, testCase.err, err)
+				assert.Equal(t, testCase.resRetries, retries)
+				assert.Equal(t, testCase.resErr, err)
 			}()
 
-			for await := 0; await < testCase.awaits; await++ {
+			retry := 1
+			for retry <= testCase.sleepAwakeLoop {
 				<-beforeThreadSleepChan
-				assert.Equal(t, await+1, count)
-				builtinRuntime.Awake()
+				assert.Equal(t, count, retry)
+				assert.Equal(t, curD, testCase.durations[retry-1])
+				runtime.Awake()
+				retry++
 			}
 		})
 	}
