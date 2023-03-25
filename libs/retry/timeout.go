@@ -13,9 +13,9 @@ import (
 
 type Timeout struct {
 	dataCollector    telemetry.DataCollector
+	runtime          runtime.Runtime
 	shortBackOff     backoff.BackOff
 	longBackOff      backoff.BackOff
-	runtime          runtime.Runtime
 	clock            runtime.Clock
 	timeout          time.Duration
 	beforeRetryDelay *func()
@@ -54,20 +54,22 @@ func (t Timeout) WithRetry(ct context.Context, execute func() *errs.Error) (int,
 			return retryCount, err
 		case errs.Transient:
 			t.shortBackOff.OnFailure()
-			expectTime := t.clock.Now().Add(t.shortBackOff.Delay())
+                         delay := t.shortBackOff.Delay()
+			expectTime := t.clock.Now().Add(delay)
 			if !expectTime.Before(timeoutAt) {
 				return retryCount, err
 			}
 
-			t.runtime.Sleep(t.shortBackOff.Delay())
+			t.runtime.Sleep(delay)
 		case errs.Outage:
 			t.longBackOff.OnFailure()
-			expectTime := t.clock.Now().Add(t.longBackOff.Delay())
+                         delay := t.longBackOff.Delay()
+			expectTime := t.clock.Now().Add(delay)
 			if !expectTime.Before(timeoutAt) {
 				return retryCount, err
 			}
 
-			t.runtime.Sleep(t.longBackOff.Delay())
+			t.runtime.Sleep(delay)
 		}
 	}
 
@@ -76,9 +78,9 @@ func (t Timeout) WithRetry(ct context.Context, execute func() *errs.Error) (int,
 
 func NewTimeout(
 	dataCollector telemetry.DataCollector,
+	runtime runtime.Runtime,
 	shortBackOff backoff.BackOff,
 	longBackOff backoff.BackOff,
-	runtime runtime.Runtime,
 	clock runtime.Clock,
 	timeout time.Duration,
 	beforeRetryDelay *func(),

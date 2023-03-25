@@ -26,15 +26,17 @@ func TestTimeout(t *testing.T) {
 		durations       []time.Duration
 		timeout         time.Duration
 		executeDuration []time.Duration
-		resRetries      int
-		resErr          *errs.Error
-		sleepAwakeLoop  int
+		sleepAwakeCount  int
+		expectRetries      int
+		expectErr          *errs.Error
 	}{
 		{
 			name:     "Stop retry with ClientInteraction err category",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &clientInteractionAlreadyExistsErr},
 			durations: []time.Duration{
-				401000000, 501000000, 501000000,
+				401000000, 
+				501000000, 
+				501000000,
 			},
 			timeout:         10 * time.Second,
 			executeDuration: []time.Duration{2, 3, 4},
@@ -46,7 +48,9 @@ func TestTimeout(t *testing.T) {
 			name:     "Succeed before reaching max timeout",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, nil},
 			durations: []time.Duration{
-				401000000, 501000000, 501000000,
+				401000000, 
+				501000000, 
+				501000000,
 			},
 			timeout:         10 * time.Second,
 			executeDuration: []time.Duration{2, 3, 4},
@@ -58,7 +62,9 @@ func TestTimeout(t *testing.T) {
 			name:     "Not Succeed, max timeout reached",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &transientTimeoutErr},
 			durations: []time.Duration{
-				401000000, 501000000, 501000000,
+				401000000, 
+				501000000, 
+				501000000,
 			},
 			timeout:         10 * time.Second,
 			executeDuration: []time.Duration{2 * time.Second, 3 * time.Second, 4 * time.Second},
@@ -80,7 +86,7 @@ func TestTimeout(t *testing.T) {
 				ResetOnSuccess(true).
 				Build()
 			beforeThreadSleepChan := make(chan bool)
-			var curD time.Duration
+			var currDuration time.Duration
 			runtime := runtime_test.NewTestRuntime(func(d time.Duration) {
 				curD = d
 				testClock.SetTime(testClock.Now().Add(d))
@@ -111,7 +117,8 @@ func TestTimeout(t *testing.T) {
 				beforeThreadSleepChan <- true
 			}
 			beforeRetryDelay := func() {
-				testClock.SetTime(testClock.Now().Add(testCase.executeDuration[count-1]))
+                                 duration := testClock.Now().Add(testCase.executeDuration[count-1])
+				testClock.SetTime(duration)
 			}
 			timeoutExecutor := NewTimeout(
 				telemetry.NewDataCollector(logger),

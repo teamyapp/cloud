@@ -23,15 +23,21 @@ func TestInfinite(t *testing.T) {
 		name           string
 		errCodes       [](*errs.ErrorCode)
 		durations      []time.Duration
-		resRetries     int
-		resErr         *errs.Error
-		sleepAwakeLoop int
+		sleepAwakeCount int
+		expectRetries     int
+		expectErr         *errs.Error
 	}{
 		{
 			name:     "Stop retry with ClientInteraction err category",
-			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &clientInteractionAlreadyExistsErr},
+			errCodes: []*errs.ErrorCode{
+			  &transientTimeoutErr, 
+			  &outageUnimplementedErr, 
+			  &clientInteractionAlreadyExistsErr,
+			},
 			durations: []time.Duration{
-				401000000, 501000000, 501000000,
+				401000000, 
+				501000000, 
+				501000000,
 			},
 			resRetries:     3,
 			resErr:         &errs.Error{Code: errs.InvalidArgument},
@@ -41,7 +47,11 @@ func TestInfinite(t *testing.T) {
 			name:     "Should retry until succeed with Transient and Outage err categories",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &transientTimeoutErr, &outageUnimplementedErr, nil},
 			durations: []time.Duration{
-				401000000, 501000000, 801000000, 1001000000, 1001000000,
+				401000000, 
+				501000000, 
+				801000000, 
+				1001000000, 
+				1001000000,
 			},
 			resRetries:     5,
 			resErr:         nil,
@@ -61,7 +71,7 @@ func TestInfinite(t *testing.T) {
 				MinDelay(250 * time.Millisecond).
 				ResetOnSuccess(true).
 				Build()
-			var curD time.Duration
+			var currDuration time.Duration
 			runtime := runtime_test.NewTestRuntime(func(d time.Duration) {
 				curD = d
 				beforeThreadSleepChan <- true
@@ -95,7 +105,7 @@ func TestInfinite(t *testing.T) {
 			go func() {
 				retries, err := infiniteExecutor.WithRetry(ct, execute)
 
-				assert.Equal(t, retries, testCase.resRetries)
+				assert.Equal(t, testCase.resRetries, retries)
 				assert.Equal(t, testCase.resErr, err)
 			}()
 
@@ -103,7 +113,7 @@ func TestInfinite(t *testing.T) {
 			for retry <= testCase.sleepAwakeLoop {
 				<-beforeThreadSleepChan
 				assert.Equal(t, count, retry)
-				assert.Equal(t, curD, testCase.durations[retry-1])
+				assert.Equal(t, testCase.durations[retry-1], currDuration)
 				runtime.Awake()
 				retry++
 			}

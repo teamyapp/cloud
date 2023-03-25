@@ -12,9 +12,9 @@ import (
 
 type MaxCount struct {
 	dataCollector   telemetry.DataCollector
+	runtime         runtime.Runtime
 	shortBackOff    backoff.BackOff
 	longBackOff     backoff.BackOff
-	runtime         runtime.Runtime
 	maxCount        int
 	beforeSkipRetry *func()
 }
@@ -60,7 +60,8 @@ func NewMaxCount(
 	longBackOff backoff.BackOff,
 	runtime runtime.Runtime,
 	maxCount int,
-	beforeSkipRetry *func()) MaxCount {
+	beforeSkipRetry *func(),
+) MaxCount {
 	return MaxCount{
 		dataCollector:   dataCollector,
 		shortBackOff:    shortBackOff,

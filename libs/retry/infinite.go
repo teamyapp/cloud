@@ -12,9 +12,9 @@ import (
 
 type Infinite struct {
 	dataCollector   telemetry.DataCollector
+	runtime         runtime.Runtime
 	shortBackOff    backoff.BackOff
 	longBackOff     backoff.BackOff
-	runtime         runtime.Runtime
 	beforeSkipRetry *func()
 }
 

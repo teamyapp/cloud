@@ -24,9 +24,9 @@ func TestMaxCount(t *testing.T) {
 		errCodes       [](*errs.ErrorCode)
 		durations      []time.Duration
 		maxCount       int
-		resRetries     int
-		resErr         *errs.Error
 		sleepAwakeLoop int
+		expectRetries     int
+		expectErr         *errs.Error
 	}{
 		{
 			name:     "Stop retry with ClientInteraction err category",
@@ -43,18 +43,24 @@ func TestMaxCount(t *testing.T) {
 			name:     "Succeed before reaching max count",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, nil},
 			durations: []time.Duration{
-				401000000, 501000000, 501000000,
+				401000000, 
+				501000000, 
+				501000000,
 			},
 			maxCount:       10,
 			resRetries:     3,
 			resErr:         nil,
-			sleepAwakeLoop: 2,
+			sleepAwakeCount: 2,
 		},
 		{
 			name:     "Not Succeed, max count retries reached",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &transientTimeoutErr, &outageUnimplementedErr, &outageUnimplementedErr},
 			durations: []time.Duration{
-				401000000, 501000000, 801000000, 1001000000, 2001000000,
+				401000000, 
+				501000000, 
+				801000000, 
+				1001000000, 
+				2001000000,
 			},
 			maxCount:       5,
 			resRetries:     5,
