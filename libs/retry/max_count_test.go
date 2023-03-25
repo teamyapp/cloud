@@ -20,52 +20,54 @@ func TestMaxCount(t *testing.T) {
 	var outageUnimplementedErr errs.ErrorCode = errs.Unimplemented
 
 	testCases := []struct {
-		name           string
-		errCodes       [](*errs.ErrorCode)
-		durations      []time.Duration
-		maxCount       int
-		sleepAwakeLoop int
-		expectRetries     int
-		expectErr         *errs.Error
+		name            string
+		errCodes        [](*errs.ErrorCode)
+		durations       []time.Duration
+		maxCount        int
+		sleepAwakeCount int
+		expectRetries   int
+		expectErr       *errs.Error
 	}{
 		{
 			name:     "Stop retry with ClientInteraction err category",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &clientInteractionAlreadyExistsErr},
 			durations: []time.Duration{
-				401000000, 501000000, 501000000,
+				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
 			},
-			maxCount:       10,
-			resRetries:     3,
-			resErr:         &errs.Error{Code: errs.InvalidArgument},
-			sleepAwakeLoop: 2,
+			maxCount:        10,
+			expectRetries:   3,
+			expectErr:       &errs.Error{Code: errs.InvalidArgument},
+			sleepAwakeCount: 2,
 		},
 		{
 			name:     "Succeed before reaching max count",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, nil},
 			durations: []time.Duration{
-				401000000, 
-				501000000, 
-				501000000,
+				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
 			},
-			maxCount:       10,
-			resRetries:     3,
-			resErr:         nil,
+			maxCount:        10,
+			expectRetries:   3,
+			expectErr:       nil,
 			sleepAwakeCount: 2,
 		},
 		{
 			name:     "Not Succeed, max count retries reached",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &transientTimeoutErr, &outageUnimplementedErr, &outageUnimplementedErr},
 			durations: []time.Duration{
-				401000000, 
-				501000000, 
-				801000000, 
-				1001000000, 
-				2001000000,
+				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				SHORT_MIN_DELAY*4 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*4 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*8 + RANDOM_OFFSET,
 			},
-			maxCount:       5,
-			resRetries:     5,
-			resErr:         &errs.Error{Code: outageUnimplementedErr},
-			sleepAwakeLoop: 5,
+			maxCount:        5,
+			expectRetries:   5,
+			expectErr:       &errs.Error{Code: outageUnimplementedErr},
+			sleepAwakeCount: 5,
 		},
 	}
 
@@ -74,16 +76,19 @@ func TestMaxCount(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			randGen := randgen_test.NewBuiltinRanGen([]int{1})
-			shortBackOff := backoff.NewExponentialBuilder().RandGenerator(randGen).Build()
+			shortBackOff := backoff.NewExponentialBuilder().
+				MinDelay(SHORT_MIN_DELAY).
+				RandGenerator(randGen).
+				Build()
 			longBackOff := backoff.NewExponentialBuilder().
 				RandGenerator(randGen).
-				MinDelay(250 * time.Millisecond).
+				MinDelay(LONG_MIN_DELAY).
 				ResetOnSuccess(true).
 				Build()
 			beforeThreadSleepChan := make(chan bool)
-			var curD time.Duration
+			var currDuration time.Duration
 			runtime := runtime_test.NewTestRuntime(func(d time.Duration) {
-				curD = d
+				currDuration = d
 				beforeThreadSleepChan <- true
 			})
 
@@ -91,7 +96,7 @@ func TestMaxCount(t *testing.T) {
 			execute := func() *errs.Error {
 				prevCount := count
 				count++
-				if prevCount < testCase.resRetries {
+				if prevCount < testCase.expectRetries {
 					if testCase.errCodes[prevCount] == nil {
 						return nil
 					}
@@ -122,15 +127,15 @@ func TestMaxCount(t *testing.T) {
 			go func() {
 				retries, err := maxCountExecutor.WithRetry(ct, execute)
 
-				assert.Equal(t, testCase.resRetries, retries)
-				assert.Equal(t, testCase.resErr, err)
+				assert.Equal(t, testCase.expectRetries, retries)
+				assert.Equal(t, testCase.expectErr, err)
 			}()
 
 			retry := 1
-			for retry <= testCase.sleepAwakeLoop {
+			for retry <= testCase.sleepAwakeCount {
 				<-beforeThreadSleepChan
 				assert.Equal(t, count, retry)
-				assert.Equal(t, curD, testCase.durations[retry-1])
+				assert.Equal(t, currDuration, testCase.durations[retry-1])
 				runtime.Awake()
 				retry++
 			}

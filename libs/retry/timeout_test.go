@@ -26,51 +26,51 @@ func TestTimeout(t *testing.T) {
 		durations       []time.Duration
 		timeout         time.Duration
 		executeDuration []time.Duration
-		sleepAwakeCount  int
-		expectRetries      int
-		expectErr          *errs.Error
+		sleepAwakeCount int
+		expectRetries   int
+		expectErr       *errs.Error
 	}{
 		{
 			name:     "Stop retry with ClientInteraction err category",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &clientInteractionAlreadyExistsErr},
 			durations: []time.Duration{
-				401000000, 
-				501000000, 
-				501000000,
+				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
 			},
-			timeout:         10 * time.Second,
-			executeDuration: []time.Duration{2, 3, 4},
-			resRetries:      3,
-			resErr:          &errs.Error{Code: errs.InvalidArgument},
-			sleepAwakeLoop:  2,
+			timeout:         10000 * time.Millisecond,
+			executeDuration: []time.Duration{2 * time.Millisecond, 3 * time.Millisecond, 4 * time.Millisecond},
+			expectRetries:   3,
+			expectErr:       &errs.Error{Code: errs.InvalidArgument},
+			sleepAwakeCount: 2,
 		},
 		{
 			name:     "Succeed before reaching max timeout",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, nil},
 			durations: []time.Duration{
-				401000000, 
-				501000000, 
-				501000000,
+				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
 			},
-			timeout:         10 * time.Second,
-			executeDuration: []time.Duration{2, 3, 4},
-			resRetries:      3,
-			resErr:          nil,
-			sleepAwakeLoop:  2,
+			timeout:         10000 * time.Millisecond,
+			executeDuration: []time.Duration{2 * time.Millisecond, 3 * time.Millisecond, 4 * time.Millisecond},
+			expectRetries:   3,
+			expectErr:       nil,
+			sleepAwakeCount: 2,
 		},
 		{
 			name:     "Not Succeed, max timeout reached",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &transientTimeoutErr},
 			durations: []time.Duration{
-				401000000, 
-				501000000, 
-				501000000,
+				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
 			},
-			timeout:         10 * time.Second,
-			executeDuration: []time.Duration{2 * time.Second, 3 * time.Second, 4 * time.Second},
-			resRetries:      3,
-			resErr:          &errs.Error{Code: transientTimeoutErr},
-			sleepAwakeLoop:  2,
+			timeout:         10000 * time.Millisecond,
+			executeDuration: []time.Duration{2000 * time.Millisecond, 3000 * time.Millisecond, 4000 * time.Millisecond},
+			expectRetries:   3,
+			expectErr:       &errs.Error{Code: transientTimeoutErr},
+			sleepAwakeCount: 2,
 		},
 	}
 
@@ -79,7 +79,10 @@ func TestTimeout(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			randGen := randgen_test.NewBuiltinRanGen([]int{1})
-			shortBackOff := backoff.NewExponentialBuilder().RandGenerator(randGen).Build()
+			shortBackOff := backoff.NewExponentialBuilder().
+				MinDelay(SHORT_MIN_DELAY).
+				RandGenerator(randGen).
+				Build()
 			longBackOff := backoff.NewExponentialBuilder().
 				RandGenerator(randGen).
 				MinDelay(250 * time.Millisecond).
@@ -88,7 +91,7 @@ func TestTimeout(t *testing.T) {
 			beforeThreadSleepChan := make(chan bool)
 			var currDuration time.Duration
 			runtime := runtime_test.NewTestRuntime(func(d time.Duration) {
-				curD = d
+				currDuration = d
 				testClock.SetTime(testClock.Now().Add(d))
 				beforeThreadSleepChan <- true
 			})
@@ -97,7 +100,7 @@ func TestTimeout(t *testing.T) {
 			execute := func() *errs.Error {
 				prevCount := count
 				count++
-				if prevCount < testCase.resRetries {
+				if prevCount < testCase.expectRetries {
 					if testCase.errCodes[prevCount] == nil {
 						return nil
 					}
@@ -117,14 +120,14 @@ func TestTimeout(t *testing.T) {
 				beforeThreadSleepChan <- true
 			}
 			beforeRetryDelay := func() {
-                                 duration := testClock.Now().Add(testCase.executeDuration[count-1])
+				duration := testClock.Now().Add(testCase.executeDuration[count-1])
 				testClock.SetTime(duration)
 			}
 			timeoutExecutor := NewTimeout(
 				telemetry.NewDataCollector(logger),
+				runtime,
 				shortBackOff,
 				longBackOff,
-				runtime,
 				&testClock,
 				testCase.timeout,
 				&beforeRetryDelay,
@@ -134,15 +137,15 @@ func TestTimeout(t *testing.T) {
 			go func() {
 				retries, err := timeoutExecutor.WithRetry(ct, execute)
 
-				assert.Equal(t, testCase.resRetries, retries)
-				assert.Equal(t, testCase.resErr, err)
+				assert.Equal(t, testCase.expectRetries, retries)
+				assert.Equal(t, testCase.expectErr, err)
 			}()
 
 			retry := 1
-			for retry <= testCase.sleepAwakeLoop {
+			for retry <= testCase.sleepAwakeCount {
 				<-beforeThreadSleepChan
 				assert.Equal(t, count, retry)
-				assert.Equal(t, curD, testCase.durations[retry-1])
+				assert.Equal(t, currDuration, testCase.durations[retry-1])
 				runtime.Awake()
 				retry++
 			}

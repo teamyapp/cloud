@@ -14,48 +14,52 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
+const SHORT_MIN_DELAY = 200 * time.Millisecond
+const LONG_MIN_DELAY = 250 * time.Millisecond
+const RANDOM_OFFSET = 1 * time.Millisecond
+
 func TestInfinite(t *testing.T) {
 	var transientTimeoutErr errs.ErrorCode = errs.Timeout
 	var clientInteractionAlreadyExistsErr errs.ErrorCode = errs.AlreadyExists
 	var outageUnimplementedErr errs.ErrorCode = errs.Unimplemented
 
 	testCases := []struct {
-		name           string
-		errCodes       [](*errs.ErrorCode)
-		durations      []time.Duration
+		name            string
+		errCodes        [](*errs.ErrorCode)
+		durations       []time.Duration
 		sleepAwakeCount int
-		expectRetries     int
-		expectErr         *errs.Error
+		expectRetries   int
+		expectErr       *errs.Error
 	}{
 		{
-			name:     "Stop retry with ClientInteraction err category",
+			name: "Stop retry with ClientInteraction err category",
 			errCodes: []*errs.ErrorCode{
-			  &transientTimeoutErr, 
-			  &outageUnimplementedErr, 
-			  &clientInteractionAlreadyExistsErr,
+				&transientTimeoutErr,
+				&outageUnimplementedErr,
+				&clientInteractionAlreadyExistsErr,
 			},
 			durations: []time.Duration{
-				401000000, 
-				501000000, 
-				501000000,
+				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
 			},
-			resRetries:     3,
-			resErr:         &errs.Error{Code: errs.InvalidArgument},
-			sleepAwakeLoop: 2,
+			expectRetries:   3,
+			expectErr:       &errs.Error{Code: errs.InvalidArgument},
+			sleepAwakeCount: 2,
 		},
 		{
 			name:     "Should retry until succeed with Transient and Outage err categories",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &transientTimeoutErr, &outageUnimplementedErr, nil},
 			durations: []time.Duration{
-				401000000, 
-				501000000, 
-				801000000, 
-				1001000000, 
-				1001000000,
+				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				SHORT_MIN_DELAY*4 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*4 + RANDOM_OFFSET,
+				LONG_MIN_DELAY*4 + RANDOM_OFFSET,
 			},
-			resRetries:     5,
-			resErr:         nil,
-			sleepAwakeLoop: 4,
+			expectRetries:   5,
+			expectErr:       nil,
+			sleepAwakeCount: 4,
 		},
 	}
 
@@ -65,15 +69,18 @@ func TestInfinite(t *testing.T) {
 			t.Parallel()
 			randGen := randgen_test.NewBuiltinRanGen([]int{1})
 			beforeThreadSleepChan := make(chan bool)
-			shortBackOff := backoff.NewExponentialBuilder().RandGenerator(randGen).Build()
+			shortBackOff := backoff.NewExponentialBuilder().
+				RandGenerator(randGen).
+				MinDelay(SHORT_MIN_DELAY).
+				Build()
 			longBackOff := backoff.NewExponentialBuilder().
 				RandGenerator(randGen).
-				MinDelay(250 * time.Millisecond).
+				MinDelay(LONG_MIN_DELAY).
 				ResetOnSuccess(true).
 				Build()
 			var currDuration time.Duration
 			runtime := runtime_test.NewTestRuntime(func(d time.Duration) {
-				curD = d
+				currDuration = d
 				beforeThreadSleepChan <- true
 			})
 
@@ -81,7 +88,7 @@ func TestInfinite(t *testing.T) {
 			execute := func() *errs.Error {
 				prevCount := count
 				count++
-				if prevCount < testCase.resRetries {
+				if prevCount < testCase.expectRetries {
 					if testCase.errCodes[prevCount] == nil {
 						return nil
 					}
@@ -105,12 +112,12 @@ func TestInfinite(t *testing.T) {
 			go func() {
 				retries, err := infiniteExecutor.WithRetry(ct, execute)
 
-				assert.Equal(t, testCase.resRetries, retries)
-				assert.Equal(t, testCase.resErr, err)
+				assert.Equal(t, testCase.expectRetries, retries)
+				assert.Equal(t, testCase.expectErr, err)
 			}()
 
 			retry := 1
-			for retry <= testCase.sleepAwakeLoop {
+			for retry <= testCase.sleepAwakeCount {
 				<-beforeThreadSleepChan
 				assert.Equal(t, retry, count)
 				assert.Equal(t, testCase.durations[retry-1], currDuration)
