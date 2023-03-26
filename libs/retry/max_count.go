@@ -1,39 +1,73 @@
 package retry
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type MaxCount struct {
-	runtime  runtime.Runtime
-	backoff  backoff.BackOff
-	maxCount int
+	dataCollector   telemetry.DataCollector
+	runtime         runtime.Runtime
+	shortBackOff    backoff.BackOff
+	longBackOff     backoff.BackOff
+	maxCount        int
+	beforeSkipRetry *func()
 }
 
 var _ Retry = (*MaxCount)(nil)
 
-func (m MaxCount) WithRetry(execute func() *errs.Error) (int, *errs.Error) {
+func (m MaxCount) WithRetry(ct context.Context, execute func() *errs.Error) (int, *errs.Error) {
 	var err *errs.Error
-	for retry := 0; retry < m.maxCount; retry++ {
+	for retry := 1; retry <= m.maxCount; retry++ {
 		err = execute()
 		if err == nil {
-			m.backoff.OnSuccess()
+			m.shortBackOff.OnSuccess()
+			m.longBackOff.OnSuccess()
 			return retry, nil
 		}
 
-		m.backoff.OnFailure()
-		m.runtime.Sleep(m.backoff.Delay())
+		m.dataCollector.Logger.ErrorWithContext(ct, err)
+		category := errs.GetErrorCategory(err.Code)
+		m.dataCollector.Logger.WarningWithContext(ct, fmt.Sprintf("Err category: %s", category))
+
+		switch category {
+		case errs.ClientInteraction:
+			if m.beforeSkipRetry != nil {
+				(*m.beforeSkipRetry)()
+			}
+
+			return retry, err
+		case errs.Transient:
+			m.shortBackOff.OnFailure()
+			m.runtime.Sleep(m.shortBackOff.Delay())
+		case errs.Outage:
+			m.longBackOff.OnFailure()
+			m.runtime.Sleep(m.longBackOff.Delay())
+		}
 	}
 
 	return m.maxCount, err
 }
 
-func NewMaxCount(runtime runtime.Runtime, backoff backoff.BackOff, maxCount int) MaxCount {
+func NewMaxCount(
+	dataCollector telemetry.DataCollector,
+	shortBackOff backoff.BackOff,
+	longBackOff backoff.BackOff,
+	runtime runtime.Runtime,
+	maxCount int,
+	beforeSkipRetry *func(),
+) MaxCount {
 	return MaxCount{
-		runtime:  runtime,
-		backoff:  backoff,
-		maxCount: maxCount,
+		dataCollector:   dataCollector,
+		shortBackOff:    shortBackOff,
+		longBackOff:     longBackOff,
+		runtime:         runtime,
+		maxCount:        maxCount,
+		beforeSkipRetry: beforeSkipRetry,
 	}
 }

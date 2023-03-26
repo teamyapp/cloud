@@ -1,33 +1,70 @@
 package retry
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type Infinite struct {
-	backoff backoff.BackOff
-	runtime runtime.Runtime
+	dataCollector   telemetry.DataCollector
+	runtime         runtime.Runtime
+	shortBackOff    backoff.BackOff
+	longBackOff     backoff.BackOff
+	beforeSkipRetry *func()
 }
 
 var _ Retry = (*Infinite)(nil)
 
-func (i Infinite) WithRetry(execute func() *errs.Error) (int, *errs.Error) {
+func (i Infinite) WithRetry(ct context.Context, execute func() *errs.Error) (int, *errs.Error) {
 	var retries int
 	for {
 		err := execute()
+		retries++
 		if err == nil {
-			i.backoff.OnSuccess()
+			i.shortBackOff.OnSuccess()
+			i.longBackOff.OnSuccess()
 			return retries, nil
 		}
 
-		i.backoff.OnFailure()
-		i.runtime.Sleep(i.backoff.Delay())
-		retries++
+		i.dataCollector.Logger.ErrorWithContext(ct, err)
+		category := errs.GetErrorCategory(err.Code)
+		i.dataCollector.Logger.WarningWithContext(ct, fmt.Sprintf("Err category: %s", category))
+
+		switch category {
+		case errs.ClientInteraction:
+			if i.beforeSkipRetry != nil {
+				(*i.beforeSkipRetry)()
+			}
+
+			return retries, err
+		case errs.Transient:
+			i.shortBackOff.OnFailure()
+			i.runtime.Sleep(i.shortBackOff.Delay())
+		case errs.Outage:
+			i.longBackOff.OnFailure()
+			i.runtime.Sleep(i.longBackOff.Delay())
+		}
+
 	}
 }
 
-func NewInfinite(runtime runtime.Runtime, backoff backoff.BackOff) Infinite {
-	return Infinite{runtime: runtime, backoff: backoff}
+func NewInfinite(
+	dataCollector telemetry.DataCollector,
+	runtime runtime.Runtime,
+	shortBackOff backoff.BackOff,
+	longBackOff backoff.BackOff,
+	beforeSkipRetry *func(),
+) Infinite {
+	return Infinite{
+		dataCollector:   dataCollector,
+		runtime:         runtime,
+		shortBackOff:    shortBackOff,
+		longBackOff:     longBackOff,
+		beforeSkipRetry: beforeSkipRetry,
+	}
 }

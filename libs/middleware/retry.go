@@ -28,8 +28,8 @@ func ClientHTTPWithRetry(dataCollector telemetry.DataCollector, retry retry.Retr
 	return func(httpClientExecutor HttpClientExecutor) HttpClientExecutor {
 		return (HttpClientExecuteFunc)(func(request *http.Request) (*http.Response, error) {
 			var res *http.Response
-			_, err := retry.WithRetry(func() *errs.Error {
-				ct := request.Context()
+			ct := request.Context()
+			_, err := retry.WithRetry(ct, func() *errs.Error {
 				var err error
 				res, err = httpClientExecutor.Do(request)
 				if err != nil {
@@ -58,7 +58,7 @@ func ClientHTTPWithRetry(dataCollector telemetry.DataCollector, retry retry.Retr
 func ClientGRPCWithRetry(makeRetry func() retry.Retry) grpc.UnaryClientInterceptor {
 	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		newRetry := makeRetry()
-		_, err := newRetry.WithRetry(func() *errs.Error {
+		_, err := newRetry.WithRetry(ct, func() *errs.Error {
 			return errs.FromGRPCErr(invoker(ct, method, req, reply, cc, opts...))
 		})
 		return errs.ToGRPCErr(err)
