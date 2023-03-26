@@ -14,9 +14,9 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-const SHORT_MIN_DELAY = 200 * time.Millisecond
-const LONG_MIN_DELAY = 250 * time.Millisecond
-const RANDOM_OFFSET = 1 * time.Millisecond
+const shortDelay = 200 * time.Millisecond
+const longDelay = 250 * time.Millisecond
+const randomOffset = 1 * time.Millisecond
 
 func TestInfinite(t *testing.T) {
 	var transientTimeoutErr errs.ErrorCode = errs.Timeout
