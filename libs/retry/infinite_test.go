@@ -14,10 +14,6 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-const shortDelay = 200 * time.Millisecond
-const longDelay = 250 * time.Millisecond
-const randomOffset = 1 * time.Millisecond
-
 func TestInfinite(t *testing.T) {
 	var transientTimeoutErr errs.ErrorCode = errs.Timeout
 	var clientInteractionAlreadyExistsErr errs.ErrorCode = errs.AlreadyExists
@@ -39,9 +35,9 @@ func TestInfinite(t *testing.T) {
 				&clientInteractionAlreadyExistsErr,
 			},
 			durations: []time.Duration{
-				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				shortDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
 			},
 			expectRetries:   3,
 			expectErr:       &errs.Error{Code: errs.InvalidArgument},
@@ -51,11 +47,11 @@ func TestInfinite(t *testing.T) {
 			name:     "Should retry until succeed with Transient and Outage err categories",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &transientTimeoutErr, &outageUnimplementedErr, nil},
 			durations: []time.Duration{
-				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
-				SHORT_MIN_DELAY*4 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*4 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*4 + RANDOM_OFFSET,
+				shortDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
+				shortDelay*4 + randomOffset,
+				longDelay*4 + randomOffset,
+				longDelay*4 + randomOffset,
 			},
 			expectRetries:   5,
 			expectErr:       nil,
@@ -71,11 +67,11 @@ func TestInfinite(t *testing.T) {
 			beforeThreadSleepChan := make(chan bool)
 			shortBackOff := backoff.NewExponentialBuilder().
 				RandGenerator(randGen).
-				MinDelay(SHORT_MIN_DELAY).
+				MinDelay(shortDelay).
 				Build()
 			longBackOff := backoff.NewExponentialBuilder().
 				RandGenerator(randGen).
-				MinDelay(LONG_MIN_DELAY).
+				MinDelay(longDelay).
 				ResetOnSuccess(true).
 				Build()
 			var currDuration time.Duration

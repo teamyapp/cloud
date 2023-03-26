@@ -32,9 +32,9 @@ func TestMaxCount(t *testing.T) {
 			name:     "Stop retry with ClientInteraction err category",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &clientInteractionAlreadyExistsErr},
 			durations: []time.Duration{
-				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				shortDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
 			},
 			maxCount:        10,
 			expectRetries:   3,
@@ -45,9 +45,9 @@ func TestMaxCount(t *testing.T) {
 			name:     "Succeed before reaching max count",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, nil},
 			durations: []time.Duration{
-				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				shortDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
 			},
 			maxCount:        10,
 			expectRetries:   3,
@@ -58,11 +58,11 @@ func TestMaxCount(t *testing.T) {
 			name:     "Not Succeed, max count retries reached",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &transientTimeoutErr, &outageUnimplementedErr, &outageUnimplementedErr},
 			durations: []time.Duration{
-				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
-				SHORT_MIN_DELAY*4 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*4 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*8 + RANDOM_OFFSET,
+				shortDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
+				shortDelay*4 + randomOffset,
+				longDelay*4 + randomOffset,
+				longDelay*8 + randomOffset,
 			},
 			maxCount:        5,
 			expectRetries:   5,
@@ -77,12 +77,12 @@ func TestMaxCount(t *testing.T) {
 			t.Parallel()
 			randGen := randgen_test.NewBuiltinRanGen([]int{1})
 			shortBackOff := backoff.NewExponentialBuilder().
-				MinDelay(SHORT_MIN_DELAY).
+				MinDelay(shortDelay).
 				RandGenerator(randGen).
 				Build()
 			longBackOff := backoff.NewExponentialBuilder().
 				RandGenerator(randGen).
-				MinDelay(LONG_MIN_DELAY).
+				MinDelay(longDelay).
 				ResetOnSuccess(true).
 				Build()
 			beforeThreadSleepChan := make(chan bool)

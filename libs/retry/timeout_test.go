@@ -34,9 +34,9 @@ func TestTimeout(t *testing.T) {
 			name:     "Stop retry with ClientInteraction err category",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &clientInteractionAlreadyExistsErr},
 			durations: []time.Duration{
-				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				shortDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
 			},
 			timeout:         10000 * time.Millisecond,
 			executeDuration: []time.Duration{2 * time.Millisecond, 3 * time.Millisecond, 4 * time.Millisecond},
@@ -48,9 +48,9 @@ func TestTimeout(t *testing.T) {
 			name:     "Succeed before reaching max timeout",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, nil},
 			durations: []time.Duration{
-				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				shortDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
 			},
 			timeout:         10000 * time.Millisecond,
 			executeDuration: []time.Duration{2 * time.Millisecond, 3 * time.Millisecond, 4 * time.Millisecond},
@@ -62,9 +62,9 @@ func TestTimeout(t *testing.T) {
 			name:     "Not Succeed, max timeout reached",
 			errCodes: []*errs.ErrorCode{&transientTimeoutErr, &outageUnimplementedErr, &transientTimeoutErr},
 			durations: []time.Duration{
-				SHORT_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
-				LONG_MIN_DELAY*2 + RANDOM_OFFSET,
+				shortDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
+				longDelay*2 + randomOffset,
 			},
 			timeout:         10000 * time.Millisecond,
 			executeDuration: []time.Duration{2000 * time.Millisecond, 3000 * time.Millisecond, 4000 * time.Millisecond},
@@ -80,7 +80,7 @@ func TestTimeout(t *testing.T) {
 			t.Parallel()
 			randGen := randgen_test.NewBuiltinRanGen([]int{1})
 			shortBackOff := backoff.NewExponentialBuilder().
-				MinDelay(SHORT_MIN_DELAY).
+				MinDelay(shortDelay).
 				RandGenerator(randGen).
 				Build()
 			longBackOff := backoff.NewExponentialBuilder().
