@@ -29,19 +29,15 @@ func (u UploadSession) FindUploadSessionByID(ct context.Context, uploadSessionID
 		}
 	}
 
-	return entity.UploadSession{}, &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: uploadSessionID=%v", uploadSessionID),
-	}
+	return entity.UploadSession{}, errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: uploadSessionID=%v", uploadSessionID))
 }
 
 func (u UploadSession) CreateUploadSession(ct context.Context, uploadSession entity.UploadSession) *errs.Error {
 	_, err := u.FindUploadSessionByID(ct, uploadSession.ID)
 	if err == nil {
-		return &errs.Error{
-			Code:    errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: uploadSession=%v", uploadSession),
-		}
+		return errs.NewError(errs.Unknown, fmt.Sprintf("row already exist: id=%v", uploadSession.ID))
 	}
 
 	if err.Code != errs.NotFound {
@@ -80,10 +76,7 @@ func (u UploadSession) UpdateUploadSession(ct context.Context, uploadSession ent
 		return nil
 	}
 
-	return &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: id=%v", uploadSession.ID),
-	}
+	return errs.NewError(errs.NotFound, fmt.Sprintf("row not found: id=%v", uploadSession.ID))
 }
 
 func NewUploadSession(db *dbtest.InMemoryDB) UploadSession {

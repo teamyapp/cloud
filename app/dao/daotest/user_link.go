@@ -30,12 +30,9 @@ func (u UserLink) FindUserLinkByExternalUserID(ct context.Context, authProvider 
 		}
 	}
 
-	return entity.UserLink{}, &errs.Error{
-		Code: errs.NotFound,
-		Message: fmt.Sprintf("row not found: authProvider=%v, externalUserID=%v",
-			authProvider,
-			externalUserID),
-	}
+	return entity.UserLink{}, errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: authProvider=%v, externalUserID=%v", authProvider, externalUserID))
 }
 
 func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUserID uint64) ([]entity.UserLink, *errs.Error) {
@@ -58,10 +55,9 @@ func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUser
 func (u UserLink) CreateUserLink(ct context.Context, userLink entity.UserLink) *errs.Error {
 	_, err := u.FindUserLinkByExternalUserID(ct, userLink.AuthProvider, userLink.ExternalUserID)
 	if err == nil {
-		return &errs.Error{
-			Code:    errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: userLink=%v", userLink),
-		}
+		return errs.NewError(
+			errs.Unknown,
+			fmt.Sprintf("row already exist: userLink=%v", userLink))
 	}
 
 	if err.Code != errs.NotFound {

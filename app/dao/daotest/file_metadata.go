@@ -29,19 +29,18 @@ func (f FileMetadata) FindMetadataByFileID(ct context.Context, fileID uint64) (e
 		}
 	}
 
-	return entity.FileMetadata{}, &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: chunkID=%v", fileID),
-	}
+	return entity.FileMetadata{},
+		errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("row not found: chunkID=%v", fileID))
 }
 
 func (f FileMetadata) CreateFileMetadata(ct context.Context, metadata entity.FileMetadata) *errs.Error {
 	_, err := f.FindMetadataByFileID(ct, metadata.ID)
 	if err == nil {
-		return &errs.Error{
-			Code:    errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: id=%v", metadata.ID),
-		}
+		return errs.NewError(
+			errs.Unknown,
+			fmt.Sprintf("row already exist: id=%v", metadata.ID))
 	}
 
 	if err.Code != errs.NotFound {
@@ -80,10 +79,9 @@ func (f FileMetadata) UpdateFileMetadata(ct context.Context, metadata entity.Fil
 		return nil
 	}
 
-	return &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: id=%v", metadata.ID),
-	}
+	return errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: id=%v", metadata.ID))
 }
 
 func NewFileMetadata(db *dbtest.InMemoryDB) FileMetadata {

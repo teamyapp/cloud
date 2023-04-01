@@ -38,14 +38,13 @@ func (r ResourceRelation) FindResourceRelation(
 		}
 	}
 
-	return entity.ResourceRelation{}, &errs.Error{
-		Code: errs.NotFound,
-		Message: fmt.Sprintf("row not found: childResourceType=%v, childResourceID=%v, parentResourceType=%v, parentResourceID=%v",
+	return entity.ResourceRelation{}, errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: childResourceType=%v, childResourceID=%v, parentResourceType=%v, parentResourceID=%v",
 			childResourceType,
 			childResourceID,
 			parentResourceType,
-			parentResourceID),
-	}
+			parentResourceID))
 }
 
 func (r ResourceRelation) FindResourceRelations(
@@ -93,10 +92,9 @@ func (r ResourceRelation) CreateResourceRelation(ct context.Context, resourceRel
 		resourceRelation.ParentResourceType,
 		resourceRelation.ParentResourceID)
 	if err == nil {
-		return &errs.Error{
-			Code:    errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: resourceRelation=%v", resourceRelation),
-		}
+		return errs.NewError(
+			errs.Unknown,
+			fmt.Sprintf("row already exist: resourceRelation=%v", resourceRelation))
 	}
 
 	if err.Code != errs.NotFound {

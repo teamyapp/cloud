@@ -29,10 +29,9 @@ func (r ResourceType) FindResourceType(ct context.Context, resourceTypeName stri
 		}
 	}
 
-	return entity.ResourceType{}, &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: resourceTypeName=%v", resourceTypeName),
-	}
+	return entity.ResourceType{}, errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: resourceTypeName=%v", resourceTypeName))
 }
 
 func (r ResourceType) FindAllResourceTypes(ct context.Context) ([]entity.ResourceType, *errs.Error) {
@@ -53,10 +52,9 @@ func (r ResourceType) FindAllResourceTypes(ct context.Context) ([]entity.Resourc
 func (r ResourceType) CreateResourceType(ct context.Context, resourceType entity.ResourceType) *errs.Error {
 	_, err := r.FindResourceType(ct, resourceType.ResourceTypeName)
 	if err == nil {
-		return &errs.Error{
-			Code:    errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: resourceType=%v", resourceType),
-		}
+		return errs.NewError(
+			errs.Unknown,
+			fmt.Sprintf("row already exist: resourceType=%v", resourceType))
 	}
 
 	if err.Code != errs.NotFound {

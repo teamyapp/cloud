@@ -81,10 +81,9 @@ func (u UserGroupMember) FindUserGroupMember(ct context.Context, groupID uint64,
 		}
 	}
 
-	return entity.UserGroupMember{}, &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: groupID=%v, userID=%v", groupID, userID),
-	}
+	return entity.UserGroupMember{}, errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: groupID=%v, userID=%v", groupID, userID))
 }
 
 func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.UserGroupMember, *errs.Error) {
@@ -105,10 +104,9 @@ func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.U
 func (u UserGroupMember) CreateUserGroupMember(ct context.Context, userGroupMember entity.UserGroupMember) *errs.Error {
 	_, err := u.FindUserGroupMember(ct, userGroupMember.GroupID, userGroupMember.UserID)
 	if err == nil {
-		return &errs.Error{
-			Code:    errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: userGroupMember=%v", userGroupMember),
-		}
+		return errs.NewError(
+			errs.Unknown,
+			fmt.Sprintf("row already exist: userGroupMember=%v", userGroupMember))
 	}
 
 	if err.Code != errs.NotFound {

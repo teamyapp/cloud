@@ -32,10 +32,7 @@ func (p Permission) FindPermission(ct context.Context, query entity.PermissionQu
 		}
 	}
 
-	return entity.Permission{}, &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: query=%v", query),
-	}
+	return entity.Permission{}, errs.NewError(errs.NotFound, fmt.Sprintf("row not found: query=%v", query))
 }
 
 func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission, *errs.Error) {
@@ -62,10 +59,7 @@ func (p Permission) CreatePermission(ct context.Context, permission entity.Permi
 	}
 	_, err := p.FindPermission(ct, query)
 	if err == nil {
-		return &errs.Error{
-			Code:    errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: query=%v", query),
-		}
+		return errs.NewError(errs.Unknown, fmt.Sprintf("row already exist: query=%v", query))
 	}
 
 	if err.Code != errs.NotFound {

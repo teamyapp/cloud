@@ -29,19 +29,17 @@ func (c ChunkMetadata) FindChunkMetadataID(ct context.Context, chunkID uint64) (
 		}
 	}
 
-	return entity.ChunkMetadata{}, &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: chunkID=%v", chunkID),
-	}
+	return entity.ChunkMetadata{}, errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: chunkID=%v", chunkID))
 }
 
 func (c ChunkMetadata) CreateChunkMetadata(ct context.Context, metadata entity.ChunkMetadata) *errs.Error {
 	_, err := c.FindChunkMetadataID(ct, metadata.ID)
 	if err == nil {
-		return &errs.Error{
-			Code:    errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: id=%v", metadata.ID),
-		}
+		return errs.NewError(
+			errs.Unknown,
+			fmt.Sprintf("row already exist: id=%v", metadata.ID))
 	}
 
 	if err.Code != errs.NotFound {
@@ -80,10 +78,9 @@ func (c ChunkMetadata) UpdateChunkMetadata(ct context.Context, metadata entity.C
 		return nil
 	}
 
-	return &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: id=%v", metadata.ID),
-	}
+	return errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: id=%v", metadata.ID))
 }
 
 func NewChunkMetadata(db *dbtest.InMemoryDB) ChunkMetadata {

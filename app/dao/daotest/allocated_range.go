@@ -29,19 +29,17 @@ func (a AllocatedRange) FindAllocatedRangeByKey(ct context.Context, key string) 
 		}
 	}
 
-	return entity.AllocatedRange{}, &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: key=%v", key),
-	}
+	return entity.AllocatedRange{}, errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: key=%v", key))
 }
 
 func (a AllocatedRange) CreateAllocatedRange(ct context.Context, allocatedRange entity.AllocatedRange) *errs.Error {
 	_, err := a.FindAllocatedRangeByKey(ct, allocatedRange.Key)
 	if err == nil {
-		return &errs.Error{
-			Code:    errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: key=%v", allocatedRange.Key),
-		}
+		return errs.NewError(
+			errs.Unknown,
+			fmt.Sprintf("row already exist: key=%v", allocatedRange.Key))
 	}
 
 	if err.Code != errs.NotFound {
@@ -80,10 +78,9 @@ func (a AllocatedRange) UpdateAllocatedRange(ct context.Context, allocatedRange 
 		return nil
 	}
 
-	return &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: key=%v", allocatedRange.Key),
-	}
+	return errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: key=%v", allocatedRange.Key))
 }
 
 func NewAllocatedRange(db *dbtest.InMemoryDB) AllocatedRange {
