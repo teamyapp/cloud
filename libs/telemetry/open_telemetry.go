@@ -29,10 +29,7 @@ func InitTracerProvider(
 		resource.WithAttributes(
 			semconv.ServiceName(serviceName)))
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.Unknown, err.Error())
 		dataCollector.Logger.Error(internalErr)
 		return nil, internalErr
 	}
@@ -44,10 +41,7 @@ func InitTracerProvider(
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock())
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.Unknown, err.Error())
 		dataCollector.Logger.Error(internalErr)
 		return nil, internalErr
 	}
@@ -55,10 +49,7 @@ func InitTracerProvider(
 	dataCollector.Logger.Info(fmt.Sprintf("Connected to trace collector at %v", traceCollectorEndpoint))
 	traceExporter, err := otlptracegrpc.New(ct, otlptracegrpc.WithGRPCConn(conn))
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.Unknown, err.Error())
 		dataCollector.Logger.Error(internalErr)
 		return nil, internalErr
 	}

@@ -135,19 +135,13 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 	}
 
 	if !hasPeriod && !hasTime {
-		err := &errs.Error{
-			Code:    errs.InvalidArgument,
-			Message: fmt.Sprintf("must has either period or time: duration=%v", input),
-		}
+		err := errs.NewError(errs.InvalidArgument, fmt.Sprintf("must has either period or time: duration=%v", input))
 		dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
 
 	if visitTimeSection && !hasTime {
-		err := &errs.Error{
-			Code:    errs.InvalidArgument,
-			Message: fmt.Sprintf("must remove ending T or have non empty time section: duration=%v", input),
-		}
+		err := errs.NewError(errs.InvalidArgument, fmt.Sprintf("must remove ending T or have non empty time section: duration=%v", input))
 		dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
@@ -222,10 +216,7 @@ func validateSymbol(
 ) *errs.Error {
 	symbolIndex, ok := symbolIndices[currSymbol]
 	if !ok {
-		err := &errs.Error{
-			Code:    errs.InvalidArgument,
-			Message: fmt.Sprintf("unsupported symbol: index=%v, symbol=%v", currIndex, currSymbol),
-		}
+		err := errs.NewError(errs.InvalidArgument, fmt.Sprintf("unsupported symbol: index=%v, symbol=%v", currIndex, currSymbol))
 		dataCollector.Logger.ErrorWithContext(ct, err)
 		return err
 	}
@@ -234,10 +225,7 @@ func validateSymbol(
 		symbol := symbolOrder[index]
 		seenSymbolIndex, ok := seenSymbols[symbol]
 		if ok {
-			err := &errs.Error{
-				Code:    errs.InvalidArgument,
-				Message: fmt.Sprintf("%c already showed up before %c(%v)", seenSymbolIndex, currSymbol, currIndex),
-			}
+			err := errs.NewError(errs.InvalidArgument, fmt.Sprintf("%c already showed up before %c(%v)", seenSymbolIndex, currSymbol, currIndex))
 			dataCollector.Logger.ErrorWithContext(ct, err)
 			return err
 		}

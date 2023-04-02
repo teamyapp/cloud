@@ -131,10 +131,7 @@ func (s *ServiceRunner) startWebServer(wg *sync.WaitGroup) (net.Listener, *errs.
 	go func() {
 		defer wg.Done()
 		if err = http.Serve(lis, s.webRouter); err != nil {
-			s.dataCollector.Logger.Fatal(&errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			})
+			s.dataCollector.Logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
 		}
 	}()
 	return lis, nil
@@ -144,10 +141,7 @@ func (s *ServiceRunner) startGRPCServer(wg *sync.WaitGroup) (net.Listener, *errs
 	hostAndPort := fmt.Sprintf(":%d", s.config.GRPCServerPort)
 	lis, err := s.network.Listen("tcp", hostAndPort)
 	if err != nil {
-		return nil, &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
@@ -159,10 +153,7 @@ func (s *ServiceRunner) startGRPCServer(wg *sync.WaitGroup) (net.Listener, *errs
 		defer wg.Done()
 		err = s.gRPCServer.Serve(lis)
 		if err != nil {
-			s.dataCollector.Logger.Fatal(&errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			})
+			s.dataCollector.Logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
 		}
 	}()
 	return lis, nil
@@ -178,10 +169,7 @@ func (s *ServiceRunner) startMonitoringServer(wg *sync.WaitGroup) (net.Listener,
 	hostAndPort := fmt.Sprintf(":%d", s.config.MonitoringServerPort)
 	lis, err := s.network.Listen("tcp", hostAndPort)
 	if err != nil {
-		return nil, &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	wg.Add(1)
@@ -189,10 +177,7 @@ func (s *ServiceRunner) startMonitoringServer(wg *sync.WaitGroup) (net.Listener,
 		defer wg.Done()
 		err = http.Serve(lis, router)
 		if err != nil {
-			s.dataCollector.Logger.Fatal(&errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			})
+			s.dataCollector.Logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
 		}
 	}()
 	return lis, nil

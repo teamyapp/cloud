@@ -167,18 +167,12 @@ func NewLogOutput(environment env.Environment, logFilePath string) (io.WriteClos
 		// https://github.com/golang/go/issues/22323
 		err := os.MkdirAll(logDir, 0744)
 		if err != nil {
-			return nil, &errs.Error{
-				Code:     errs.OS,
-				EmbedErr: err,
-			}
+			return nil, errs.NewError(errs.OS, err.Error())
 		}
 
 		file, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0640)
 		if err != nil {
-			return nil, &errs.Error{
-				Code:     errs.OS,
-				EmbedErr: err,
-			}
+			return nil, errs.NewError(errs.OS, err.Error())
 		}
 
 		return tmio.NewMultiWriteCloser(file, os.Stdout), nil

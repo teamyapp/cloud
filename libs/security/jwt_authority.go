@@ -27,10 +27,7 @@ func (j JWTAuthority) GenerateToken(ct context.Context, payload interface{}) (st
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims(payloadMap))
 	signedStr, err := token.SignedString(j.signingKey)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.Unknown, err.Error())
 		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
@@ -43,19 +40,13 @@ func (j JWTAuthority) DecodeToken(ct context.Context, jwtToken string, output in
 		return j.signingKey, nil
 	})
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.Unknown, err.Error())
 		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
 	if !token.Valid {
-		internalErr := &errs.Error{
-			Code:     errs.InvalidArgument,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.InvalidArgument, err.Error())
 		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
@@ -67,10 +58,7 @@ func (j JWTAuthority) DecodeUnverifiedToken(ct context.Context, jwtToken string,
 	claims := jwt.MapClaims{}
 	_, _, err := new(jwt.Parser).ParseUnverified(jwtToken, &claims)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.Unknown, err.Error())
 		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
@@ -81,20 +69,14 @@ func (j JWTAuthority) DecodeUnverifiedToken(ct context.Context, jwtToken string,
 func (j JWTAuthority) parseJWTClaims(ct context.Context, claims jwt.Claims, output interface{}) *errs.Error {
 	buf, err := json.Marshal(claims)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Serialization,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.Serialization, err.Error())
 		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
 	err = json.Unmarshal(buf, output)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Deserialization,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.Deserialization, err.Error())
 		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}

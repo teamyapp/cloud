@@ -28,10 +28,7 @@ func (s Service[Resolver]) Start(rn *runner.ServiceRunner) *errs.Error {
 		graphql.UseStringDescriptions(),
 		graphql.Tracer(s.graphQLTracer))
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.NotReady,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.NotReady, err.Error())
 		s.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
 		return internalErr
 	}
