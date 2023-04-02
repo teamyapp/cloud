@@ -66,7 +66,7 @@ func TestMaxCount(t *testing.T) {
 			},
 			maxCount:        5,
 			expectRetries:   5,
-			expectErr:       errs.NewError(errs.Unimplemented, ""),
+			expectErr:       errs.NewError(outageUnimplementedErr, ""),
 			sleepAwakeCount: 5,
 		},
 	}
