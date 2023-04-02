@@ -12,10 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/identity"
-	"github.com/teamyapp/cloud/libs/metrics"
+	"github.com/teamyapp/cloud/libs/metrics/metricstest"
 	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/network/networktest"
 	"github.com/teamyapp/cloud/libs/randgen"
@@ -275,7 +274,7 @@ func NewGithubTestKit(cfg GithubTestKitConfig, network network.Network) GithubTe
 	serviceRunner := runner.NewServiceRunnerBuilder(
 		dataCollector,
 		network,
-		metrics.NewPrometheus(githubAppName, githubServiceName, env.DevelopmentEnv),
+		metricstest.NewNoopMetrics(),
 		runnerConfig,
 		githubFullServiceName,
 		[]runner.Service{

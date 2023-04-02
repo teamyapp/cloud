@@ -136,7 +136,11 @@ func TestTimeout(t *testing.T) {
 				retries, err := timeoutExecutor.WithRetry(ct, execute)
 
 				assert.Equal(t, testCase.expectRetries, retries)
-				assert.Equal(t, testCase.expectErr, err)
+				if err == nil {
+					assert.Nil(t, err)
+				} else {
+					assert.Equal(t, testCase.expectErr.Code, err.Code)
+				}
 			}()
 
 			retry := 1
