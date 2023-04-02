@@ -29,19 +29,15 @@ func (s SignInSession) FindSignInSessionByID(ct context.Context, sessionID uint6
 		}
 	}
 
-	return entity.SignInSession{}, &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: sessionID=%v", sessionID),
-	}
+	return entity.SignInSession{}, errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: sessionID=%v", sessionID))
 }
 
 func (s SignInSession) CreateSignInSession(ct context.Context, session entity.SignInSession) *errs.Error {
 	_, err := s.FindSignInSessionByID(ct, session.ID)
 	if err == nil {
-		return &errs.Error{
-			Code:    errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: session=%v", session),
-		}
+		return errs.NewError(errs.Unknown, fmt.Sprintf("row already exist: id=%v", session.ID))
 	}
 
 	if err.Code != errs.NotFound {
@@ -80,10 +76,7 @@ func (s SignInSession) UpdateSignInSession(ct context.Context, session entity.Si
 		return nil
 	}
 
-	return &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: id=%v", session.ID),
-	}
+	return errs.NewError(errs.NotFound, fmt.Sprintf("row not found: id=%v", session.ID))
 }
 
 func (s SignInSession) DeleteSignInSession(ct context.Context, sessionID uint64) *errs.Error {

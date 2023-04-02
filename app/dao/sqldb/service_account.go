@@ -9,12 +9,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type ServiceAccount struct {
-	dataCollector telemetry.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.ServiceAccount = (*ServiceAccount)(nil)
@@ -31,17 +29,11 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 	WHERE owner_user_id = $1;`,
 		accountOwnerID)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	serviceAccounts := make([]entity.ServiceAccount, 0)
 	for rows.Next() {
 		serviceAccount := entity.ServiceAccount{}
@@ -53,17 +45,7 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 			&serviceAccount.CreatedAt,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			s.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		serviceAccounts = append(serviceAccounts, serviceAccount)
@@ -93,23 +75,13 @@ func (s ServiceAccount) FindServiceAccountByID(ct context.Context, serviceAccoun
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		internalErr := &errs.Error{
-			Code: errs.NotFound,
-			Message: fmt.Sprintf(
-				"service account not found: id=%v",
-				serviceAccountID),
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.ServiceAccount{}, internalErr
+		return entity.ServiceAccount{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("service account not found: id=%v", serviceAccountID))
 	}
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.ServiceAccount{}, internalErr
+		return entity.ServiceAccount{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return serviceAccount, nil
@@ -134,12 +106,7 @@ func (s ServiceAccount) CreateServiceAccount(ct context.Context, serviceAccount 
 	)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -164,12 +131,7 @@ func (s ServiceAccount) UpdateServiceAccount(ct context.Context, serviceAccount 
 	)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -183,17 +145,12 @@ func (s ServiceAccount) DeleteServiceAccount(ct context.Context, serviceAccountI
 		serviceAccountID)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func NewServiceAccount(dataCollector telemetry.DataCollector, sqlDB *sql.DB) ServiceAccount {
-	return ServiceAccount{dataCollector: dataCollector, db: sqlDB}
+func NewServiceAccount(sqlDB *sql.DB) ServiceAccount {
+	return ServiceAccount{db: sqlDB}
 }

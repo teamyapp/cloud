@@ -22,7 +22,6 @@ func (u *UniqueNumber) GenerateUniqueNumber(ct context.Context) (uint64, *errs.E
 	if u.allocatedRange.NextNumber > u.allocatedRange.RangeEnd {
 		err := u.allocateNewRange(ct)
 		if err != nil {
-			u.dataCollector.Logger.ErrorWithContext(ct, err)
 			return uint64(0), err
 		}
 	}
@@ -34,12 +33,7 @@ func (u *UniqueNumber) GenerateUniqueNumber(ct context.Context) (uint64, *errs.E
 
 func (u *UniqueNumber) allocateNewRange(ct context.Context) *errs.Error {
 	if u.allocatedRange.RangeEnd == math.MaxInt64 {
-		internalErr := &errs.Error{
-			Code:    errs.Unknown,
-			Message: "out of number to allocate",
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.ResourceExhausted, "out of number to allocate")
 	}
 
 	newRangeStart := u.allocatedRange.RangeEnd + 1
@@ -51,7 +45,6 @@ func (u *UniqueNumber) allocateNewRange(ct context.Context) *errs.Error {
 	}
 	err := u.allocatedRangeDao.UpdateAllocatedRange(ct, newRange)
 	if err != nil {
-		u.dataCollector.Logger.ErrorWithContext(ct, err)
 		return err
 	}
 

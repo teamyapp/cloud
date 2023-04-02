@@ -4,20 +4,17 @@ import (
 	"context"
 
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type UniqueString struct {
-	dataCollector telemetry.DataCollector
-	uniqueNumGen  *UniqueNumber
-	stringLen     int
-	alphabet      []rune
+	uniqueNumGen *UniqueNumber
+	stringLen    int
+	alphabet     []rune
 }
 
 func (u UniqueString) GenerateUniqueString(ct context.Context) (string, *errs.Error) {
 	currNum, err := u.uniqueNumGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		u.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
@@ -38,7 +35,6 @@ func (u UniqueString) toString(num uint64) string {
 }
 
 func NewUniqueString(
-	dataCollector telemetry.DataCollector,
 	name string,
 	stringLen int,
 	alphabet string,
@@ -46,14 +42,12 @@ func NewUniqueString(
 ) (UniqueString, *errs.Error) {
 	numNum, err := uniqueNumFactory.MakeUniqueNumber(name)
 	if err != nil {
-		dataCollector.Logger.Error(err)
 		return UniqueString{}, err
 	}
 
 	return UniqueString{
-		dataCollector: dataCollector,
-		uniqueNumGen:  numNum,
-		stringLen:     stringLen,
-		alphabet:      []rune(alphabet),
+		uniqueNumGen: numNum,
+		stringLen:    stringLen,
+		alphabet:     []rune(alphabet),
 	}, nil
 }

@@ -8,8 +8,6 @@ package dep
 
 import (
 	"database/sql"
-	"time"
-
 	"github.com/google/wire"
 	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/dao"
@@ -23,6 +21,7 @@ import (
 	"github.com/teamyapp/cloud/libs/security"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
+	"time"
 )
 
 // Injectors from wire.go:
@@ -33,10 +32,10 @@ func InitTelemetryAPI(dataCollector telemetry.DataCollector) *api.Telemetry {
 }
 
 func InitIdentityAPI(dataCollector telemetry.DataCollector, sqlDB *sql.DB, oauthProviders OAuthProviders, accessTokenTTL AccessTokenTTL, jwtSigningKey JWTSigningKey, genRangeSize GenRangeSize) (api.Identity, error) {
-	signInSession := sqldb.NewSignInSession(dataCollector, sqlDB)
-	userLink := sqldb.NewUserLink(dataCollector, sqlDB)
-	serviceAccount := sqldb.NewServiceAccount(dataCollector, sqlDB)
-	allocatedRange := sqldb.NewAllocatedRange(dataCollector, sqlDB)
+	signInSession := sqldb.NewSignInSession(sqlDB)
+	userLink := sqldb.NewUserLink(sqlDB)
+	serviceAccount := sqldb.NewServiceAccount(sqlDB)
+	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
 	uniqueNumberFactory := newUniqueNumberGenFactory(dataCollector, allocatedRange, genRangeSize)
 	jwtAuthority := newJWTAuthority(dataCollector, jwtSigningKey)
 	identity, err := newIdentityService(dataCollector, signInSession, userLink, serviceAccount, uniqueNumberFactory, jwtAuthority, oauthProviders, accessTokenTTL)
@@ -48,22 +47,22 @@ func InitIdentityAPI(dataCollector telemetry.DataCollector, sqlDB *sql.DB, oauth
 }
 
 func InitGeneratorAPI(dataCollector telemetry.DataCollector, sqlDB *sql.DB, genRangeSize GenRangeSize) (api.Generator, error) {
-	allocatedRange := sqldb.NewAllocatedRange(dataCollector, sqlDB)
+	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
 	uniqueNumberFactory := newUniqueNumberGenFactory(dataCollector, allocatedRange, genRangeSize)
 	generator := api.NewGenerator(dataCollector, uniqueNumberFactory)
 	return generator, nil
 }
 
 func InitAuthorizationAPI(dataCollector telemetry.DataCollector, sqlDB *sql.DB, genRangeSize GenRangeSize) (api.Authorization, error) {
-	resourceRelation := sqldb.NewResourceRelation(dataCollector, sqlDB)
-	userGroupMember := sqldb.NewUserGroupMember(dataCollector, sqlDB)
-	permission := sqldb.NewPermission(dataCollector, sqlDB)
-	operationRelation := sqldb.NewOperationRelation(dataCollector, sqlDB)
-	operation := sqldb.NewOperation(dataCollector, sqlDB)
-	resourceType := sqldb.NewResourceType(dataCollector, sqlDB)
-	resource := sqldb.NewResource(dataCollector, sqlDB)
-	userGroup := sqldb.NewUserGroup(dataCollector, sqlDB)
-	allocatedRange := sqldb.NewAllocatedRange(dataCollector, sqlDB)
+	resourceRelation := sqldb.NewResourceRelation(sqlDB)
+	userGroupMember := sqldb.NewUserGroupMember(sqlDB)
+	permission := sqldb.NewPermission(sqlDB)
+	operationRelation := sqldb.NewOperationRelation(sqlDB)
+	operation := sqldb.NewOperation(sqlDB)
+	resourceType := sqldb.NewResourceType(sqlDB)
+	resource := sqldb.NewResource(sqlDB)
+	userGroup := sqldb.NewUserGroup(sqlDB)
+	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
 	uniqueNumberFactory := newUniqueNumberGenFactory(dataCollector, allocatedRange, genRangeSize)
 	authorization, err := service.NewAuthorization(dataCollector, resourceRelation, userGroupMember, permission, operationRelation, operation, resourceType, resource, userGroup, uniqueNumberFactory)
 	if err != nil {
@@ -78,11 +77,11 @@ func InitFileAPI(dataCollector telemetry.DataCollector, env2 env.Environment, sq
 	if err != nil {
 		return api.File{}, err
 	}
-	allocatedRange := sqldb.NewAllocatedRange(dataCollector, sqlDB)
+	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
 	uniqueNumberFactory := newUniqueNumberGenFactory(dataCollector, allocatedRange, genRangeSize)
-	uploadSession := sqldb.NewUploadSession(dataCollector, sqlDB)
-	fileMetadata := sqldb.NewFileMetadata(dataCollector, sqlDB)
-	chunkMetadata := sqldb.NewChunkMetadata(dataCollector, sqlDB)
+	uploadSession := sqldb.NewUploadSession(sqlDB)
+	fileMetadata := sqldb.NewFileMetadata(sqlDB)
+	chunkMetadata := sqldb.NewChunkMetadata(sqlDB)
 	file, err := service.NewFile(dataCollector, s3Bucket, uniqueNumberFactory, uploadSession, fileMetadata, chunkMetadata)
 	if err != nil {
 		return api.File{}, err
@@ -94,7 +93,7 @@ func InitFileAPI(dataCollector telemetry.DataCollector, env2 env.Environment, sq
 func InitGitHubOAuthProvider(dataCollector telemetry.DataCollector, webAPIBaseURL WebAPIBaseURL, clientID ClientID, clientSecret ClientSecret) oauth.GitHub {
 	socket := network.NewSocket()
 	client := web.NewHTTPClient(socket)
-	gitHub := newGithubOAuthProvider(dataCollector, client, webAPIBaseURL, clientID, clientSecret)
+	gitHub := newGithubOAuthProvider(client, webAPIBaseURL, clientID, clientSecret)
 	return gitHub
 }
 
@@ -102,7 +101,7 @@ func InitGoogleOAuthProvider(dataCollector telemetry.DataCollector, webAPIBaseUR
 	socket := network.NewSocket()
 	client := web.NewHTTPClient(socket)
 	jwtAuthority := newJWTAuthority(dataCollector, jwtSigningKey)
-	google := newGoogleOAuthProvider(dataCollector, client, jwtAuthority, webAPIBaseURL, clientID, clientSecret)
+	google := newGoogleOAuthProvider(client, jwtAuthority, webAPIBaseURL, clientID, clientSecret)
 	return google
 }
 
@@ -110,7 +109,7 @@ func InitSlackOAuthProvider(dataCollector telemetry.DataCollector, webAPIBaseURL
 	socket := network.NewSocket()
 	client := web.NewHTTPClient(socket)
 	jwtAuthority := newJWTAuthority(dataCollector, jwtSigningKey)
-	slack := newSlackOAuthProvider(dataCollector, client, jwtAuthority, webAPIBaseURL, clientID, clientSecret)
+	slack := newSlackOAuthProvider(client, jwtAuthority, webAPIBaseURL, clientID, clientSecret)
 	return slack
 }
 
@@ -158,35 +157,32 @@ func newS3Bucket(
 }
 
 func newGithubOAuthProvider(
-	dataCollector telemetry.DataCollector,
 	httpClient web.HTTPClient,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.GitHub {
-	return oauth.NewGitHub(dataCollector, httpClient, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewGitHub(httpClient, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newGoogleOAuthProvider(
-	dataCollector telemetry.DataCollector,
 	httpClient web.HTTPClient,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.Google {
-	return oauth.NewGoogle(dataCollector, httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewGoogle(httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newSlackOAuthProvider(
-	dataCollector telemetry.DataCollector,
 	httpClient web.HTTPClient,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.Slack {
-	return oauth.NewSlack(dataCollector, httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewSlack(httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newJWTAuthority(dataCollector telemetry.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {

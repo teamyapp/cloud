@@ -46,19 +46,15 @@ func (s ServiceAccount) FindServiceAccountByID(ct context.Context, serviceAccoun
 		}
 	}
 
-	return entity.ServiceAccount{}, &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: serviceAccountID=%v", serviceAccountID),
-	}
+	return entity.ServiceAccount{}, errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: serviceAccountID=%v", serviceAccountID))
 }
 
 func (s ServiceAccount) CreateServiceAccount(ct context.Context, serviceAccount entity.ServiceAccount) *errs.Error {
 	_, err := s.FindServiceAccountByID(ct, serviceAccount.ID)
 	if err == nil {
-		return &errs.Error{
-			Code:    errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: serviceAccount=%v", serviceAccount),
-		}
+		return errs.NewError(errs.Unknown, fmt.Sprintf("row already exist: id=%v", serviceAccount.ID))
 	}
 
 	if err.Code != errs.NotFound {
@@ -97,10 +93,7 @@ func (s ServiceAccount) UpdateServiceAccount(ct context.Context, serviceAccount 
 		return nil
 	}
 
-	return &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: id=%v", serviceAccount.ID),
-	}
+	return errs.NewError(errs.NotFound, fmt.Sprintf("row not found: id=%v", serviceAccount.ID))
 }
 
 func (s ServiceAccount) DeleteServiceAccount(ct context.Context, serviceAccountID uint64) *errs.Error {

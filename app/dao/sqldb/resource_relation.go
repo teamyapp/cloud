@@ -9,12 +9,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type ResourceRelation struct {
-	dataCollector telemetry.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.ResourceRelation = (*ResourceRelation)(nil)
@@ -48,26 +46,17 @@ func (r ResourceRelation) FindResourceRelation(
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		internalErr := &errs.Error{
-			Code: errs.NotFound,
-			Message: fmt.Sprintf(
-				"resource relation not found: child_resource_type=%v, child_resource_id=%d, parent_resource_type=%v, parent_resource_id=%d",
+		return entity.ResourceRelation{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("resource relation not found: child_resource_type=%v, child_resource_id=%d, parent_resource_type=%v, parent_resource_id=%d",
 				childResourceType,
 				childResourceID,
 				parentResourceType,
-				parentResourceID),
-		}
-		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.ResourceRelation{}, internalErr
+				parentResourceID))
 	}
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.ResourceRelation{}, internalErr
+		return entity.ResourceRelation{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return resourceRelation, nil
@@ -86,17 +75,11 @@ func (r ResourceRelation) FindResourceRelations(ct context.Context, childResourc
 		WHERE child_resource_type = $1 AND child_resource_id = $2;`,
 		childResourceType, childResourceID)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	resourceRelations := make([]entity.ResourceRelation, 0)
 	for rows.Next() {
 		resourceRelation := entity.ResourceRelation{}
@@ -109,17 +92,7 @@ func (r ResourceRelation) FindResourceRelations(ct context.Context, childResourc
 			&resourceRelation.CreatorUserID,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			r.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		resourceRelations = append(resourceRelations, resourceRelation)
@@ -140,17 +113,11 @@ func (r ResourceRelation) FindAllResourceRelations(ct context.Context) ([]entity
 		FROM resource_relation;
 	`)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	resourceRelations := make([]entity.ResourceRelation, 0)
 	for rows.Next() {
 		resourceRelation := entity.ResourceRelation{}
@@ -163,17 +130,7 @@ func (r ResourceRelation) FindAllResourceRelations(ct context.Context) ([]entity
 			&resourceRelation.CreatorUserID,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			r.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		resourceRelations = append(resourceRelations, resourceRelation)
@@ -203,12 +160,7 @@ func (r ResourceRelation) CreateResourceRelation(ct context.Context, resourceRel
 	)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -232,17 +184,12 @@ func (r ResourceRelation) DeleteResourceRelation(
 		childResourceType, childResourceID, parentResourceType, parentResourceID)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func NewResourceRelation(dataCollector telemetry.DataCollector, sqlDB *sql.DB) ResourceRelation {
-	return ResourceRelation{dataCollector: dataCollector, db: sqlDB}
+func NewResourceRelation(sqlDB *sql.DB) ResourceRelation {
+	return ResourceRelation{db: sqlDB}
 }

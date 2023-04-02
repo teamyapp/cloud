@@ -38,14 +38,13 @@ func (o OperationRelation) FindOperationRelation(
 		}
 	}
 
-	return entity.OperationRelation{}, &errs.Error{
-		Code: errs.NotFound,
-		Message: fmt.Sprintf("row not found: childResourceType=%v, childOperation=%v, parentResourceType=%v, parentOperation=%v",
+	return entity.OperationRelation{}, errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: childResourceType=%v, childOperation=%v, parentResourceType=%v, parentOperation=%v",
 			childResourceType,
 			childOperation,
 			parentResourceType,
-			parentOperation),
-	}
+			parentOperation))
 }
 
 func (o OperationRelation) FindOperationRelations(ct context.Context, childResourceType string, childOperation string) ([]entity.OperationRelation, *errs.Error) {
@@ -89,10 +88,7 @@ func (o OperationRelation) CreateOperationRelation(ct context.Context, operation
 		operationRelation.ParentResourceType,
 		operationRelation.ParentOperation)
 	if err == nil {
-		return &errs.Error{
-			Code:    errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: operationRelation=%v", operationRelation),
-		}
+		return errs.NewError(errs.Unknown, fmt.Sprintf("row already exist: operationRelation=%v", operationRelation))
 	}
 
 	if err.Code != errs.NotFound {

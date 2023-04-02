@@ -47,6 +47,7 @@ func Use(dataCollector telemetry.DataCollector, cfg Config, action func(sqlDB *s
 	if err != nil {
 		return err
 	}
+
 	defer sqlDB.Close()
 
 	waitUntilReady(dataCollector, sqlDB)
@@ -65,7 +66,7 @@ func MigrateDown(dataCollector telemetry.DataCollector, sqlDB *sql.DB, migration
 	return migrateDB(dataCollector, sqlDB, migrationRoot, migrate.Down, steps)
 }
 
-func NewMigration(dataCollector telemetry.DataCollector, migrationDir string, fileName string) (string, *errs.Error) {
+func NewMigration(migrationDir string, fileName string) (string, *errs.Error) {
 	now := time.Now()
 	prefix := fmt.Sprintf(
 		"%04d%02d%02d%02d%02d%02d_%s",
@@ -79,24 +80,14 @@ func NewMigration(dataCollector telemetry.DataCollector, migrationDir string, fi
 
 	err := os.MkdirAll(migrationDir, os.ModePerm)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.OS,
-			EmbedErr: err,
-		}
-		dataCollector.Logger.Error(internalErr)
-		return "", internalErr
+		return "", errs.NewError(errs.OS, err.Error())
 	}
 
 	fileName = fmt.Sprintf("%s.sql", prefix)
 	fullFilePath := filepath.Join(migrationDir, fileName)
 	err = io.CreateFileWithLog(fullFilePath)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.OS,
-			EmbedErr: err,
-		}
-		dataCollector.Logger.Error(internalErr)
-		return "", internalErr
+		return "", errs.NewError(errs.OS, err.Error())
 	}
 
 	return fullFilePath, nil
@@ -138,32 +129,17 @@ GRANT ALL PRIVILEGES ON DATABASE "%s" TO "%s";
 func ExecSQL(dataCollector telemetry.DataCollector, sqlDB *sql.DB, sqlFileName string) *errs.Error {
 	buf, err := os.ReadFile(sqlFileName)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.OS,
-			EmbedErr: err,
-		}
-		dataCollector.Logger.Error(internalErr)
-		return internalErr
+		return errs.NewError(errs.OS, err.Error())
 	}
 
 	tx, err := sqlDB.BeginTx(context.Background(), nil)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		dataCollector.Logger.Error(internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	_, err = tx.Exec(string(buf))
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		dataCollector.Logger.Error(internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	err = tx.Commit()
@@ -171,10 +147,7 @@ func ExecSQL(dataCollector telemetry.DataCollector, sqlDB *sql.DB, sqlFileName s
 		dataCollector.Logger.Info("successfully seeded DB")
 	}
 
-	return &errs.Error{
-		Code:     errs.Unknown,
-		EmbedErr: err,
-	}
+	return errs.NewError(errs.Unknown, err.Error())
 }
 
 func waitUntilReady(dataCollector telemetry.DataCollector, sqlDB *sql.DB) {
@@ -185,11 +158,9 @@ func waitUntilReady(dataCollector telemetry.DataCollector, sqlDB *sql.DB) {
 			break
 		}
 
-		dataCollector.Logger.Error(&errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		})
-		dataCollector.Logger.Warning("fail to connect to the DB")
+		dataCollector.Logger.Error(errs.NewError(
+			errs.Unknown,
+			fmt.Sprintf("failed to connect to the DB: %s", err.Error())))
 		dataCollector.Logger.Info("retry after 5 seconds")
 		time.Sleep(5 * time.Second)
 	}
@@ -206,11 +177,7 @@ func connect(cfg Config) (*sql.DB, *errs.Error) {
 		cfg.DBSSLMode)
 	db, err := sql.Open(dbType, dbSource)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return db, nil
@@ -228,12 +195,7 @@ func migrateDB(
 	}
 	_, err := migrate.ExecMax(db, dbType, migrations, migrateDirection, steps)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		dataCollector.Logger.Error(internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	dataCollector.Logger.Info("migration finished")

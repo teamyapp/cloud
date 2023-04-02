@@ -17,10 +17,7 @@ var _ MapBackend = (*FileSystem)(nil)
 func (f FileSystem) Get(key string) ([]byte, *errs.Error) {
 	buf, err := os.ReadFile(path.Join(f.rootDir, key))
 	if err != nil {
-		return nil, &errs.Error{
-			Code:     errs.OS,
-			EmbedErr: err,
-		}
+		return nil, errs.NewError(errs.OS, err.Error())
 	}
 
 	return buf, nil
@@ -31,18 +28,12 @@ func (f FileSystem) Put(key string, data []byte) *errs.Error {
 	dir := filepath.Dir(filePath)
 	err := os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
-		return &errs.Error{
-			Code:     errs.OS,
-			EmbedErr: err,
-		}
+		return errs.NewError(errs.OS, err.Error())
 	}
 
 	err = os.WriteFile(filePath, data, os.ModePerm)
 	if err != nil {
-		return &errs.Error{
-			Code:     errs.OS,
-			EmbedErr: err,
-		}
+		return errs.NewError(errs.OS, err.Error())
 	}
 
 	return nil
@@ -51,10 +42,7 @@ func (f FileSystem) Put(key string, data []byte) *errs.Error {
 func (f FileSystem) Delete(key string) *errs.Error {
 	err := os.RemoveAll(path.Join(f.rootDir, key))
 	if err != nil {
-		return &errs.Error{
-			Code:     errs.OS,
-			EmbedErr: err,
-		}
+		return errs.NewError(errs.OS, err.Error())
 	}
 
 	return nil

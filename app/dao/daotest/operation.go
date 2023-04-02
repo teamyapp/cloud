@@ -30,10 +30,11 @@ func (o Operation) FindOperation(ct context.Context, resourceTypeName string, op
 		}
 	}
 
-	return entity.Operation{}, &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: resourceTypeName=%v, operationName=%v", resourceTypeName, operationName),
-	}
+	return entity.Operation{}, errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: resourceTypeName=%v, operationName=%v",
+			resourceTypeName,
+			operationName))
 }
 
 func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *errs.Error) {
@@ -54,12 +55,11 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *e
 func (o Operation) CreateOperation(ct context.Context, operation entity.Operation) *errs.Error {
 	_, err := o.FindOperation(ct, operation.ResourceTypeName, operation.OperationName)
 	if err == nil {
-		return &errs.Error{
-			Code: errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: resourceTypeName=%v, operation=%v",
+		return errs.NewError(
+			errs.Unknown,
+			fmt.Sprintf("row already exist: resourceTypeName=%v, operation=%v",
 				operation.ResourceTypeName,
-				operation.OperationName),
-		}
+				operation.OperationName))
 	}
 
 	if err.Code != errs.NotFound {

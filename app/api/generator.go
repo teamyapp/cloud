@@ -61,7 +61,6 @@ func (g Generator) GenerateUniqueString(
 	uniqueStringGen, ok := g.uniqueStringGenerators[request.SequenceName]
 	if !ok {
 		strGen, err := gen.NewUniqueString(
-			g.dataCollector,
 			request.SequenceName,
 			int(request.StringLength),
 			request.Alphabet,

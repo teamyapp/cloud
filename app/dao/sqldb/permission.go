@@ -9,12 +9,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type Permission struct {
-	dataCollector telemetry.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.Permission = (*Permission)(nil)
@@ -42,26 +40,17 @@ func (p Permission) FindPermission(ct context.Context, query entity.PermissionQu
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		internalErr := &errs.Error{
-			Code: errs.NotFound,
-			Message: fmt.Sprintf(
-				"permission not found: resource_type=%v, resource_id=%d, operation=%v, group_id=%d",
+		return entity.Permission{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("permission not found: resource_type=%v, resource_id=%d, operation=%v, group_id=%d",
 				query.ResourceType,
 				query.ResourceID,
 				query.Operation,
-				query.GroupID),
-		}
-		p.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.Permission{}, internalErr
+				query.GroupID))
 	}
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		p.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.Permission{}, internalErr
+		return entity.Permission{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return permission, nil
@@ -79,17 +68,11 @@ func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission,
 		FROM permission;
 	`)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		p.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	permissions := make([]entity.Permission, 0)
 	for rows.Next() {
 		permission := entity.Permission{}
@@ -102,17 +85,7 @@ func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission,
 			&permission.CreatorUserID,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			p.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		permissions = append(permissions, permission)
@@ -142,12 +115,7 @@ func (p Permission) CreatePermission(ct context.Context, permission entity.Permi
 	)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		p.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -160,17 +128,12 @@ func (p Permission) DeletePermission(ct context.Context, resourceType string, re
 		`,
 		resourceType, resourceID, operation, groupID)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		p.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func NewPermission(dataCollector telemetry.DataCollector, sqlDB *sql.DB) Permission {
-	return Permission{dataCollector: dataCollector, db: sqlDB}
+func NewPermission(sqlDB *sql.DB) Permission {
+	return Permission{db: sqlDB}
 }

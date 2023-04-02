@@ -1,16 +1,14 @@
 package sqldb
 
 import (
-	"context"
 	"strconv"
 	"strings"
 
 	"github.com/teamyapp/cloud/libs/collect"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-func parseIDs(ct context.Context, dataCollector telemetry.DataCollector, idsString string) ([]uint64, *errs.Error) {
+func parseIDs(idsString string) ([]uint64, *errs.Error) {
 	chunkIDs := make([]uint64, 0)
 	if len(idsString) == 0 {
 		return chunkIDs, nil
@@ -20,12 +18,7 @@ func parseIDs(ct context.Context, dataCollector telemetry.DataCollector, idsStri
 	for _, chunkIDString := range chunkIDStrings {
 		chunkID, err := strconv.ParseUint(chunkIDString, 10, 64)
 		if err != nil {
-			internalErr := &errs.Error{
-				Code:     errs.InvalidArgument,
-				EmbedErr: err,
-			}
-			dataCollector.Logger.ErrorWithContext(ct, internalErr)
-			return chunkIDs, internalErr
+			return chunkIDs, errs.NewError(errs.InvalidArgument, err.Error())
 		}
 
 		chunkIDs = append(chunkIDs, chunkID)

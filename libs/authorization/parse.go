@@ -1,10 +1,11 @@
 package authorization
 
 import (
+	"io/ioutil"
+
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
 )
 
 type ResourceTypeOperationsRow struct {

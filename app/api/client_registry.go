@@ -2,7 +2,6 @@ package api
 
 import (
 	"github.com/teamyapp/cloud/app/api/proto"
-	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/middleware"
 	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/retry"
@@ -60,10 +59,6 @@ func NewClientRegistry(
 ) (*ClientRegistry, error) {
 	conn, err := rpc.NewClientConnection(dataCollector, network, clientGRPCMetrics, connCfg, makeRetry)
 	if err != nil {
-		dataCollector.Logger.Error(&errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		})
 		return nil, err
 	}
 

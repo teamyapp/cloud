@@ -38,7 +38,6 @@ func (f File) GetUploadSession(ct context.Context, uploadSessionID uint64) (enti
 func (f File) CreateUploadSession(ct context.Context) (uint64, *errs.Error) {
 	chunkID, err := f.uploadSessionIDGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
 
@@ -50,10 +49,10 @@ func (f File) CreateUploadSession(ct context.Context) (uint64, *errs.Error) {
 
 	err = f.uploadSessionDao.CreateUploadSession(ct, uploadSession)
 	if err != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, err)
+		return 0, err
 	}
 
-	return chunkID, err
+	return chunkID, nil
 }
 
 func (f File) InitUploadSession(
@@ -67,36 +66,20 @@ func (f File) InitUploadSession(
 ) (entity.UploadSession, *errs.Error) {
 	uploadSession, internalErr := f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
 	if internalErr != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
 	switch uploadSession.Status {
 	case entity.CompletedUploadSessionStatus:
-		internalErr = &errs.Error{
-			Code:    errs.InvalidOperation,
-			Message: "upload session is already completed",
-		}
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UploadSession{}, internalErr
+		return entity.UploadSession{}, errs.NewError(errs.InvalidOperation, "upload session is already completed")
 	case entity.InitializedUploadSessionStatus, entity.UploadingChunksUploadSessionStatus:
-		internalErr = &errs.Error{
-			Code:    errs.InvalidOperation,
-			Message: "upload session is already initialized",
-		}
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UploadSession{}, internalErr
+		return entity.UploadSession{}, errs.NewError(errs.InvalidOperation, "upload session is already initialized")
 	}
 
 	hashBuffer := sha256.New()
 	hashState, err := hashBuffer.(encoding.BinaryMarshaler).MarshalBinary()
 	if err != nil {
-		internalErr = &errs.Error{
-			Code:     errs.Deserialization,
-			EmbedErr: err,
-		}
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UploadSession{}, internalErr
+		return entity.UploadSession{}, errs.NewError(errs.Deserialization, err.Error())
 	}
 
 	uploadSession.FileName = fileName
@@ -110,7 +93,6 @@ func (f File) InitUploadSession(
 	uploadSession.UpdatedAt = &now
 	internalErr = f.uploadSessionDao.UpdateUploadSession(ct, uploadSession)
 	if internalErr != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -121,36 +103,23 @@ func (f File) InitUploadSession(
 func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []byte) (entity.UploadSession, *errs.Error) {
 	uploadSession, internalErr := f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
 	if internalErr != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
 	switch uploadSession.Status {
 	case entity.CompletedUploadSessionStatus:
-		internalErr = &errs.Error{
-			Code:    errs.InvalidOperation,
-			Message: "upload session is already completed",
-		}
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UploadSession{}, internalErr
+		return entity.UploadSession{}, errs.NewError(errs.InvalidOperation, "upload session is already completed")
 	case entity.CreatedUploadSessionStatus:
-		internalErr = &errs.Error{
-			Code:    errs.InvalidOperation,
-			Message: "upload session is not initialized",
-		}
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UploadSession{}, internalErr
+		return entity.UploadSession{}, errs.NewError(errs.InvalidOperation, "upload session is not initialized")
 	}
 
 	chunkID, internalErr := f.chunkIDGen.GenerateUniqueNumber(ct)
 	if internalErr != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
 	internalErr = saveChunk(f.mapBackend, chunkID, chunkData)
 	if internalErr != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -162,39 +131,23 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 	}
 	internalErr = f.chunkMetadataDao.CreateChunkMetadata(ct, chunkMetadata)
 	if internalErr != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
 	hashBuffer := sha256.New()
 	err := hashBuffer.(encoding.BinaryUnmarshaler).UnmarshalBinary(uploadSession.HashState)
 	if err != nil {
-		internalErr = &errs.Error{
-			Code:     errs.Deserialization,
-			EmbedErr: err,
-		}
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UploadSession{}, internalErr
+		return entity.UploadSession{}, errs.NewError(errs.Deserialization, err.Error())
 	}
 
 	_, err = hashBuffer.Write(chunkData)
 	if err != nil {
-		internalErr = &errs.Error{
-			Code:     errs.IO,
-			EmbedErr: err,
-		}
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UploadSession{}, internalErr
+		return entity.UploadSession{}, errs.NewError(errs.IO, err.Error())
 	}
 
 	hashState, err := hashBuffer.(encoding.BinaryMarshaler).MarshalBinary()
 	if err != nil {
-		internalErr = &errs.Error{
-			Code:     errs.Serialization,
-			EmbedErr: err,
-		}
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UploadSession{}, internalErr
+		return entity.UploadSession{}, errs.NewError(errs.Serialization, err.Error())
 	}
 
 	uploadSession.HashState = hashState
@@ -207,14 +160,12 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 	} else {
 		uploadSession, internalErr = f.FinishFileUpload(ct, uploadSession, hashBuffer)
 		if internalErr != nil {
-			f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 			return entity.UploadSession{}, internalErr
 		}
 	}
 
 	internalErr = f.uploadSessionDao.UpdateUploadSession(ct, uploadSession)
 	if internalErr != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return uploadSession, internalErr
 	}
 
@@ -227,18 +178,16 @@ func (f File) FinishFileUpload(ct context.Context, uploadSession entity.UploadSe
 	actualHash := hashBuffer.Sum(nil)
 	actualHashString := hex.EncodeToString(actualHash)
 	if actualHashString != uploadSession.ExpectedContentHash {
-		internalErr := &errs.Error{
-			Code:    errs.Unknown,
-			Message: fmt.Sprintf("sha256 hash not match: actualHash=%v, expectedHash=%v", actualHashString, uploadSession.ExpectedContentHash),
-		}
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UploadSession{}, internalErr
+		return entity.UploadSession{}, errs.NewError(
+			errs.InvalidOperation,
+			fmt.Sprintf("sha256 hash not match: actualHash=%v, expectedHash=%v",
+				actualHashString,
+				uploadSession.ExpectedContentHash))
 	}
 
 	uploadSession.ActualContentHash = actualHashString
 	fileID, err := f.fileIDGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, err)
 		return entity.UploadSession{}, err
 	}
 
@@ -261,7 +210,6 @@ func (f File) GetFileMetadata(ct context.Context, fileID uint64) (entity.FileMet
 func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Error) {
 	metadata, err := f.GetFileMetadata(ct, fileID)
 	if err != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, err)
 		return entity.File{}, err
 	}
 
@@ -272,7 +220,6 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 		for {
 			hasNext, err := chunksIterator.HasNext()
 			if err != nil {
-				f.dataCollector.Logger.ErrorWithContext(ct, err)
 				chunksBuffer <- lang.Result[[]byte]{
 					Error: err,
 				}
@@ -285,7 +232,6 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 
 			data, err := chunksIterator.Next(ct)
 			if err != nil {
-				f.dataCollector.Logger.ErrorWithContext(ct, err)
 				chunksBuffer <- lang.Result[[]byte]{
 					Error: err,
 				}
@@ -317,19 +263,16 @@ func NewFile(
 ) (File, error) {
 	uploadSessionIDGen, err := uniqueNumberFactory.MakeUniqueNumber("uploadSessionID")
 	if err != nil {
-		dataCollector.Logger.Error(err)
 		return File{}, err.ToError()
 	}
 
 	chunkIDGen, err := uniqueNumberFactory.MakeUniqueNumber("chunkID")
 	if err != nil {
-		dataCollector.Logger.Error(err)
 		return File{}, err.ToError()
 	}
 
 	fileIDGen, err := uniqueNumberFactory.MakeUniqueNumber("fileID")
 	if err != nil {
-		dataCollector.Logger.Error(err)
 		return File{}, err.ToError()
 	}
 

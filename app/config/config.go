@@ -47,41 +47,43 @@ func AppFromEnv() (App, *errs.Error) {
 	cfg := App{}
 	err := FromEnv(&cfg)
 	if err != nil {
-		return App{}, &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		return App{}, err
 	}
 
 	return cfg, nil
 }
 
-func FromEnv[Config any](config Config) error {
-	err := autoLoadEnv(".env")
-	if err != nil {
-		return err
+func FromEnv[Config any](config Config) *errs.Error {
+	internalErr := autoLoadEnv(".env")
+	if internalErr != nil {
+		return internalErr
 	}
 
-	err = autoLoadEnv(".repo.env")
-	if err != nil {
-		return err
+	internalErr = autoLoadEnv(".repo.env")
+	if internalErr != nil {
+		return internalErr
 	}
 
-	err = envconfig.Process("", config)
+	err := envconfig.Process("", config)
 	if err != nil {
-		return err
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func autoLoadEnv(fileName string) error {
+func autoLoadEnv(fileName string) *errs.Error {
 	_, err := os.Stat(fileName)
 	if err == nil {
-		return godotenv.Load(fileName)
+		err := godotenv.Load(fileName)
+		if err != nil {
+			return errs.NewError(errs.Unknown, err.Error())
+		}
+
+		return nil
 	} else if os.IsNotExist(err) {
 		return nil
 	} else {
-		return err
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 }

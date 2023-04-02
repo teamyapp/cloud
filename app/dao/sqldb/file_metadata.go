@@ -9,12 +9,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type FileMetadata struct {
-	dataCollector telemetry.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.FileMetadata = (*FileMetadata)(nil)
@@ -44,26 +42,17 @@ func (f FileMetadata) FindMetadataByFileID(ct context.Context, fileID uint64) (e
 			&fileMetadata.LastModifiedAt,
 		)
 	if errors.Is(err, sql.ErrNoRows) {
-		internalErr := &errs.Error{
-			Code:    errs.NotFound,
-			Message: fmt.Sprintf("file metadata not found: id=%v", fileID),
-		}
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.FileMetadata{}, internalErr
+		return entity.FileMetadata{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("file metadata not found: id=%v", fileID))
 	}
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.FileMetadata{}, internalErr
+		return entity.FileMetadata{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	chunkIDs, internalErr := parseIDs(ct, f.dataCollector, chunkIDsString)
+	chunkIDs, internalErr := parseIDs(chunkIDsString)
 	if err != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.FileMetadata{}, internalErr
 	}
 
@@ -93,12 +82,7 @@ func (f FileMetadata) CreateFileMetadata(ct context.Context, metadata entity.Fil
 		metadata.LastModifiedAt,
 	)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -127,17 +111,12 @@ func (f FileMetadata) UpdateFileMetadata(ct context.Context, metadata entity.Fil
 	)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func NewFileMetadata(dataCollector telemetry.DataCollector, sqlDB *sql.DB) FileMetadata {
-	return FileMetadata{dataCollector: dataCollector, db: sqlDB}
+func NewFileMetadata(sqlDB *sql.DB) FileMetadata {
+	return FileMetadata{db: sqlDB}
 }

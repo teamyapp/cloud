@@ -219,35 +219,32 @@ func InitSlackOAuthProvider(
 }
 
 func newGithubOAuthProvider(
-	dataCollector telemetry.DataCollector,
 	httpClient web.HTTPClient,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.GitHub {
-	return oauth.NewGitHub(dataCollector, httpClient, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewGitHub(httpClient, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newGoogleOAuthProvider(
-	dataCollector telemetry.DataCollector,
 	httpClient web.HTTPClient,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.Google {
-	return oauth.NewGoogle(dataCollector, httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewGoogle(httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newSlackOAuthProvider(
-	dataCollector telemetry.DataCollector,
 	httpClient web.HTTPClient,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.Slack {
-	return oauth.NewSlack(dataCollector, httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewSlack(httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newJWTAuthority(dataCollector telemetry.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {

@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"path"
@@ -116,10 +115,7 @@ func (i Identity) webVerifyToken(writer http.ResponseWriter, request *http.Reque
 	ct := request.Context()
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.IO,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.IO, err.Error())
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
@@ -130,10 +126,7 @@ func (i Identity) webVerifyToken(writer http.ResponseWriter, request *http.Reque
 		writer.WriteHeader(http.StatusAccepted)
 		writer.Write([]byte(strconv.Itoa(int(userID))))
 	} else {
-		internalErr := &errs.Error{
-			Code:     errs.Unauthenticated,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.Unauthenticated, err.Error())
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 	}
@@ -145,10 +138,7 @@ func (i Identity) webOAuthSignIn(writer http.ResponseWriter, request *http.Reque
 	query := request.URL.Query()
 	redirectURL := query.Get("redirectUrl")
 	if len(redirectURL) == 0 {
-		internalErr := &errs.Error{
-			Code:    errs.InvalidArgument,
-			Message: fmt.Sprintf("missing redirectUrl"),
-		}
+		internalErr := errs.NewError(errs.InvalidArgument, "missing redirectUrl")
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
@@ -196,10 +186,7 @@ func (i Identity) webListUserLinks(writer http.ResponseWriter, request *http.Req
 	ct := request.Context()
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "userID not found",
-		}
+		internalErr := errs.NewError(errs.Unauthenticated, "userID not found")
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
@@ -212,17 +199,14 @@ func (i Identity) webListUserLinks(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
-	web.WriteJSONToResponse(ct, i.dataCollector, writer, userLinks)
+	web.WriteJSONToResponse(writer, userLinks)
 }
 
 func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Request) {
 	ct := request.Context()
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "userID not found",
-		}
+		internalErr := errs.NewError(errs.Unauthenticated, "userID not found")
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
@@ -232,10 +216,7 @@ func (i Identity) webCreateUserLink(writer http.ResponseWriter, request *http.Re
 	query := request.URL.Query()
 	redirectURL := query.Get("redirectUrl")
 	if len(redirectURL) == 0 {
-		internalErr := &errs.Error{
-			Code:    errs.InvalidArgument,
-			Message: fmt.Sprintf("missing redirectUrl"),
-		}
+		internalErr := errs.NewError(errs.InvalidArgument, "missing redirectUrl")
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
@@ -256,10 +237,7 @@ func (i Identity) webDeleteUserLink(writer http.ResponseWriter, request *http.Re
 	oauthProviderName := chi.URLParam(request, oauthProviderParam)
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "userID not found",
-		}
+		internalErr := errs.NewError(errs.Unauthenticated, "userID not found")
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
@@ -279,10 +257,7 @@ func (i Identity) webListServiceAccounts(writer http.ResponseWriter, request *ht
 	ct := request.Context()
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "userID not found",
-		}
+		internalErr := errs.NewError(errs.Unauthenticated, "userID not found")
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
@@ -295,17 +270,14 @@ func (i Identity) webListServiceAccounts(writer http.ResponseWriter, request *ht
 		return
 	}
 
-	web.WriteJSONToResponse(ct, i.dataCollector, writer, serviceAccounts)
+	web.WriteJSONToResponse(writer, serviceAccounts)
 }
 
 func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *http.Request) {
 	ct := request.Context()
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "userID not found",
-		}
+		internalErr := errs.NewError(errs.Unauthenticated, "userID not found")
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
@@ -313,10 +285,7 @@ func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *h
 
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.IO,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.IO, err.Error())
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
@@ -327,10 +296,7 @@ func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *h
 	}
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Deserialization,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.Deserialization, err.Error())
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
@@ -350,10 +316,7 @@ func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *h
 	ct := request.Context()
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "userID not found",
-		}
+		internalErr := errs.NewError(errs.Unauthenticated, "userID not found")
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
@@ -362,10 +325,7 @@ func (i Identity) webGenerateServiceToken(writer http.ResponseWriter, request *h
 	serviceAccountIDRaw := chi.URLParam(request, serviceAccountIDParam)
 	serviceAccountID, err := strconv.ParseUint(serviceAccountIDRaw, 10, 64)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:    errs.InvalidArgument,
-			Message: fmt.Sprintf("invalid serviceAccountId"),
-		}
+		internalErr := errs.NewError(errs.InvalidArgument, "invalid serviceAccountId")
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
@@ -385,10 +345,7 @@ func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *h
 	ct := request.Context()
 	userID, ok := ctx.UserIDFromContext(request.Context())
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "userID not found",
-		}
+		internalErr := errs.NewError(errs.Unauthenticated, "userID not found")
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
@@ -397,10 +354,7 @@ func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *h
 	serviceAccountIDRaw := chi.URLParam(request, serviceAccountIDParam)
 	serviceAccountID, err := strconv.ParseUint(serviceAccountIDRaw, 10, 64)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:    errs.InvalidArgument,
-			Message: fmt.Sprintf("invalid serviceAccountId"),
-		}
+		internalErr := errs.NewError(errs.InvalidArgument, "invalid serviceAccountId")
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return

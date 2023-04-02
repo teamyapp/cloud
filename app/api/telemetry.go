@@ -34,10 +34,7 @@ func (t *Telemetry) uploadLog(w http.ResponseWriter, r *http.Request) {
 	ct := r.Context()
 	buf, err := io.ReadAll(r.Body)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.IO,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.IO, err.Error())
 		t.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, w)
 		return
@@ -46,10 +43,7 @@ func (t *Telemetry) uploadLog(w http.ResponseWriter, r *http.Request) {
 	var logEntries []string
 	err = json.Unmarshal(buf, &logEntries)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Deserialization,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.Deserialization, err.Error())
 		t.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, w)
 		return

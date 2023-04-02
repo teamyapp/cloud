@@ -6,24 +6,18 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/fakeapi"
 	"github.com/teamyapp/cloud/libs/network/networktest"
-	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
 	"github.com/teamyapp/cloud/libs/web/webtest"
 )
 
 func TestGithub_GetUser(t *testing.T) {
-	lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{})
-	logger := telemetry.NewLogger(lineFormatter, os.Stdout, telemetry.Off, []telemetry.LogInterceptor{})
-	dataCollector := telemetry.NewDataCollector(logger)
 	virtualNetwork := networktest.NewVirtualNetwork()
-
 	githubTestKitConfig := fakeapi.GithubTestKitConfig{
 		WebServerPort:  80,
 		GRPCServerPort: 81,
@@ -47,7 +41,7 @@ func TestGithub_GetUser(t *testing.T) {
 		Login:  "Test",
 	}
 	fakeGithubAPI.RegisterUser(&githubUser1)
-	githubOAuth := NewGitHub(dataCollector, httpClient, "http://localhost", clientID, secret)
+	githubOAuth := NewGitHub(httpClient, "http://localhost", clientID, secret)
 
 	ct := context.Background()
 	signInURL, internalErr := githubOAuth.GetSignInURL(ct, 1)
@@ -89,7 +83,7 @@ func TestGithub_GetUser(t *testing.T) {
 	}{
 		UserID: 1,
 	}
-	web.WriteJSONToRequest(ct, dataCollector, req, selectUserBody)
+	web.WriteJSONToRequest(req, selectUserBody)
 	response, err = httpClient.Do(req)
 	assert.Nil(t, err)
 	if err != nil {

@@ -1,7 +1,6 @@
 package fakeapi
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -202,8 +201,7 @@ func (g *Github) webOAuthGetAccessToken(writer http.ResponseWriter, request *htt
 	resBody.AccessToken = accessToken
 
 	delete(client.authorizationCodes, reqBody.Code)
-	ct := context.Background()
-	web.WriteJSONToResponse(ct, g.dataCollector, writer, resBody)
+	web.WriteJSONToResponse(writer, resBody)
 }
 
 func (g *Github) webOAuthGetUser(writer http.ResponseWriter, request *http.Request) {

@@ -9,12 +9,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type OperationRelation struct {
-	dataCollector telemetry.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.OperationRelation = (*OperationRelation)(nil)
@@ -36,7 +34,10 @@ func (o OperationRelation) FindOperationRelation(
 			created_at,
 			creator_user_id
 		FROM operation_relation
-		WHERE child_resource_type = $1 AND child_operation = $2 AND parent_resource_type = $3 AND parent_operation = $4;`,
+		WHERE child_resource_type = $1 
+		  AND child_operation = $2 
+		  AND parent_resource_type = $3 
+		  AND parent_operation = $4;`,
 		childResourceType, childOperation, parentResourceType, parentOperation).
 		Scan(
 			&operationRelation.ChildResourceType,
@@ -48,26 +49,13 @@ func (o OperationRelation) FindOperationRelation(
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		internalErr := &errs.Error{
-			Code: errs.NotFound,
-			Message: fmt.Sprintf(
-				"resource relation not found: child_resource_type=%v, child_operation=%v, parent_resource_type=%v, parent_operation=%v",
-				childResourceType,
-				childOperation,
-				parentResourceType,
-				parentOperation),
-		}
-		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.OperationRelation{}, internalErr
+		return entity.OperationRelation{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("resource relation not found: child_resource_type=%v, child_operation=%v, parent_resource_type=%v, parent_operation=%v", childResourceType, childOperation, parentResourceType, parentOperation))
 	}
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.OperationRelation{}, internalErr
+		return entity.OperationRelation{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return operationRelation, nil
@@ -86,17 +74,11 @@ func (o OperationRelation) FindOperationRelations(ct context.Context, childResou
 		WHERE child_resource_type = $1 AND child_operation = $2;`,
 		childResourceType, childOperation)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	operationRelations := make([]entity.OperationRelation, 0)
 	for rows.Next() {
 		operationRelation := entity.OperationRelation{}
@@ -109,17 +91,7 @@ func (o OperationRelation) FindOperationRelations(ct context.Context, childResou
 			&operationRelation.CreatorUserID,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			o.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		operationRelations = append(operationRelations, operationRelation)
@@ -140,17 +112,11 @@ func (o OperationRelation) FindAllOperationRelations(ct context.Context) ([]enti
 		FROM operation_relation;
 	`)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	operationRelations := make([]entity.OperationRelation, 0)
 	for rows.Next() {
 		operationRelation := entity.OperationRelation{}
@@ -163,17 +129,7 @@ func (o OperationRelation) FindAllOperationRelations(ct context.Context) ([]enti
 			&operationRelation.CreatorUserID,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			o.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		operationRelations = append(operationRelations, operationRelation)
@@ -203,12 +159,7 @@ func (o OperationRelation) CreateOperationRelation(ct context.Context, operation
 	)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -228,17 +179,12 @@ func (o OperationRelation) DeleteOperationRelation(
 		childResourceType, childOperation, parentResourceType, parentOperation)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func NewOperationRelation(dataCollector telemetry.DataCollector, sqlDB *sql.DB) OperationRelation {
-	return OperationRelation{dataCollector: dataCollector, db: sqlDB}
+func NewOperationRelation(sqlDB *sql.DB) OperationRelation {
+	return OperationRelation{db: sqlDB}
 }

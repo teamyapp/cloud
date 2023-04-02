@@ -9,12 +9,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type UserGroup struct {
-	dataCollector telemetry.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.UserGroup = (*UserGroup)(nil)
@@ -42,23 +40,13 @@ func (u UserGroup) FindGroupByID(ct context.Context, groupID uint64) (entity.Use
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		internalErr := &errs.Error{
-			Code: errs.NotFound,
-			Message: fmt.Sprintf(
-				"user group not found: group_id=%d",
-				groupID),
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UserGroup{}, internalErr
+		return entity.UserGroup{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("user group not found: group_id=%d", groupID))
 	}
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UserGroup{}, internalErr
+		return entity.UserGroup{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return group, nil
@@ -77,17 +65,11 @@ func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, *errs.
 	`)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	groups := make([]entity.UserGroup, 0)
 	for rows.Next() {
 		group := entity.UserGroup{}
@@ -100,17 +82,7 @@ func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, *errs.
 			&group.UpdatedAt,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			u.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		groups = append(groups, group)
@@ -140,12 +112,7 @@ func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) *errs
 	)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -170,12 +137,7 @@ func (u UserGroup) UpdateGroup(ct context.Context, group entity.UserGroup) *errs
 	)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -189,17 +151,12 @@ func (u UserGroup) DeleteGroup(ct context.Context, groupID uint64) *errs.Error {
 		groupID)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func NewUserGroup(dataCollector telemetry.DataCollector, sqlDB *sql.DB) UserGroup {
-	return UserGroup{dataCollector: dataCollector, db: sqlDB}
+func NewUserGroup(sqlDB *sql.DB) UserGroup {
+	return UserGroup{db: sqlDB}
 }

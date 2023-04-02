@@ -29,10 +29,9 @@ func (u UserGroup) FindGroupByID(ct context.Context, groupID uint64) (entity.Use
 		}
 	}
 
-	return entity.UserGroup{}, &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: groupID=%v", groupID),
-	}
+	return entity.UserGroup{}, errs.NewError(
+		errs.NotFound,
+		fmt.Sprintf("row not found: groupID=%v", groupID))
 }
 
 func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, *errs.Error) {
@@ -53,10 +52,9 @@ func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, *errs.
 func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) *errs.Error {
 	_, err := u.FindGroupByID(ct, group.ID)
 	if err == nil {
-		return &errs.Error{
-			Code:    errs.AlreadyExists,
-			Message: fmt.Sprintf("row already exist: group=%v", group),
-		}
+		return errs.NewError(
+			errs.Unknown,
+			fmt.Sprintf("row already exist: id=%v", group.ID))
 	}
 
 	if err.Code != errs.NotFound {
@@ -95,10 +93,7 @@ func (u UserGroup) UpdateGroup(ct context.Context, group entity.UserGroup) *errs
 		return nil
 	}
 
-	return &errs.Error{
-		Code:    errs.NotFound,
-		Message: fmt.Sprintf("row not found: id=%v", group.ID),
-	}
+	return errs.NewError(errs.NotFound, fmt.Sprintf("row not found: id=%v", group.ID))
 }
 
 func (u UserGroup) DeleteGroup(ct context.Context, groupID uint64) *errs.Error {

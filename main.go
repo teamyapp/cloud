@@ -74,7 +74,7 @@ func main() {
 			return internalErr
 		}
 
-		runnerConfig, internalErr := runner.ServiceRunnerConfigFromEnv(dataCollector)
+		runnerConfig, internalErr := runner.ServiceRunnerConfigFromEnv()
 		if internalErr != nil {
 			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
 			return internalErr

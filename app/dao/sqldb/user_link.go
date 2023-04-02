@@ -9,12 +9,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type UserLink struct {
-	dataCollector telemetry.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.UserLink = (*UserLink)(nil)
@@ -39,24 +37,16 @@ func (u UserLink) FindUserLinkByExternalUserID(ct context.Context, authProvider 
 		&userLink.ExternalUserLabel,
 		&userLink.InternalUserID)
 	if errors.Is(err, sql.ErrNoRows) {
-		internalErr := &errs.Error{
-			Code: errs.NotFound,
-			Message: fmt.Sprintf(
+		return entity.UserLink{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf(
 				"user link not found: authProvider=%v externalUserID=%v",
 				authProvider,
-				externalUserID),
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UserLink{}, internalErr
+				externalUserID))
 	}
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UserLink{}, internalErr
+		return entity.UserLink{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return userLink, nil
@@ -75,17 +65,11 @@ func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUser
 `,
 		internalUserID)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	userLinks := make([]entity.UserLink, 0)
 	for rows.Next() {
 		userLink := entity.UserLink{}
@@ -96,17 +80,7 @@ func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUser
 			&userLink.InternalUserID,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			u.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		userLinks = append(userLinks, userLink)
@@ -132,12 +106,7 @@ func (u UserLink) CreateUserLink(ct context.Context, userLink entity.UserLink) *
 		userLink.InternalUserID)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -152,20 +121,14 @@ func (u UserLink) DeleteUserLink(ct context.Context, authProvider string, intern
 		internalUserID)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func NewUserLink(dataCollector telemetry.DataCollector, sqlDB *sql.DB) UserLink {
+func NewUserLink(sqlDB *sql.DB) UserLink {
 	return UserLink{
-		dataCollector: dataCollector,
-		db:            sqlDB,
+		db: sqlDB,
 	}
 }

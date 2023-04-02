@@ -13,7 +13,6 @@ import (
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/security"
-	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
 )
 
@@ -24,12 +23,11 @@ const slackAuthorizeURL = "https://slack.com/openid/connect/authorize"
 const slackTokenURL = "https://slack.com/api/openid.connect.token"
 
 type Slack struct {
-	dataCollector telemetry.DataCollector
-	httpClient    web.HTTPClient
-	jwtAuthority  security.JWTAuthority
-	clientID      string
-	clientSecret  string
-	redirectURI   string
+	httpClient   web.HTTPClient
+	jwtAuthority security.JWTAuthority
+	clientID     string
+	clientSecret string
+	redirectURI  string
 }
 
 var _ Provider = (*Slack)(nil)
@@ -41,7 +39,6 @@ func (s Slack) GetName() string {
 func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, *errs.Error) {
 	idToken, err := s.getIDToken(ct, authorizationCode)
 	if err != nil {
-		s.dataCollector.Logger.ErrorWithContext(ct, err)
 		return entity.ExternalUser{}, err
 	}
 
@@ -55,7 +52,6 @@ func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.Ext
 	}{}
 	err = s.jwtAuthority.DecodeUnverifiedToken(ct, idToken, &tokenPayload)
 	if err != nil {
-		s.dataCollector.Logger.ErrorWithContext(ct, err)
 		return entity.ExternalUser{}, err
 	}
 
@@ -68,12 +64,7 @@ func (s Slack) GetUser(ct context.Context, authorizationCode string) (entity.Ext
 func (s Slack) GetStateID(ct context.Context, fullURL *url.URL) (uint64, *errs.Error) {
 	num, err := strconv.ParseUint(fullURL.Query().Get("state"), 10, 64)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.InvalidFormat,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return 0, internalErr
+		return 0, errs.NewError(errs.InvalidFormat, err.Error())
 	}
 
 	return num, nil
@@ -86,12 +77,7 @@ func (s Slack) GetAuthorizationCode(ct context.Context, fullURL *url.URL) string
 func (s Slack) GetSignInURL(ct context.Context, stateID uint64) (string, *errs.Error) {
 	baseURL, err := url.Parse(slackAuthorizeURL)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return "", internalErr
+		return "", errs.NewError(errs.Unknown, err.Error())
 	}
 
 	query := baseURL.Query()
@@ -116,23 +102,13 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 
 	req, err := http.NewRequest("POST", slackTokenURL, strings.NewReader(formData.Encode()))
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return "", internalErr
+		return "", errs.NewError(errs.Unknown, err.Error())
 	}
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	res, err := s.httpClient.Do(req)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return "", internalErr
+		return "", errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer res.Body.Close()
@@ -142,18 +118,12 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 		internalErr.Message = fmt.Sprintf("fail to obtain access token: oauthProviderName=%v, httpStatusCode=%v",
 			s.GetName(),
 			res.StatusCode)
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
 	buf, err := io.ReadAll(res.Body)
 	if err != nil {
-		internalErr = &errs.Error{
-			Code:     errs.IO,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return "", internalErr
+		return "", errs.NewError(errs.IO, err.Error())
 	}
 
 	body := struct {
@@ -165,28 +135,17 @@ func (s Slack) getIDToken(ct context.Context, authorizationCode string) (string,
 	}{}
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
-		internalErr = &errs.Error{
-			Code:     errs.Deserialization,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return "", internalErr
+		return "", errs.NewError(errs.Deserialization, err.Error())
 	}
 
 	if !body.OK {
-		internalErr = &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return "", internalErr
+		return "", errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return body.IDToken, nil
 }
 
 func NewSlack(
-	dataCollector telemetry.DataCollector,
 	httpClient web.HTTPClient,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL string,
@@ -194,11 +153,10 @@ func NewSlack(
 	clientSecret string,
 ) Slack {
 	return Slack{
-		dataCollector: dataCollector,
-		httpClient:    httpClient,
-		jwtAuthority:  jwtAuthority,
-		clientID:      clientID,
-		clientSecret:  clientSecret,
-		redirectURI:   fmt.Sprintf("%s/identity/sign-in/oauth/%s/finish", webAPIBaseURL, slackName),
+		httpClient:   httpClient,
+		jwtAuthority: jwtAuthority,
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		redirectURI:  fmt.Sprintf("%s/identity/sign-in/oauth/%s/finish", webAPIBaseURL, slackName),
 	}
 }

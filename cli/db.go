@@ -87,7 +87,7 @@ var migrateDownCmd = &cobra.Command{
 var newMigrationCmd = &cobra.Command{
 	Use: "new",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fullFilePath, err := sqldb.NewMigration(dataCollector, cliConfig.DBMigrationsDir, migrationFileName)
+		fullFilePath, err := sqldb.NewMigration(cliConfig.DBMigrationsDir, migrationFileName)
 		if err != nil {
 			return err.ToError()
 		}
