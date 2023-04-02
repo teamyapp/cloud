@@ -33,7 +33,6 @@ const (
 	Deserialization   ErrorCode = "Deserialization"
 )
 
-// Deprecated: Use NewError instead.
 type Error struct {
 	Code ErrorCode
 	// Deprecated: EmbedErr is duplicate with Message and should not be used anymore.
