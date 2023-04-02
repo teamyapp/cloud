@@ -145,10 +145,7 @@ func ctxWithUserID(
 
 	req, err := http.NewRequest(http.MethodPost, verifyTokenURL, bytes.NewReader([]byte(accessToken)))
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.Unknown, err.Error())
 		dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}

@@ -32,10 +32,7 @@ type Config struct {
 func ParseConfig(configPath string, dataCollector telemetry.DataCollector) (*Config, error) {
 	yamlConfigContent, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		fileReadErr := &errs.Error{
-			Code:     errs.IO,
-			EmbedErr: err,
-		}
+		fileReadErr := errs.NewError(errs.IO, err.Error())
 		dataCollector.Logger.Error(fileReadErr)
 		return nil, err
 	}
@@ -43,10 +40,7 @@ func ParseConfig(configPath string, dataCollector telemetry.DataCollector) (*Con
 	authorizationConfig := Config{}
 	err = yaml.Unmarshal(yamlConfigContent, &authorizationConfig)
 	if err != nil {
-		parseErr := &errs.Error{
-			Code:     errs.Deserialization,
-			EmbedErr: err,
-		}
+		parseErr := errs.NewError(errs.Deserialization, err.Error())
 		dataCollector.Logger.Error(parseErr)
 		return nil, err
 	}

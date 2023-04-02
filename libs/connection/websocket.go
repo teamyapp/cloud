@@ -48,10 +48,7 @@ func (w WebSocket) Close() *errs.Error {
 		return nil
 	}
 
-	return &errs.Error{
-		Code:     ConnErr,
-		EmbedErr: err,
-	}
+	return errs.NewError(ConnErr, err.Error())
 }
 
 func NewWebSocket(dataCollector telemetry.DataCollector, conn *websocket.Conn) WebSocket {
@@ -92,13 +89,10 @@ func NewWebSocket(dataCollector telemetry.DataCollector, conn *websocket.Conn) W
 		for message := range sendMessageCh {
 			err := conn.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
-				internalErr := errs.Error{
-					Code:     errs.IO,
-					EmbedErr: err,
-				}
-				dataCollector.Logger.Error(&internalErr)
+				internalErr := errs.NewError(errs.IO, err.Error())
+				dataCollector.Logger.Error(internalErr)
 				select {
-				case errorCh <- internalErr:
+				case errorCh <- *internalErr:
 				default:
 				}
 				return

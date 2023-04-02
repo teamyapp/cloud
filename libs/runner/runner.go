@@ -124,10 +124,7 @@ func (s *ServiceRunner) startWebServer(wg *sync.WaitGroup) (net.Listener, *errs.
 	addressAndPort := fmt.Sprintf(":%d", s.config.WebServerPort)
 	lis, err := s.network.Listen("tcp", addressAndPort)
 	if err != nil {
-		return nil, &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	wg.Add(1)

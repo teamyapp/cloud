@@ -19,10 +19,7 @@ func (j JWTAuthority) GenerateToken(ct context.Context, payload interface{}) (st
 	jsonBuf, _ := json.Marshal(payload)
 	err := json.Unmarshal(jsonBuf, &payloadMap)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Deserialization,
-			EmbedErr: err,
-		}
+		internalErr := errs.NewError(errs.Deserialization, err.Error())
 		j.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}

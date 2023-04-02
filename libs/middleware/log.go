@@ -35,10 +35,7 @@ func ServerHTTPLogRequest(dataCollector telemetry.DataCollector) Middleware[http
 			ct := request.Context()
 			buf, err := io.ReadAll(request.Body)
 			if err != nil {
-				internalErr := &errs.Error{
-					Code:     errs.IO,
-					EmbedErr: err,
-				}
+				internalErr := errs.NewError(errs.IO, err.Error())
 				dataCollector.Logger.ErrorWithContext(ct, internalErr)
 				return
 			}

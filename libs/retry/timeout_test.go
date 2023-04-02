@@ -41,7 +41,7 @@ func TestTimeout(t *testing.T) {
 			timeout:         10000 * time.Millisecond,
 			executeDuration: []time.Duration{2 * time.Millisecond, 3 * time.Millisecond, 4 * time.Millisecond},
 			expectRetries:   3,
-			expectErr:       &errs.Error{Code: errs.InvalidArgument},
+			expectErr:       errs.NewError(errs.InvalidArgument, ""),
 			sleepAwakeCount: 2,
 		},
 		{
@@ -69,7 +69,7 @@ func TestTimeout(t *testing.T) {
 			timeout:         10000 * time.Millisecond,
 			executeDuration: []time.Duration{2000 * time.Millisecond, 3000 * time.Millisecond, 4000 * time.Millisecond},
 			expectRetries:   3,
-			expectErr:       &errs.Error{Code: transientTimeoutErr},
+			expectErr:       errs.NewError(transientTimeoutErr, ""),
 			sleepAwakeCount: 2,
 		},
 	}

@@ -14,10 +14,7 @@ type InMemoryDB struct {
 func (i InMemoryDB) GetTable(name string) (*Table, *errs.Error) {
 	table, ok := i.tables[name]
 	if !ok {
-		return nil, &errs.Error{
-			Code:    errs.NotFound,
-			Message: fmt.Sprintf("table not found: name=%v", name),
-		}
+		return nil, errs.NewError(errs.NotFound, fmt.Sprintf("table not found: name=%v", name))
 	}
 
 	return table, nil

@@ -84,10 +84,7 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 	}
 
 	if len(input) == 0 || input[0] != uint8(periodSymbol) {
-		err := &errs.Error{
-			Code:    errs.InvalidArgument,
-			Message: fmt.Sprintf("duration must start with 'P': duration=%v", input),
-		}
+		err := errs.NewError(errs.InvalidArgument, fmt.Sprintf("duration must start with 'P': duration=%v", input))
 		dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
