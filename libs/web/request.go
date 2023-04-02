@@ -2,7 +2,6 @@ package web
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -10,7 +9,7 @@ import (
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
-func WriteJSONToRequest(ct context.Context, req *http.Request, body interface{}) *errs.Error {
+func WriteJSONToRequest(req *http.Request, body interface{}) *errs.Error {
 	buf, err := json.MarshalIndent(body, "", "  ")
 	if err != nil {
 		return errs.NewError(errs.Serialization, err.Error())

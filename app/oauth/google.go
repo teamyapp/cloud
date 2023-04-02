@@ -112,7 +112,7 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 		return "", errs.NewError(errs.Unknown, err.Error())
 	}
 
-	web.WriteJSONToRequest(ct, req, tokenBody)
+	web.WriteJSONToRequest(req, tokenBody)
 	res, err := g.httpClient.Do(req)
 	if err != nil {
 		return "", errs.NewError(errs.Unknown, err.Error())

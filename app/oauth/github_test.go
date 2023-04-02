@@ -83,7 +83,7 @@ func TestGithub_GetUser(t *testing.T) {
 	}{
 		UserID: 1,
 	}
-	web.WriteJSONToRequest(ct, req, selectUserBody)
+	web.WriteJSONToRequest(req, selectUserBody)
 	response, err = httpClient.Do(req)
 	assert.Nil(t, err)
 	if err != nil {

@@ -90,7 +90,7 @@ func (c *Client) sendRequest(
 		req.Header.Set(headerKey, headerVal)
 	}
 
-	internalErr := web.WriteJSONToRequest(ct, c.dataCollector, req, gqlRequest)
+	internalErr := web.WriteJSONToRequest(req, gqlRequest)
 	if internalErr != nil {
 		c.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return internalErr

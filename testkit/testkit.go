@@ -56,7 +56,6 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 
 	httpClient := webtest.InsecureHTTPClient(network)
 	githubOAuth := oauth.NewGitHub(
-		dataCollector,
 		httpClient,
 		cfg.WebAPIBaseURL,
 		cfg.GithubClientID,
@@ -64,14 +63,12 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 
 	jwtAuthority := security.NewJWTAuthority(dataCollector, cfg.JWTSigningKey)
 	googleOAuth := oauth.NewGoogle(
-		dataCollector,
 		httpClient,
 		jwtAuthority,
 		cfg.WebAPIBaseURL,
 		cfg.GoogleClientID,
 		cfg.GoogleClientSecret)
 	slackOAuth := oauth.NewSlack(
-		dataCollector,
 		httpClient,
 		jwtAuthority,
 		cfg.WebAPIBaseURL,
