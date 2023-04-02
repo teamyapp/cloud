@@ -126,7 +126,7 @@ func (i Identity) webVerifyToken(writer http.ResponseWriter, request *http.Reque
 		writer.WriteHeader(http.StatusAccepted)
 		writer.Write([]byte(strconv.Itoa(int(userID))))
 	} else {
-		internalErr := errs.NewError(errs.Unauthenticated, err.Error())
+		internalErr := errs.NewError(errs.Unauthenticated, "invalid access token")
 		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 	}
