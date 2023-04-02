@@ -26,22 +26,12 @@ func (s S3Bucket) Get(key string) ([]byte, *errs.Error) {
 	fullPath := path.Join(appDataRoot, string(s.env), key)
 	obj, err := s.client.GetObject(s.bucketName, fullPath, minio.GetObjectOptions{})
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.Error(internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	buf, err := io.ReadAll(obj)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.IO,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.Error(internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.IO, err.Error())
 	}
 
 	return buf, nil
@@ -52,12 +42,7 @@ func (s S3Bucket) Put(key string, data []byte) *errs.Error {
 	fullPath := path.Join(appDataRoot, string(s.env), key)
 	_, err := s.client.PutObject(s.bucketName, fullPath, bytes.NewReader(data), objSize, minio.PutObjectOptions{})
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.Error(internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -67,12 +52,7 @@ func (s S3Bucket) Delete(key string) *errs.Error {
 	fullPath := path.Join(appDataRoot, string(s.env), key)
 	err := s.client.RemoveObject(s.bucketName, fullPath)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.Error(internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -88,12 +68,7 @@ func NewS3Bucket(
 ) (S3Bucket, error) {
 	client, err := minio.New(endpoint, accessKeyID, accessKey, true)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		dataCollector.Logger.Error(internalErr)
-		return S3Bucket{}, internalErr.ToError()
+		return S3Bucket{}, err
 	}
 
 	return S3Bucket{

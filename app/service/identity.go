@@ -46,7 +46,6 @@ func (i Identity) VerifyAccessToken(ct context.Context, accessToken string) (uin
 	if payload.IsServiceAccount {
 		serviceAccount, err := i.serviceAccountDao.FindServiceAccountByID(ct, payload.UserID)
 		if err != nil {
-			i.dataCollector.Logger.ErrorWithContext(ct, err)
 			return 0, false
 		}
 
@@ -92,26 +91,23 @@ func (i Identity) GenerateLinkUsersSignInURL(
 func (i Identity) generateSignInURL(ct context.Context, authProviderName string, session entity.SignInSession) (string, *errs.Error) {
 	provider, err := i.GetOAuthProvider(ct, authProviderName)
 	if err != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
 	sessionID, err := i.stateIDGenerator.GenerateUniqueNumber(ct)
 	if err != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
 	session.ID = sessionID
 	err = i.signInSessionDao.CreateSignInSession(ct, session)
 	if err != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
 	signInURL, err := provider.GetSignInURL(ct, sessionID)
 	if err != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
+		return "", err
 	}
 
 	i.dataCollector.Logger.InfoWithContext(ct, fmt.Sprintf("SignInURL=%v", signInURL))
@@ -121,12 +117,9 @@ func (i Identity) generateSignInURL(ct context.Context, authProviderName string,
 func (i Identity) GetOAuthProvider(ct context.Context, authProviderName string) (oauth.Provider, *errs.Error) {
 	provider, ok := i.oauthProviders[authProviderName]
 	if !ok {
-		err := &errs.Error{
-			Code:    errs.NotFound,
-			Message: fmt.Sprintf("authProvider not found: AuthProvider=%v", provider),
-		}
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
-		return nil, err
+		return nil, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("authProvider not found: AuthProvider=%v", provider))
 	}
 
 	return provider, nil
@@ -135,36 +128,27 @@ func (i Identity) GetOAuthProvider(ct context.Context, authProviderName string) 
 func (i Identity) FinishOAuthSignIn(ct context.Context, authProviderName string, authorizationCode string, sessionID uint64) (string, *errs.Error) {
 	session, internalErr := i.signInSessionDao.FindSignInSessionByID(ct, sessionID)
 	if internalErr != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
 	internalErr = i.signInSessionDao.DeleteSignInSession(ct, sessionID)
 	if internalErr != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
 	provider, internalErr := i.GetOAuthProvider(ct, authProviderName)
 	if internalErr != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
 	externalUser, internalErr := provider.GetUser(ct, authorizationCode)
 	if internalErr != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
 	u, err := url.Parse(session.RedirectURL)
 	if err != nil {
-		internalErr = &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return "", internalErr
+		return "", errs.NewError(errs.Unknown, err.Error())
 	}
 
 	switch session.Type {
@@ -172,26 +156,19 @@ func (i Identity) FinishOAuthSignIn(ct context.Context, authProviderName string,
 		return i.signInUnknownUser(ct, authProviderName, externalUser, u)
 	case entity.LinkUsersSignInSessionType:
 		if session.InternalUserID == nil {
-			internalErr = &errs.Error{
-				Code:    errs.InvalidValue,
-				Message: "internal user ID cannot nil",
-			}
-			return "", internalErr
+			return "", errs.NewError(errs.InvalidValue, "internal user ID cannot nil")
 		}
 
 		internalErr = i.linkUsers(ct, authProviderName, externalUser, *session.InternalUserID)
 		if internalErr != nil {
-			i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 			return "", internalErr
 		}
 
 		return u.String(), nil
 	default:
-		internalErr = &errs.Error{
-			Code:    errs.Unknown,
-			Message: fmt.Sprintf("unsupported sign in session type: sessionType=%v", session.Type),
-		}
-		return "", internalErr
+		return "", errs.NewError(
+			errs.InvalidValue,
+			fmt.Sprintf("unsupported sign in session type: sessionType=%v", session.Type))
 	}
 }
 
@@ -202,13 +179,11 @@ func (i Identity) getOrLinkInternalUserID(ct context.Context, authProvider strin
 	}
 
 	if err.Code != errs.NotFound {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
 
 	internalUserID, err = i.userIDGenerator.GenerateUniqueNumber(ct)
 	if err != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
 
@@ -221,7 +196,7 @@ func (i Identity) getOrLinkInternalUserID(ct context.Context, authProvider strin
 
 	err = i.userLinkDao.CreateUserLink(ct, userLink)
 	if err != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
+		return 0, err
 	}
 
 	return internalUserID, err
@@ -230,7 +205,6 @@ func (i Identity) getOrLinkInternalUserID(ct context.Context, authProvider strin
 func (i Identity) GetInternalUserID(ct context.Context, authProvider string, externalUserID string) (uint64, *errs.Error) {
 	userLink, err := i.userLinkDao.FindUserLinkByExternalUserID(ct, authProvider, externalUserID)
 	if err != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return 0, err
 	}
 
@@ -240,7 +214,6 @@ func (i Identity) GetInternalUserID(ct context.Context, authProvider string, ext
 func (i Identity) ListServiceAccounts(ct context.Context, accountOwnerID uint64) ([]entity.ServiceAccount, *errs.Error) {
 	serviceAccounts, err := i.serviceAccountDao.FindAllServiceAccounts(ct, accountOwnerID)
 	if err != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
@@ -253,7 +226,6 @@ func (i Identity) ListServiceAccounts(ct context.Context, accountOwnerID uint64)
 func (i Identity) CreateServiceAccount(ct context.Context, accountOwnerID uint64, serviceAccountName string) *errs.Error {
 	serviceAccountID, err := i.userIDGenerator.GenerateUniqueNumber(ct)
 	if err != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return err
 	}
 
@@ -270,7 +242,6 @@ func (i Identity) CreateServiceAccount(ct context.Context, accountOwnerID uint64
 func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64, serviceAccountID uint64) (string, *errs.Error) {
 	serviceAccounts, err := i.serviceAccountDao.FindAllServiceAccounts(ct, accountOwnerID)
 	if err != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
@@ -278,13 +249,11 @@ func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64
 		return account.ID == serviceAccountID
 	})
 	if len(foundServiceAccounts) < 1 {
-		err = &errs.Error{
-			Code: errs.NotFound,
-			Message: fmt.Sprintf("service account not found: userID=%v, serviceAccountID=%v",
+		return "", errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("service account not found: userID=%v, serviceAccountID=%v",
 				accountOwnerID,
-				serviceAccountID),
-		}
-		return "", err
+				serviceAccountID))
 	}
 
 	serviceAccount := serviceAccounts[0]
@@ -292,7 +261,6 @@ func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64
 	serviceAccount.Secret = &secret
 	err = i.serviceAccountDao.UpdateServiceAccount(ct, serviceAccount)
 	if err != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
@@ -308,7 +276,6 @@ func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64
 func (i Identity) DeleteServiceAccount(ct context.Context, accountOwnerID uint64, serviceAccountID uint64) *errs.Error {
 	serviceAccounts, err := i.serviceAccountDao.FindAllServiceAccounts(ct, accountOwnerID)
 	if err != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return err
 	}
 
@@ -316,14 +283,11 @@ func (i Identity) DeleteServiceAccount(ct context.Context, accountOwnerID uint64
 		return account.ID == serviceAccountID
 	})
 	if len(foundServiceAccounts) < 1 {
-		err = &errs.Error{
-			Code: errs.NotFound,
-			Message: fmt.Sprintf("service account not found: userID=%v, serviceAccountID=%v",
+		return errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("service account not found: userID=%v, serviceAccountID=%v",
 				accountOwnerID,
-				serviceAccountID),
-		}
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
-		return err
+				serviceAccountID))
 	}
 
 	return i.serviceAccountDao.DeleteServiceAccount(ct, serviceAccountID)
@@ -345,11 +309,10 @@ func (i Identity) signInUnknownUser(
 ) (string, *errs.Error) {
 	userID, err := i.getOrLinkInternalUserID(ct, authProviderName, externalUser)
 	if err != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
 		return "", err
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	payload := tokenPayload{
 		UserID:   userID,
 		IssuedAt: &now,
@@ -357,7 +320,6 @@ func (i Identity) signInUnknownUser(
 
 	accessToken, internalErr := i.jwtAuthority.GenerateToken(ct, payload)
 	if internalErr != nil {
-		i.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return "", internalErr
 	}
 
@@ -395,13 +357,11 @@ func NewIdentity(
 ) (Identity, error) {
 	userIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("userID")
 	if err != nil {
-		dataCollector.Logger.Error(err)
 		return Identity{}, err.ToError()
 	}
 
 	stateIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("stateID")
 	if err != nil {
-		dataCollector.Logger.Error(err)
 		return Identity{}, err.ToError()
 	}
 

@@ -16,10 +16,7 @@ var _ storage.MapBackend = (*InMemoryMap)(nil)
 func (i InMemoryMap) Get(key string) ([]byte, *errs.Error) {
 	value, ok := i.data[key]
 	if !ok {
-		return nil, &errs.Error{
-			Code:    errs.NotFound,
-			Message: fmt.Sprintf("key not found: key=%v", key),
-		}
+		return nil, errs.NewError(errs.NotFound, fmt.Sprintf("key not found: key=%v", key))
 	}
 
 	return value, nil

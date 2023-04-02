@@ -54,7 +54,7 @@ func (t Timeout) WithRetry(ct context.Context, execute func() *errs.Error) (int,
 			return retryCount, err
 		case errs.Transient:
 			t.shortBackOff.OnFailure()
-                         delay := t.shortBackOff.Delay()
+			delay := t.shortBackOff.Delay()
 			expectTime := t.clock.Now().Add(delay)
 			if !expectTime.Before(timeoutAt) {
 				return retryCount, err
@@ -63,7 +63,7 @@ func (t Timeout) WithRetry(ct context.Context, execute func() *errs.Error) (int,
 			t.runtime.Sleep(delay)
 		case errs.Outage:
 			t.longBackOff.OnFailure()
-                         delay := t.longBackOff.Delay()
+			delay := t.longBackOff.Delay()
 			expectTime := t.clock.Now().Add(delay)
 			if !expectTime.Before(timeoutAt) {
 				return retryCount, err

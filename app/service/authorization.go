@@ -30,7 +30,6 @@ func (a Authorization) HasPermission(ct context.Context, resourceType string, re
 	// No nested group allowed
 	groupIDs, err := a.userGroupMemberDao.FindGroupIDsByUserID(ct, userID)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return false, err
 	}
 
@@ -42,9 +41,7 @@ func (a Authorization) HasPermission(ct context.Context, resourceType string, re
 			GroupID:      groupID,
 		})
 		if err != nil {
-			a.dataCollector.Logger.ErrorWithContext(ct, err)
-			// Continue check permission in other groups if current group fails to grant permission
-			continue
+			return false, err
 		}
 
 		if hasPermission {
@@ -58,7 +55,6 @@ func (a Authorization) HasPermission(ct context.Context, resourceType string, re
 func (a Authorization) ListResourceTypes(ct context.Context, resourceTypeQuery ResourceTypeQuery) ([]entity.ResourceType, *errs.Error) {
 	allResourceTypeEntities, err := a.resourceTypeDao.FindAllResourceTypes(ct)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
@@ -68,12 +64,7 @@ func (a Authorization) ListResourceTypes(ct context.Context, resourceTypeQuery R
 func (a Authorization) RegisterResourceType(ct context.Context, resourceTypeName string) *errs.Error {
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "user ID not found",
-		}
-		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unauthenticated, "user ID not found")
 	}
 
 	resourceTypeEntity := entity.ResourceType{
@@ -92,7 +83,6 @@ func (a Authorization) UnregisterResourceType(ct context.Context, resourceTypeNa
 func (a Authorization) ListResources(ct context.Context, resourceQuery ResourceQuery) ([]entity.Resource, *errs.Error) {
 	allResources, err := a.resourceDao.FindAllResources(ct)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
@@ -102,12 +92,7 @@ func (a Authorization) ListResources(ct context.Context, resourceQuery ResourceQ
 func (a Authorization) RegisterResource(ct context.Context, resourceTypeName string, resourceID uint64) *errs.Error {
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "user ID not found",
-		}
-		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unauthenticated, "user ID not found")
 	}
 
 	resource := entity.Resource{
@@ -126,7 +111,6 @@ func (a Authorization) UnregisterResource(ct context.Context, resourceTypeName s
 func (a Authorization) ListResourceRelations(ct context.Context, resourceRelationQuery ResourceRelationQuery) ([]entity.ResourceRelation, *errs.Error) {
 	allResourceRelationEntities, err := a.resourceRelationDao.FindAllResourceRelations(ct)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
@@ -142,12 +126,7 @@ func (a Authorization) AssignParentResource(
 ) *errs.Error {
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "user ID not found",
-		}
-		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unauthenticated, "user ID not found")
 	}
 
 	resourceRelation := entity.ResourceRelation{
@@ -180,7 +159,6 @@ func (a Authorization) UnassignParentResource(
 func (a Authorization) ListOperations(ct context.Context, operationQuery OperationQuery) ([]entity.Operation, *errs.Error) {
 	allOperations, err := a.operationDao.FindAllOperations(ct)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
@@ -190,12 +168,7 @@ func (a Authorization) ListOperations(ct context.Context, operationQuery Operati
 func (a Authorization) RegisterOperation(ct context.Context, resourceTypeName string, operationName string) *errs.Error {
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "user ID not found",
-		}
-		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unauthenticated, "user ID not found")
 	}
 
 	operation := entity.Operation{
@@ -214,7 +187,6 @@ func (a Authorization) UnregisterOperation(ct context.Context, resourceTypeName 
 func (a Authorization) ListOperationRelations(ct context.Context, operationRelationQuery OperationRelationQuery) ([]entity.OperationRelation, *errs.Error) {
 	allOperationRelations, err := a.operationRelationDao.FindAllOperationRelations(ct)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
@@ -230,12 +202,7 @@ func (a Authorization) AssignParentOperation(
 ) *errs.Error {
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "user ID not found",
-		}
-		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unauthenticated, "user ID not found")
 	}
 
 	operationRelation := entity.OperationRelation{
@@ -268,7 +235,6 @@ func (a Authorization) UnassignParentOperation(
 func (a Authorization) ListUserGroups(ct context.Context, query UserGroupQuery) ([]entity.UserGroup, *errs.Error) {
 	allGroups, err := a.userGroupDao.FindAllGroups(ct)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
@@ -278,17 +244,11 @@ func (a Authorization) ListUserGroups(ct context.Context, query UserGroupQuery) 
 func (a Authorization) CreateUserGroup(ct context.Context, name string, description *string) (entity.UserGroup, *errs.Error) {
 	userID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "user ID not found",
-		}
-		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UserGroup{}, internalErr
+		return entity.UserGroup{}, errs.NewError(errs.Unauthenticated, "user ID not found")
 	}
 
 	groupID, err := a.userGroupIDGenerator.GenerateUniqueNumber(ct)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return entity.UserGroup{}, err
 	}
 
@@ -302,7 +262,6 @@ func (a Authorization) CreateUserGroup(ct context.Context, name string, descript
 
 	err = a.userGroupDao.CreateGroup(ct, userGroup)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return entity.UserGroup{}, err
 	}
 
@@ -312,7 +271,6 @@ func (a Authorization) CreateUserGroup(ct context.Context, name string, descript
 func (a Authorization) UpdateUserGroup(ct context.Context, groupID uint64, name *string, description *string) *errs.Error {
 	userGroup, err := a.userGroupDao.FindGroupByID(ct, groupID)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return err
 	}
 
@@ -336,7 +294,6 @@ func (a Authorization) DeleteUserGroup(ct context.Context, groupID uint64) *errs
 func (a Authorization) ListUserGroupMembers(ct context.Context, query UserGroupMemberQuery) ([]entity.UserGroupMember, *errs.Error) {
 	allUserGroupMembers, err := a.userGroupMemberDao.FindAllUserGroupMembers(ct)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
@@ -347,12 +304,7 @@ func (a Authorization) ListUserGroupMembers(ct context.Context, query UserGroupM
 func (a Authorization) AddUserGroupMember(ct context.Context, groupID uint64, userID uint64) *errs.Error {
 	creatorUserID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "user ID not found",
-		}
-		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unauthenticated, "user ID not found")
 	}
 
 	userGroupMember := entity.UserGroupMember{
@@ -371,7 +323,6 @@ func (a Authorization) RemoveUserGroupMember(ct context.Context, groupID uint64,
 func (a Authorization) ListPermissions(ct context.Context, query PermissionQuery) ([]entity.Permission, *errs.Error) {
 	allPermissions, err := a.permissionDao.FindAllPermissions(ct)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
@@ -382,12 +333,7 @@ func (a Authorization) ListPermissions(ct context.Context, query PermissionQuery
 func (a Authorization) AddPermission(ct context.Context, resourceType string, resourceID uint64, operation string, groupID uint64) *errs.Error {
 	creatorUserID, ok := ctx.UserIDFromContext(ct)
 	if !ok {
-		internalErr := &errs.Error{
-			Code:    errs.Unauthenticated,
-			Message: "user ID not found",
-		}
-		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unauthenticated, "user ID not found")
 	}
 
 	permission := entity.Permission{
@@ -419,8 +365,7 @@ func (a Authorization) groupHasPermission(ct context.Context, permissionQuery en
 		}
 
 		if err.Code != errs.NotFound {
-			a.dataCollector.Logger.ErrorWithContext(ct, err)
-			continue
+			return false, err
 		}
 
 		parentPermissionQueries, err := a.getParentPermissionQueries(ct, currQuery, visited)
@@ -438,13 +383,11 @@ func (a Authorization) getParentPermissionQueries(ct context.Context, currQuery 
 	var parentPermissionQueries []entity.PermissionQuery
 	operationRelations, err := a.operationRelationDao.FindOperationRelations(ct, currQuery.ResourceType, currQuery.Operation)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
 	resourceRelations, err := a.resourceRelationDao.FindResourceRelations(ct, currQuery.ResourceType, currQuery.ResourceID)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
@@ -519,7 +462,6 @@ func NewAuthorization(
 ) (Authorization, error) {
 	userGroupIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("userGroupID")
 	if err != nil {
-		dataCollector.Logger.Error(err)
 		return Authorization{}, err.ToError()
 	}
 

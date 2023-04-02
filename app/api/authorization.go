@@ -200,9 +200,10 @@ func (a Authorization) AssignParentResource(ct context.Context, request *proto.A
 	)
 	if err != nil {
 		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		return &emptypb.Empty{}, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) UnassignParentResource(ct context.Context, request *proto.UnassignParentResourceRequest) (*emptypb.Empty, error) {
@@ -270,9 +271,10 @@ func (a Authorization) UnregisterOperation(ct context.Context, request *proto.Un
 	err := a.authorizationService.UnregisterOperation(ct, request.ResourceType, request.Operation)
 	if err != nil {
 		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		return &emptypb.Empty{}, errs.ToGRPCErr(err)
 	}
 
-	return &emptypb.Empty{}, errs.ToGRPCErr(err)
+	return &emptypb.Empty{}, nil
 }
 
 func (a Authorization) ListOperationRelations(ct context.Context, query *proto.ListOperationRelationsQuery) (*proto.ListOperationRelationsResponse, error) {

@@ -38,16 +38,11 @@ type ServiceRunnerConfig struct {
 	TraceCollectorEndpoint string        `envconfig:"SERVICE_RUNNER_TRACE_COLLECTOR_ENDPOINT" default:"localhost:4317"`
 }
 
-func ServiceRunnerConfigFromEnv(dataCollector telemetry.DataCollector) (ServiceRunnerConfig, *errs.Error) {
+func ServiceRunnerConfigFromEnv() (ServiceRunnerConfig, *errs.Error) {
 	cfg := ServiceRunnerConfig{}
 	err := config.FromEnv(&cfg)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     EnvConfigErr,
-			EmbedErr: err,
-		}
-		dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
-		return ServiceRunnerConfig{}, internalErr
+		return ServiceRunnerConfig{}, err
 	}
 
 	return cfg, nil

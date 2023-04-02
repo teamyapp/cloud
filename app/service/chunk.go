@@ -30,24 +30,19 @@ func (c *ChunksIterator) HasNext() (bool, *errs.Error) {
 func (c *ChunksIterator) Next(ct context.Context) ([]byte, *errs.Error) {
 	hasNext, err := c.HasNext()
 	if err != nil {
-		c.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
 	if !hasNext {
-		err = &errs.Error{
-			Code:    errs.InvalidOperation,
-			Message: fmt.Sprintf("no next chunk: nextChunkIndex=%v, numOfChunks=%v", c.nextChunkIndex, c.chunkIDs),
-		}
-		c.dataCollector.Logger.ErrorWithContext(ct, err)
-		return nil, err
+		return nil, errs.NewError(
+			errs.InvalidOperation,
+			fmt.Sprintf("no next chunk: nextChunkIndex=%v, numOfChunks=%v", c.nextChunkIndex, c.chunkIDs))
 	}
 
 	chunkIDPath := strconv.FormatUint(c.chunkIDs[c.nextChunkIndex], 10)
 	fullPath := path.Join(chunkKeyPrefix, chunkIDPath)
 	data, err := c.mapBackend.Get(fullPath)
 	if err != nil {
-		c.dataCollector.Logger.ErrorWithContext(ct, err)
 		return nil, err
 	}
 
