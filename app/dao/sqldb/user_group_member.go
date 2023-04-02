@@ -9,12 +9,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type UserGroupMember struct {
-	dataCollector telemetry.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.UserGroupMember = (*UserGroupMember)(nil)
@@ -27,17 +25,11 @@ func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64)
 		WHERE user_id = $1;`,
 		userID)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	groupIDs := make([]uint64, 0)
 	for rows.Next() {
 		var groupID uint64
@@ -45,17 +37,7 @@ func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64)
 			&groupID,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			u.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		groupIDs = append(groupIDs, groupID)
@@ -75,17 +57,11 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID
 		WHERE user_id = $1;`,
 		userID)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	userGroupMembers := make([]entity.UserGroupMember, 0)
 	for rows.Next() {
 		userGroupMember := entity.UserGroupMember{}
@@ -96,17 +72,7 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			u.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		userGroupMembers = append(userGroupMembers, userGroupMember)
@@ -126,17 +92,11 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, group
 		WHERE group_id = $1;`,
 		groupID)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	userGroupMembers := make([]entity.UserGroupMember, 0)
 	for rows.Next() {
 		userGroupMember := entity.UserGroupMember{}
@@ -147,17 +107,7 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, group
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			u.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		userGroupMembers = append(userGroupMembers, userGroupMember)
@@ -185,24 +135,16 @@ func (u UserGroupMember) FindUserGroupMember(ct context.Context, groupID uint64,
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		internalErr := &errs.Error{
-			Code: errs.NotFound,
-			Message: fmt.Sprintf(
+		return entity.UserGroupMember{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf(
 				"user group member not found: group_id=%d, user_id=%d",
 				groupID,
-				userID),
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UserGroupMember{}, internalErr
+				userID))
 	}
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UserGroupMember{}, internalErr
+		return entity.UserGroupMember{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return userGroupMember, nil
@@ -218,17 +160,11 @@ func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.U
 		FROM user_group_member;
 `)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	userGroupMembers := make([]entity.UserGroupMember, 0)
 	for rows.Next() {
 		userGroupMember := entity.UserGroupMember{}
@@ -239,17 +175,7 @@ func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.U
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			u.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		userGroupMembers = append(userGroupMembers, userGroupMember)
@@ -275,12 +201,7 @@ func (u UserGroupMember) CreateUserGroupMember(ct context.Context, userGroupMemb
 	)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -294,17 +215,12 @@ func (u UserGroupMember) DeleteUserGroupMember(ct context.Context, groupID uint6
 		groupID, userID)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func NewUserGroupMember(dataCollector telemetry.DataCollector, sqlDB *sql.DB) UserGroupMember {
-	return UserGroupMember{dataCollector: dataCollector, db: sqlDB}
+func NewUserGroupMember(sqlDB *sql.DB) UserGroupMember {
+	return UserGroupMember{db: sqlDB}
 }

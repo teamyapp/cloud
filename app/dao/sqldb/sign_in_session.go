@@ -9,12 +9,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type SignInSession struct {
-	dataCollector telemetry.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.SignInSession = (*SignInSession)(nil)
@@ -38,23 +36,13 @@ func (s SignInSession) FindSignInSessionByID(ct context.Context, sessionID uint6
 		&signInSession.Type,
 		&signInSession.InternalUserID)
 	if errors.Is(err, sql.ErrNoRows) {
-		internalErr := &errs.Error{
-			Code: errs.NotFound,
-			Message: fmt.Sprintf(
-				"sign in session not found: sessionID=%v",
-				sessionID),
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.SignInSession{}, internalErr
+		return entity.SignInSession{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("sign in session not found: sessionID=%v", sessionID))
 	}
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.SignInSession{}, internalErr
+		return entity.SignInSession{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return signInSession, nil
@@ -77,12 +65,7 @@ func (s SignInSession) CreateSignInSession(ct context.Context, session entity.Si
 		session.InternalUserID)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -103,12 +86,7 @@ func (s SignInSession) UpdateSignInSession(ct context.Context, session entity.Si
 		session.ID)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -122,20 +100,14 @@ func (s SignInSession) DeleteSignInSession(ct context.Context, sessionID uint64)
 		sessionID)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		s.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func NewSignInSession(dataCollector telemetry.DataCollector, sqlDB *sql.DB) SignInSession {
+func NewSignInSession(sqlDB *sql.DB) SignInSession {
 	return SignInSession{
-		dataCollector: dataCollector,
-		db:            sqlDB,
+		db: sqlDB,
 	}
 }

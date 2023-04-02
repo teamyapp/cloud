@@ -9,12 +9,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type UploadSession struct {
-	dataCollector telemetry.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.UploadSession = (*UploadSession)(nil)
@@ -60,28 +58,17 @@ func (u UploadSession) FindUploadSessionByID(ct context.Context, uploadSessionID
 			&uploadSession.UpdatedAt,
 		)
 	if errors.Is(err, sql.ErrNoRows) {
-		internalErr := &errs.Error{
-			Code: errs.NotFound,
-			Message: fmt.Sprintf(
-				"upload session not found: id=%v",
-				uploadSessionID),
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UploadSession{}, internalErr
+		return entity.UploadSession{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("upload session not found: id=%v", uploadSessionID))
 	}
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.UploadSession{}, internalErr
+		return entity.UploadSession{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	chunkIDs, internalErr := parseIDs(ct, u.dataCollector, chunkIDsString)
+	chunkIDs, internalErr := parseIDs(chunkIDsString)
 	if err != nil {
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
 		return entity.UploadSession{}, internalErr
 	}
 
@@ -128,12 +115,7 @@ func (u UploadSession) CreateUploadSession(ct context.Context, uploadSession ent
 	)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -179,20 +161,14 @@ func (u UploadSession) UpdateUploadSession(ct context.Context, uploadSession ent
 	)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		u.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func NewUploadSession(dataCollector telemetry.DataCollector, sqlDB *sql.DB) UploadSession {
+func NewUploadSession(sqlDB *sql.DB) UploadSession {
 	return UploadSession{
-		dataCollector: dataCollector,
-		db:            sqlDB,
+		db: sqlDB,
 	}
 }

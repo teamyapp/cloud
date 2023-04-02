@@ -9,12 +9,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type AllocatedRange struct {
-	dataCollector telemetry.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.AllocatedRange = (*AllocatedRange)(nil)
@@ -30,21 +28,13 @@ func (a AllocatedRange) FindAllocatedRangeByKey(ct context.Context, key string) 
 	allocatedRange := entity.AllocatedRange{}
 	err := row.Scan(&allocatedRange.Key, &allocatedRange.RangeEnd)
 	if errors.Is(err, sql.ErrNoRows) {
-		internalErr := &errs.Error{
-			Code:    errs.NotFound,
-			Message: fmt.Sprintf("allocated range not found: key=%v", key),
-		}
-		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.AllocatedRange{}, internalErr
+		return entity.AllocatedRange{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("allocated range not found: key=%v", key))
 	}
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.AllocatedRange{}, internalErr
+		return entity.AllocatedRange{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return allocatedRange, nil
@@ -58,12 +48,7 @@ func (a AllocatedRange) CreateAllocatedRange(ct context.Context, allocatedRange 
 		allocatedRange.Key,
 		allocatedRange.RangeEnd)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -78,20 +63,14 @@ func (a AllocatedRange) UpdateAllocatedRange(ct context.Context, allocatedRange 
 		allocatedRange.RangeEnd,
 		allocatedRange.Key)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		a.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func NewAllocatedRange(dataCollector telemetry.DataCollector, sqlDB *sql.DB) AllocatedRange {
+func NewAllocatedRange(sqlDB *sql.DB) AllocatedRange {
 	return AllocatedRange{
-		dataCollector: dataCollector,
-		db:            sqlDB,
+		db: sqlDB,
 	}
 }

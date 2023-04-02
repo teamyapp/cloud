@@ -9,12 +9,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type Operation struct {
-	dataCollector telemetry.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.Operation = (*Operation)(nil)
@@ -38,21 +36,13 @@ func (o Operation) FindOperation(ct context.Context, resourceTypeName string, op
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		internalErr := &errs.Error{
-			Code:    errs.NotFound,
-			Message: fmt.Sprintf("resource not found: resource_type=%v, operation=%v", resourceTypeName, operationName),
-		}
-		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.Operation{}, internalErr
+		return entity.Operation{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("resource not found: resource_type=%v, operation=%v", resourceTypeName, operationName))
 	}
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.Operation{}, internalErr
+		return entity.Operation{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return operation, nil
@@ -68,17 +58,11 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *e
 		FROM operation;
 	`)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	operations := make([]entity.Operation, 0)
 	for rows.Next() {
 		operation := entity.Operation{}
@@ -89,17 +73,7 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *e
 			&operation.CreatorUserID,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			o.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		operations = append(operations, operation)
@@ -125,12 +99,7 @@ func (o Operation) CreateOperation(ct context.Context, operation entity.Operatio
 	)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -144,17 +113,12 @@ func (o Operation) DeleteOperation(ct context.Context, resourceTypeName string, 
 		resourceTypeName, operationName)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		o.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func NewOperation(dataCollector telemetry.DataCollector, sqlDB *sql.DB) Operation {
-	return Operation{dataCollector: dataCollector, db: sqlDB}
+func NewOperation(sqlDB *sql.DB) Operation {
+	return Operation{db: sqlDB}
 }

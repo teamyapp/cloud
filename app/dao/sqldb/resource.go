@@ -9,12 +9,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type Resource struct {
-	dataCollector telemetry.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.Resource = (*Resource)(nil)
@@ -38,24 +36,13 @@ func (r Resource) FindResource(ct context.Context, resourceTypeName string, reso
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		internalErr := &errs.Error{
-			Code: errs.NotFound,
-			Message: fmt.Sprintf(
-				"resource not found: resource_type=%v, resource_id=%d",
-				resourceTypeName,
-				resourceID),
-		}
-		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.Resource{}, internalErr
+		return entity.Resource{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("resource not found: resource_type=%v, resource_id=%d", resourceTypeName, resourceID))
 	}
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return entity.Resource{}, internalErr
+		return entity.Resource{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return resource, nil
@@ -71,17 +58,11 @@ func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, *errs
 	FROM resource;
 `)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
 
-	var internalErr *errs.Error
 	resources := make([]entity.Resource, 0)
 	for rows.Next() {
 		resource := entity.Resource{}
@@ -92,17 +73,7 @@ func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, *errs
 			&resource.CreatorUserID,
 		)
 		if err != nil {
-			newInternalErr := &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-
-			if internalErr == nil {
-				internalErr = newInternalErr
-			}
-
-			r.dataCollector.Logger.ErrorWithContext(ct, newInternalErr)
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		resources = append(resources, resource)
@@ -128,12 +99,7 @@ func (r Resource) CreateResource(ct context.Context, resource entity.Resource) *
 	)
 
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
@@ -146,17 +112,12 @@ func (r Resource) DeleteResource(ct context.Context, resourceTypeName string, re
 		`,
 		resourceTypeName, resourceID)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		r.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return nil
 }
 
-func NewResource(dataCollector telemetry.DataCollector, sqlDB *sql.DB) Resource {
-	return Resource{dataCollector: dataCollector, db: sqlDB}
+func NewResource(sqlDB *sql.DB) Resource {
+	return Resource{db: sqlDB}
 }
