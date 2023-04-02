@@ -13,6 +13,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	addDBCmd()
+	addAuthorizationCmd()
 }
 
 func Execute() {

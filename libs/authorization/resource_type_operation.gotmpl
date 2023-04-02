@@ -1,0 +1,19 @@
+package authorization
+
+type ResourceTypeOperation struct {
+	ResourceType ResourceType
+	Operation    string
+}
+
+{{- range .ResourceTypeOperations }}
+// Operations for {{.ResourceType}}
+var (
+    {{$resourceTypeString := .ResourceType}}
+    {{- range $operation := .Operations }}
+    {{$operation}}{{$resourceTypeString}} = ResourceTypeOperation{
+        ResourceType: "{{$resourceTypeString}}",
+    	Operation:    "{{$operation}}",
+    }
+	{{- end }}
+)
+{{- end }}

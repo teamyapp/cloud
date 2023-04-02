@@ -1,0 +1,9 @@
+package authorization
+
+type ResourceType string
+
+const (
+    {{- range .ResourceTypeOperations }}
+    {{.ResourceType}}ResourceType ResourceType = "{{.ResourceType}}"
+    {{- end }}
+)
