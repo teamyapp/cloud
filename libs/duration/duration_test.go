@@ -2,22 +2,12 @@ package duration
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
-
-var dataCollector = telemetry.NewDataCollector(
-	telemetry.NewLogger(
-		telemetry.NewOrderedColumnLineFormatter([]string{}),
-		os.Stdout,
-		telemetry.Info,
-		[]telemetry.LogInterceptor{},
-	))
 
 func TestParse(t *testing.T) {
 	testCases := []struct {
