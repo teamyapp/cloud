@@ -89,7 +89,7 @@ func TestInfinite(t *testing.T) {
 						return nil
 					}
 
-					return errs.NewError(*testCase.errCodes[prevCount], "retry error")
+					return errs.NewError(*testCase.errCodes[prevCount], "")
 				}
 
 				return nil
