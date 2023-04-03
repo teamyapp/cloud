@@ -126,8 +126,7 @@ func TestMaxCount(t *testing.T) {
 				retries, err := maxCountExecutor.WithRetry(ct, execute)
 
 				assert.Equal(t, testCase.expectRetries, retries)
-
-				if err == nil {
+				if testCase.expectErr == nil {
 					assert.Nil(t, err)
 				} else {
 					assert.Equal(t, testCase.expectErr.Code, err.Code)
