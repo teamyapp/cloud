@@ -10,7 +10,6 @@ import (
 	"unicode"
 
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 // format: P[n]Y[n]M[n]W[n]DT[n]H[n]M[n]S
@@ -76,7 +75,7 @@ var timeSymbolInNanos = map[rune]int64{
 	secondSymbol: secondInNanos,
 }
 
-func Parse(ct context.Context, dataCollector telemetry.DataCollector, input string) (time.Duration, *errs.Error) {
+func Parse(ct context.Context, input string) (time.Duration, *errs.Error) {
 	var sign int64 = 1
 	if len(input) > 0 && input[0] == '-' {
 		sign = -1
@@ -112,7 +111,7 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 		}
 
 		if visitTimeSection {
-			err := validateSymbol(ct, dataCollector, timeSymbolOrder, timeSymbolIndices, seenSymbols, currRune, index)
+			err := validateSymbol(ct, timeSymbolOrder, timeSymbolIndices, seenSymbols, currRune, index)
 			if err != nil {
 				return 0, err
 			}
@@ -120,7 +119,7 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 			totalNanoSeconds += timeSymbolInNanos[currRune] * int64(num)
 			hasTime = true
 		} else {
-			err := validateSymbol(ct, dataCollector, periodSymbolOrder, periodSymbolIndices, seenSymbols, currRune, index)
+			err := validateSymbol(ct, periodSymbolOrder, periodSymbolIndices, seenSymbols, currRune, index)
 			if err != nil {
 				return 0, err
 			}
@@ -208,7 +207,6 @@ func tryWriteNumWithUnit(buffer *bytes.Buffer, num int64, symbol rune) {
 
 func validateSymbol(
 	ct context.Context,
-	dataCollector telemetry.DataCollector,
 	symbolOrder []rune,
 	symbolIndices map[rune]int,
 	seenSymbols map[rune]int,

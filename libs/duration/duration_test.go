@@ -171,7 +171,7 @@ func TestParse(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			duration, err := Parse(ct, dataCollector, testCase.input)
+			duration, err := Parse(ct, testCase.input)
 			if testCase.expectedHasErr {
 				assert.NotNil(t, err)
 				assert.Equal(t, testCase.expectedErrCode, err.Code)
@@ -336,7 +336,7 @@ func TestFormat(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.input, func(t *testing.T) {
 			t.Parallel()
-			duration, err := Parse(ct, dataCollector, testCase.input)
+			duration, err := Parse(ct, testCase.input)
 			assert.Nil(t, err)
 			if err != nil {
 				return
