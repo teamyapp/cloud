@@ -89,10 +89,8 @@ func NewWebSocket(dataCollector telemetry.DataCollector, conn *websocket.Conn) W
 		for message := range sendMessageCh {
 			err := conn.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
-				internalErr := errs.NewError(errs.IO, err.Error())
-				dataCollector.Logger.Error(internalErr)
 				select {
-				case errorCh <- *internalErr:
+				case errorCh <- *errs.NewError(errs.IO, err.Error()):
 				default:
 				}
 				return

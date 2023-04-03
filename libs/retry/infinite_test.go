@@ -40,7 +40,7 @@ func TestInfinite(t *testing.T) {
 				longDelay*2 + randomOffset,
 			},
 			expectRetries:   3,
-			expectErr:       errs.NewError(errs.InvalidArgument, "retry error"),
+			expectErr:       errs.NewError(errs.InvalidArgument, ""),
 			sleepAwakeCount: 2,
 		},
 		{

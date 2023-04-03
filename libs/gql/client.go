@@ -78,9 +78,7 @@ func (c *Client) sendRequest(
 ) *errs.Error {
 	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
 	if err != nil {
-		internalErr := errs.NewError(errs.Unknown, err.Error())
-		c.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	for headerKey, headerVal := range headers {
@@ -96,9 +94,7 @@ func (c *Client) sendRequest(
 	req = req.WithContext(ct)
 	res, err := c.httpClient.Do(req)
 	if err != nil {
-		internalErr = errs.NewError(errs.Unknown, err.Error())
-		c.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer res.Body.Close()
@@ -118,16 +114,12 @@ func (c *Client) sendRequest(
 
 	buf, err := io.ReadAll(res.Body)
 	if err != nil {
-		internalErr = errs.NewError(errs.IO, err.Error())
-		c.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.IO, err.Error())
 	}
 
 	err = json.Unmarshal(buf, gqlResponse)
 	if err != nil {
-		internalErr = errs.NewError(errs.Deserialization, err.Error())
-		c.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Deserialization, err.Error())
 	}
 
 	return nil

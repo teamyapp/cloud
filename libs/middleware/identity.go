@@ -45,8 +45,7 @@ func ServerWebSocketWithIdentity(
 	return withIdentity(dataCollector, httpClient, identityAPIEndpoint, func(request *http.Request) (string, *errs.Error) {
 		token := request.URL.Query().Get("accessToken")
 		if len(token) == 0 {
-			internalErr := errs.NewError(errs.NotFound, "access token not found")
-			return "", internalErr
+			return "", errs.NewError(errs.NotFound, "access token not found")
 		}
 
 		return token, nil
@@ -142,18 +141,14 @@ func ctxWithUserID(
 
 	req, err := http.NewRequest(http.MethodPost, verifyTokenURL, bytes.NewReader([]byte(accessToken)))
 	if err != nil {
-		internalErr := errs.NewError(errs.Unknown, err.Error())
-		dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	req.Header.Set("Content-Type", "text/plain")
 	req = req.WithContext(ct)
 	res, err := httpClient.Do(req)
 	if err != nil {
-		internalErr := errs.NewError(errs.Unknown, err.Error())
-		dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	internalErr := errs.GetFromHTTPErr(res)
@@ -164,16 +159,12 @@ func ctxWithUserID(
 
 	buf, err := io.ReadAll(res.Body)
 	if err != nil {
-		internalErr = errs.NewError(errs.IO, err.Error())
-		dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.IO, err.Error())
 	}
 
 	userID, err := strconv.ParseUint(string(buf), 10, 64)
 	if err != nil {
-		internalErr = errs.NewError(errs.InvalidFormat, err.Error())
-		dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return nil, internalErr
+		return nil, errs.NewError(errs.InvalidFormat, err.Error())
 	}
 
 	return ctx.NewContextWithUserID(ct, userID), nil

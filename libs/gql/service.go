@@ -28,9 +28,7 @@ func (s Service[Resolver]) Start(rn *runner.ServiceRunner) *errs.Error {
 		graphql.UseStringDescriptions(),
 		graphql.Tracer(s.graphQLTracer))
 	if err != nil {
-		internalErr := errs.NewError(errs.NotReady, err.Error())
-		s.dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
-		return internalErr
+		return errs.NewError(errs.NotReady, err.Error())
 	}
 
 	relayHandler := relay.Handler{Schema: schema}

@@ -84,9 +84,10 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 	}
 
 	if len(input) == 0 || input[0] != uint8(periodSymbol) {
-		err := errs.NewError(errs.InvalidArgument, fmt.Sprintf("duration must start with 'P': duration=%v", input))
-		dataCollector.Logger.ErrorWithContext(ct, err)
-		return 0, err
+		return 0, errs.NewError(
+			errs.InvalidArgument,
+			fmt.Sprintf("duration must start with 'P': duration=%v", input),
+		)
 	}
 
 	input = input[1:]
@@ -135,15 +136,17 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 	}
 
 	if !hasPeriod && !hasTime {
-		err := errs.NewError(errs.InvalidArgument, fmt.Sprintf("must has either period or time: duration=%v", input))
-		dataCollector.Logger.ErrorWithContext(ct, err)
-		return 0, err
+		return 0, errs.NewError(
+			errs.InvalidArgument,
+			fmt.Sprintf("must has either period or time: duration=%v", input),
+		)
 	}
 
 	if visitTimeSection && !hasTime {
-		err := errs.NewError(errs.InvalidArgument, fmt.Sprintf("must remove ending T or have non empty time section: duration=%v", input))
-		dataCollector.Logger.ErrorWithContext(ct, err)
-		return 0, err
+		return 0, errs.NewError(
+			errs.InvalidArgument,
+			fmt.Sprintf("must remove ending T or have non empty time section: duration=%v", input),
+		)
 	}
 
 	return time.Duration(sign * totalNanoSeconds), nil
@@ -216,18 +219,20 @@ func validateSymbol(
 ) *errs.Error {
 	symbolIndex, ok := symbolIndices[currSymbol]
 	if !ok {
-		err := errs.NewError(errs.InvalidArgument, fmt.Sprintf("unsupported symbol: index=%v, symbol=%v", currIndex, currSymbol))
-		dataCollector.Logger.ErrorWithContext(ct, err)
-		return err
+		return errs.NewError(
+			errs.InvalidArgument,
+			fmt.Sprintf("unsupported symbol: index=%v, symbol=%v", currIndex, currSymbol),
+		)
 	}
 
 	for index := symbolIndex; index < len(symbolOrder); index++ {
 		symbol := symbolOrder[index]
 		seenSymbolIndex, ok := seenSymbols[symbol]
 		if ok {
-			err := errs.NewError(errs.InvalidArgument, fmt.Sprintf("%c already showed up before %c(%v)", seenSymbolIndex, currSymbol, currIndex))
-			dataCollector.Logger.ErrorWithContext(ct, err)
-			return err
+			return errs.NewError(
+				errs.InvalidArgument,
+				fmt.Sprintf("%c already showed up before %c(%v)", seenSymbolIndex, currSymbol, currIndex),
+			)
 		}
 	}
 

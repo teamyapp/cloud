@@ -11,19 +11,22 @@ import (
 func GetBearerToken(request *http.Request) (string, *errs.Error) {
 	value := request.Header.Get("Authorization")
 	if len(value) == 0 {
-		internalErr := errs.NewError(errs.NotFound, "authorization header not found")
-		return "", internalErr
+		return "", errs.NewError(errs.NotFound, "authorization header not found")
 	}
 
 	parts := strings.Split(value, " ")
 	if len(parts) != 2 {
-		internalErr := errs.NewError(errs.InvalidFormat, fmt.Sprintf("authotization header must have 2 parts: header=%v", value))
-		return "", internalErr
+		return "", errs.NewError(
+			errs.InvalidFormat,
+			fmt.Sprintf("authotization header must have 2 parts: header=%v", value),
+		)
 	}
 
 	if parts[0] != "Bearer" {
-		internalErr := errs.NewError(errs.InvalidFormat, fmt.Sprintf("missing beginning Bearer: header=%v", value))
-		return "", internalErr
+		return "", errs.NewError(
+			errs.InvalidFormat,
+			fmt.Sprintf("missing beginning Bearer: header=%v", value),
+		)
 	}
 
 	return parts[1], nil

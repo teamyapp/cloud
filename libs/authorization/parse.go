@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 	"gopkg.in/yaml.v3"
 )
 
@@ -29,21 +28,17 @@ type Config struct {
 	OperationRelations     []OperationRelationsRow     `yaml:"operationRelations"`
 }
 
-func ParseConfig(configPath string, dataCollector telemetry.DataCollector) (*Config, error) {
+func ParseConfig(configPath string) (*Config, *errs.Error) {
 	yamlConfigContent, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		fileReadErr := errs.NewError(errs.IO, err.Error())
-		dataCollector.Logger.Error(fileReadErr)
-		return nil, err
+		return nil, errs.NewError(errs.IO, err.Error())
 	}
 
 	authorizationConfig := Config{}
 	err = yaml.Unmarshal(yamlConfigContent, &authorizationConfig)
 	if err != nil {
-		parseErr := errs.NewError(errs.Deserialization, err.Error())
-		dataCollector.Logger.Error(parseErr)
-		return nil, err
+		return nil, errs.NewError(errs.Deserialization, err.Error())
 	}
 
-	return &authorizationConfig, err
+	return &authorizationConfig, nil
 }
