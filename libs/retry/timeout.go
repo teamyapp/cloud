@@ -89,9 +89,9 @@ func NewTimeout(
 	beforeSkipRetry *func()) Timeout {
 	return Timeout{
 		dataCollector:    dataCollector,
+		runtime:          runtime,
 		shortBackOff:     shortBackOff,
 		longBackOff:      longBackOff,
-		runtime:          runtime,
 		clock:            clock,
 		timeout:          timeout,
 		beforeRetryDelay: beforeRetryDelay,
