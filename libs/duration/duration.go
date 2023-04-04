@@ -10,7 +10,6 @@ import (
 	"unicode"
 
 	"github.com/teamyapp/cloud/libs/errs"
-	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 // format: P[n]Y[n]M[n]W[n]DT[n]H[n]M[n]S
@@ -76,7 +75,7 @@ var timeSymbolInNanos = map[rune]int64{
 	secondSymbol: secondInNanos,
 }
 
-func Parse(ct context.Context, dataCollector telemetry.DataCollector, input string) (time.Duration, *errs.Error) {
+func Parse(ct context.Context, input string) (time.Duration, *errs.Error) {
 	var sign int64 = 1
 	if len(input) > 0 && input[0] == '-' {
 		sign = -1
@@ -84,12 +83,10 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 	}
 
 	if len(input) == 0 || input[0] != uint8(periodSymbol) {
-		err := &errs.Error{
-			Code:    errs.InvalidArgument,
-			Message: fmt.Sprintf("duration must start with 'P': duration=%v", input),
-		}
-		dataCollector.Logger.ErrorWithContext(ct, err)
-		return 0, err
+		return 0, errs.NewError(
+			errs.InvalidArgument,
+			fmt.Sprintf("duration must start with 'P': duration=%v", input),
+		)
 	}
 
 	input = input[1:]
@@ -114,18 +111,16 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 		}
 
 		if visitTimeSection {
-			err := validateSymbol(ct, dataCollector, timeSymbolOrder, timeSymbolIndices, seenSymbols, currRune, index)
+			err := validateSymbol(ct, timeSymbolOrder, timeSymbolIndices, seenSymbols, currRune, index)
 			if err != nil {
-				dataCollector.Logger.ErrorWithContext(ct, err)
 				return 0, err
 			}
 
 			totalNanoSeconds += timeSymbolInNanos[currRune] * int64(num)
 			hasTime = true
 		} else {
-			err := validateSymbol(ct, dataCollector, periodSymbolOrder, periodSymbolIndices, seenSymbols, currRune, index)
+			err := validateSymbol(ct, periodSymbolOrder, periodSymbolIndices, seenSymbols, currRune, index)
 			if err != nil {
-				dataCollector.Logger.ErrorWithContext(ct, err)
 				return 0, err
 			}
 
@@ -138,21 +133,17 @@ func Parse(ct context.Context, dataCollector telemetry.DataCollector, input stri
 	}
 
 	if !hasPeriod && !hasTime {
-		err := &errs.Error{
-			Code:    errs.InvalidArgument,
-			Message: fmt.Sprintf("must has either period or time: duration=%v", input),
-		}
-		dataCollector.Logger.ErrorWithContext(ct, err)
-		return 0, err
+		return 0, errs.NewError(
+			errs.InvalidArgument,
+			fmt.Sprintf("must has either period or time: duration=%v", input),
+		)
 	}
 
 	if visitTimeSection && !hasTime {
-		err := &errs.Error{
-			Code:    errs.InvalidArgument,
-			Message: fmt.Sprintf("must remove ending T or have non empty time section: duration=%v", input),
-		}
-		dataCollector.Logger.ErrorWithContext(ct, err)
-		return 0, err
+		return 0, errs.NewError(
+			errs.InvalidArgument,
+			fmt.Sprintf("must remove ending T or have non empty time section: duration=%v", input),
+		)
 	}
 
 	return time.Duration(sign * totalNanoSeconds), nil
@@ -216,7 +207,6 @@ func tryWriteNumWithUnit(buffer *bytes.Buffer, num int64, symbol rune) {
 
 func validateSymbol(
 	ct context.Context,
-	dataCollector telemetry.DataCollector,
 	symbolOrder []rune,
 	symbolIndices map[rune]int,
 	seenSymbols map[rune]int,
@@ -225,24 +215,20 @@ func validateSymbol(
 ) *errs.Error {
 	symbolIndex, ok := symbolIndices[currSymbol]
 	if !ok {
-		err := &errs.Error{
-			Code:    errs.InvalidArgument,
-			Message: fmt.Sprintf("unsupported symbol: index=%v, symbol=%v", currIndex, currSymbol),
-		}
-		dataCollector.Logger.ErrorWithContext(ct, err)
-		return err
+		return errs.NewError(
+			errs.InvalidArgument,
+			fmt.Sprintf("unsupported symbol: index=%v, symbol=%v", currIndex, currSymbol),
+		)
 	}
 
 	for index := symbolIndex; index < len(symbolOrder); index++ {
 		symbol := symbolOrder[index]
 		seenSymbolIndex, ok := seenSymbols[symbol]
 		if ok {
-			err := &errs.Error{
-				Code:    errs.InvalidArgument,
-				Message: fmt.Sprintf("%c already showed up before %c(%v)", seenSymbolIndex, currSymbol, currIndex),
-			}
-			dataCollector.Logger.ErrorWithContext(ct, err)
-			return err
+			return errs.NewError(
+				errs.InvalidArgument,
+				fmt.Sprintf("%c already showed up before %c(%v)", seenSymbolIndex, currSymbol, currIndex),
+			)
 		}
 	}
 

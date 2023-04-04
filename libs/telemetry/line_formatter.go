@@ -20,11 +20,7 @@ var _ LineFormatter = (*JSONLineFormatter)(nil)
 func (j JSONLineFormatter) FormatLine(props Props) (string, *errs.Error) {
 	buf, err := json.Marshal(props)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Serialization,
-			EmbedErr: err,
-		}
-		return "", internalErr
+		return "", errs.NewError(errs.Serialization, err.Error())
 	}
 
 	return string(buf), nil

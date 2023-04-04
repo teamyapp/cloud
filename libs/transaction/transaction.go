@@ -35,10 +35,7 @@ func (t *Transaction) Commit() *errs.Error {
 	if t.sqlTx != nil {
 		err := t.sqlTx.Commit()
 		if err != nil {
-			return &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
+			return errs.NewError(errs.Unknown, err.Error())
 		}
 	}
 
@@ -54,10 +51,7 @@ func (t *Transaction) Rollback() *errs.Error {
 	if t.sqlTx != nil {
 		err := t.sqlTx.Rollback()
 		if err != nil {
-			return &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
+			return errs.NewError(errs.Unknown, err.Error())
 		}
 	}
 

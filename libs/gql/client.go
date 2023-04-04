@@ -78,12 +78,7 @@ func (c *Client) sendRequest(
 ) *errs.Error {
 	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
 	if err != nil {
-		internalErr := &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		c.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	for headerKey, headerVal := range headers {
@@ -99,12 +94,7 @@ func (c *Client) sendRequest(
 	req = req.WithContext(ct)
 	res, err := c.httpClient.Do(req)
 	if err != nil {
-		internalErr = &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
-		c.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer res.Body.Close()
@@ -112,42 +102,24 @@ func (c *Client) sendRequest(
 	if res.StatusCode > errs.HTTPClientErrors {
 		switch res.StatusCode {
 		case http.StatusUnauthorized:
-			return &errs.Error{
-				Code: errs.Unauthenticated,
-			}
+			return errs.NewError(errs.Unauthenticated, "unauthenticated")
 		case http.StatusForbidden:
-			return &errs.Error{
-				Code: errs.PermissionDenied,
-			}
+			return errs.NewError(errs.PermissionDenied, "permission denied")
 		case http.StatusNotFound:
-			return &errs.Error{
-				Code: errs.NotFound,
-			}
+			return errs.NewError(errs.NotFound, "not found")
 		default:
-			return &errs.Error{
-				Code: errs.Unknown,
-			}
+			return errs.NewError(errs.Unknown, "unknown")
 		}
 	}
 
 	buf, err := io.ReadAll(res.Body)
 	if err != nil {
-		internalErr = &errs.Error{
-			Code:     errs.IO,
-			EmbedErr: err,
-		}
-		c.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.IO, err.Error())
 	}
 
 	err = json.Unmarshal(buf, gqlResponse)
 	if err != nil {
-		internalErr = &errs.Error{
-			Code:     errs.Deserialization,
-			EmbedErr: err,
-		}
-		c.dataCollector.Logger.ErrorWithContext(ct, internalErr)
-		return internalErr
+		return errs.NewError(errs.Deserialization, err.Error())
 	}
 
 	return nil

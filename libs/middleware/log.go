@@ -35,11 +35,10 @@ func ServerHTTPLogRequest(dataCollector telemetry.DataCollector) Middleware[http
 			ct := request.Context()
 			buf, err := io.ReadAll(request.Body)
 			if err != nil {
-				internalErr := &errs.Error{
-					Code:     errs.IO,
-					EmbedErr: err,
-				}
-				dataCollector.Logger.ErrorWithContext(ct, internalErr)
+				dataCollector.Logger.ErrorWithContext(
+					ct,
+					errs.NewError(errs.IO, err.Error()),
+				)
 				return
 			}
 
@@ -140,10 +139,7 @@ func (l *LoggableResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	hijacker, ok := l.ResponseWriter.(http.Hijacker)
 	if !ok {
 		err := errors.New("response does not implement http.Hijacker")
-		l.dataCollector.Logger.ErrorWithContext(l.ct, &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		})
+		l.dataCollector.Logger.ErrorWithContext(l.ct, errs.NewError(errs.Unknown, err.Error()))
 		return nil, nil, err
 	}
 
@@ -153,10 +149,7 @@ func (l *LoggableResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 func (l *LoggableResponseWriter) Flush() {
 	flusher, ok := l.ResponseWriter.(http.Flusher)
 	if !ok {
-		l.dataCollector.Logger.ErrorWithContext(l.ct, &errs.Error{
-			Code:    errs.Unknown,
-			Message: "response does not implement http.Flusher",
-		})
+		l.dataCollector.Logger.ErrorWithContext(l.ct, errs.NewError(errs.Unknown, "response does not implement http.Flusher"))
 		return
 	}
 

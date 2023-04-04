@@ -21,7 +21,7 @@ func TestInfinite(t *testing.T) {
 
 	testCases := []struct {
 		name            string
-		errCodes        [](*errs.ErrorCode)
+		errCodes        []*errs.ErrorCode
 		durations       []time.Duration
 		sleepAwakeCount int
 		expectRetries   int
@@ -40,7 +40,7 @@ func TestInfinite(t *testing.T) {
 				longDelay*2 + randomOffset,
 			},
 			expectRetries:   3,
-			expectErr:       &errs.Error{Code: errs.InvalidArgument},
+			expectErr:       errs.NewError(errs.InvalidArgument, ""),
 			sleepAwakeCount: 2,
 		},
 		{
@@ -89,9 +89,7 @@ func TestInfinite(t *testing.T) {
 						return nil
 					}
 
-					return &errs.Error{
-						Code: *testCase.errCodes[prevCount],
-					}
+					return errs.NewError(*testCase.errCodes[prevCount], "")
 				}
 
 				return nil
@@ -109,7 +107,11 @@ func TestInfinite(t *testing.T) {
 				retries, err := infiniteExecutor.WithRetry(ct, execute)
 
 				assert.Equal(t, testCase.expectRetries, retries)
-				assert.Equal(t, testCase.expectErr, err)
+				if testCase.expectErr == nil {
+					assert.Nil(t, err)
+				} else {
+					assert.Equal(t, testCase.expectErr.Code, err.Code)
+				}
 			}()
 
 			retry := 1

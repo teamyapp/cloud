@@ -18,10 +18,7 @@ func (f Factory) BeginTx(ct context.Context, sqlTxOpts *sql.TxOptions) (*Transac
 
 	tx, err := f.db.BeginTx(ct, sqlTxOpts)
 	if err != nil {
-		return nil, &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	return newTransaction(tx), nil

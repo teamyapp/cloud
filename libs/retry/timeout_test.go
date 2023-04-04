@@ -41,7 +41,7 @@ func TestTimeout(t *testing.T) {
 			timeout:         10000 * time.Millisecond,
 			executeDuration: []time.Duration{2 * time.Millisecond, 3 * time.Millisecond, 4 * time.Millisecond},
 			expectRetries:   3,
-			expectErr:       &errs.Error{Code: errs.InvalidArgument},
+			expectErr:       errs.NewError(errs.InvalidArgument, ""),
 			sleepAwakeCount: 2,
 		},
 		{
@@ -69,7 +69,7 @@ func TestTimeout(t *testing.T) {
 			timeout:         10000 * time.Millisecond,
 			executeDuration: []time.Duration{2000 * time.Millisecond, 3000 * time.Millisecond, 4000 * time.Millisecond},
 			expectRetries:   3,
-			expectErr:       &errs.Error{Code: transientTimeoutErr},
+			expectErr:       errs.NewError(transientTimeoutErr, ""),
 			sleepAwakeCount: 2,
 		},
 	}
@@ -105,9 +105,7 @@ func TestTimeout(t *testing.T) {
 						return nil
 					}
 
-					return &errs.Error{
-						Code: *testCase.errCodes[prevCount],
-					}
+					return errs.NewError(*testCase.errCodes[prevCount], "")
 				}
 
 				return nil
@@ -138,7 +136,11 @@ func TestTimeout(t *testing.T) {
 				retries, err := timeoutExecutor.WithRetry(ct, execute)
 
 				assert.Equal(t, testCase.expectRetries, retries)
-				assert.Equal(t, testCase.expectErr, err)
+				if testCase.expectErr == nil {
+					assert.Nil(t, err)
+				} else {
+					assert.Equal(t, testCase.expectErr.Code, err.Code)
+				}
 			}()
 
 			retry := 1

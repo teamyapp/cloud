@@ -59,18 +59,12 @@ func (v *VirtualNetwork) BindProxyEndpoint(hostAndPort string, listener net.List
 	defer v.listenersMut.Unlock()
 	_, ok := v.endpointToListeners[hostAndPort]
 	if ok {
-		return &errs.Error{
-			Code:    errs.Unknown,
-			Message: fmt.Sprintf("endpoint already occupied: hostAndPort=%v", hostAndPort),
-		}
+		return errs.NewError(errs.Unknown, fmt.Sprintf("endpoint already occupied: hostAndPort=%v", hostAndPort))
 	}
 
 	virtualListener, ok := listener.(VirtualListener)
 	if !ok {
-		return &errs.Error{
-			Code:    errs.Unknown,
-			Message: "listener must be VirtualListener",
-		}
+		return errs.NewError(errs.Unknown, "listener must be VirtualListener")
 	}
 
 	v.endpointToListeners[hostAndPort] = virtualListener
