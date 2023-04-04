@@ -60,6 +60,7 @@ func (t Timeout) WithRetry(ct context.Context, execute func() *errs.Error) (int,
 				return retryCount, err
 			}
 
+			t.dataCollector.Logger.Info(fmt.Sprintf("Retry after %v", delay))
 			t.runtime.Sleep(delay)
 		case errs.Outage:
 			t.longBackOff.OnFailure()
@@ -69,6 +70,7 @@ func (t Timeout) WithRetry(ct context.Context, execute func() *errs.Error) (int,
 				return retryCount, err
 			}
 
+			t.dataCollector.Logger.Info(fmt.Sprintf("Retry after %v", delay))
 			t.runtime.Sleep(delay)
 		}
 	}

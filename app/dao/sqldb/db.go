@@ -14,6 +14,9 @@ import (
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/io"
 	"github.com/teamyapp/cloud/libs/randgen"
+	"github.com/teamyapp/cloud/libs/retry"
+	"github.com/teamyapp/cloud/libs/retry/backoff"
+	"github.com/teamyapp/cloud/libs/runtime"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -151,19 +154,21 @@ func ExecSQL(dataCollector telemetry.DataCollector, sqlDB *sql.DB, sqlFileName s
 }
 
 func waitUntilReady(dataCollector telemetry.DataCollector, sqlDB *sql.DB) {
-	for {
+	backOff := backoff.
+		NewUniformBuilder().
+		Delay(5 * time.Second).
+		Build()
+	runTime := runtime.NewBuiltInRuntime()
+	rt := retry.NewInfinite(dataCollector, runTime, backOff, backOff, nil)
+	ct := context.Background()
+	rt.WithRetry(ct, func() *errs.Error {
 		err := sqlDB.Ping()
 		if err == nil {
 			dataCollector.Logger.Info("successfully connected to the DB")
-			break
+			return nil
 		}
-
-		dataCollector.Logger.Error(errs.NewError(
-			errs.Unknown,
-			fmt.Sprintf("failed to connect to the DB: %s", err.Error())))
-		dataCollector.Logger.Info("retry after 5 seconds")
-		time.Sleep(5 * time.Second)
-	}
+		return errs.NewError(errs.Unknown, err.Error())
+	})
 }
 
 func connect(cfg Config) (*sql.DB, *errs.Error) {

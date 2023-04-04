@@ -19,19 +19,19 @@ type UniformBuilder struct {
 	delay time.Duration
 }
 
-func (u UniformBuilder) Delay(delay time.Duration) UniformBuilder {
+func (u *UniformBuilder) Delay(delay time.Duration) *UniformBuilder {
 	u.delay = delay
 	return u
 }
 
-func (u UniformBuilder) Build() Uniform {
-	return Uniform{
+func (u *UniformBuilder) Build() *Uniform {
+	return &Uniform{
 		delay: u.delay,
 	}
 }
 
-func NewUniformBuilder() UniformBuilder {
-	return UniformBuilder{
+func NewUniformBuilder() *UniformBuilder {
+	return &UniformBuilder{
 		delay: 200 * time.Millisecond,
 	}
 }
