@@ -44,9 +44,11 @@ func (m MaxCount) WithRetry(ct context.Context, execute func() *errs.Error) (int
 			return retry, err
 		case errs.Transient:
 			m.shortBackOff.OnFailure()
+			m.dataCollector.Logger.Info(fmt.Sprintf("Retry after %v", m.shortBackOff.Delay()))
 			m.runtime.Sleep(m.shortBackOff.Delay())
 		case errs.Outage:
 			m.longBackOff.OnFailure()
+			m.dataCollector.Logger.Info(fmt.Sprintf("Retry after %v", m.longBackOff.Delay()))
 			m.runtime.Sleep(m.longBackOff.Delay())
 		}
 	}

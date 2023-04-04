@@ -44,9 +44,11 @@ func (i Infinite) WithRetry(ct context.Context, execute func() *errs.Error) (int
 			return retries, err
 		case errs.Transient:
 			i.shortBackOff.OnFailure()
+			i.dataCollector.Logger.Info(fmt.Sprintf("Retry after %v", i.shortBackOff.Delay()))
 			i.runtime.Sleep(i.shortBackOff.Delay())
 		case errs.Outage:
 			i.longBackOff.OnFailure()
+			i.dataCollector.Logger.Info(fmt.Sprintf("Retry after %v", i.longBackOff.Delay()))
 			i.runtime.Sleep(i.longBackOff.Delay())
 		}
 
