@@ -168,7 +168,7 @@ func waitUntilReady(dataCollector telemetry.DataCollector, sqlDB *sql.DB) {
 			return nil
 		}
 
-		return errs.NewError(errs.Unknown, err.Error())
+		return errs.NewError(errs.Unknown, fmt.Sprintf("failed to connect to the DB: %s", err.Error()))
 	})
 }
 
