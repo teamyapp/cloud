@@ -63,20 +63,16 @@ func main() {
 		cfg.GitRepoOwner,
 		cfg.GitRepoName,
 		cfg.GitLongCommitHash)
-	dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
-		telemetry.MessageProp: gitCommitLink,
-	})
+	dataCollector.Logger.Info(gitCommitLink)
 
 	err = sqldb.Use(dataCollector, cfg.Config, func(sqlDB *sql.DB) *errs.Error {
 		internalErr := sqldb.MigrateUp(dataCollector, sqlDB, sqldb.DefaultMigrationRoot, sqldb.MigrateAll)
 		if internalErr != nil {
-			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
 			return internalErr
 		}
 
 		runnerConfig, internalErr := runner.ServiceRunnerConfigFromEnv()
 		if internalErr != nil {
-			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
 			return internalErr
 		}
 
@@ -108,32 +104,17 @@ func main() {
 			dep.JWTSigningKey(cfg.JWTSigningKey),
 			dep.GenRangeSize(cfg.GenRangeSize))
 		if err != nil {
-			internalErr = &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
-			return internalErr
+			return errs.NewError(errs.Unknown, err.Error())
 		}
 
 		generatorAPI, err := dep.InitGeneratorAPI(dataCollector, sqlDB, dep.GenRangeSize(cfg.GenRangeSize))
 		if err != nil {
-			internalErr = &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
-			return internalErr
+			return errs.NewError(errs.Unknown, err.Error())
 		}
 
 		authorizationAPI, err := dep.InitAuthorizationAPI(dataCollector, sqlDB, dep.GenRangeSize(cfg.GenRangeSize))
 		if err != nil {
-			internalErr = &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
-			return internalErr
+			return errs.NewError(errs.Unknown, err.Error())
 		}
 
 		fileAPI, err := dep.InitFileAPI(
@@ -146,12 +127,7 @@ func main() {
 			dep.S3AccessKey(cfg.S3AccessKey),
 			dep.S3BucketName(cfg.S3BucketName))
 		if err != nil {
-			internalErr = &errs.Error{
-				Code:     errs.Unknown,
-				EmbedErr: err,
-			}
-			dataCollector.Logger.Log(telemetry.Error, telemetry.Props{telemetry.CauseProp: internalErr})
-			return internalErr
+			return errs.NewError(errs.Unknown, err.Error())
 		}
 
 		telemetryAPI := dep.InitTelemetryAPI(dataCollector)
@@ -172,6 +148,10 @@ func main() {
 			Build()
 		return rn.Start(nil)
 	})
+	if err != nil {
+		dataCollector.Logger.Error(err)
+		panic(err)
+	}
 }
 
 func getEnv(name string, defaultVal string) string {
