@@ -58,17 +58,17 @@ func (m MaxCount) WithRetry(ct context.Context, execute func() *errs.Error) (int
 
 func NewMaxCount(
 	dataCollector telemetry.DataCollector,
+	runtime runtime.Runtime,
 	shortBackOff backoff.BackOff,
 	longBackOff backoff.BackOff,
-	runtime runtime.Runtime,
 	maxCount int,
 	beforeSkipRetry *func(),
 ) MaxCount {
 	return MaxCount{
 		dataCollector:   dataCollector,
+		runtime:         runtime,
 		shortBackOff:    shortBackOff,
 		longBackOff:     longBackOff,
-		runtime:         runtime,
 		maxCount:        maxCount,
 		beforeSkipRetry: beforeSkipRetry,
 	}
