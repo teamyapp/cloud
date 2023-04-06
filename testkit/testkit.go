@@ -45,7 +45,6 @@ type Refs struct {
 func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 	lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{})
 	logger := telemetry.NewLogger(lineFormatter, os.Stdout, telemetry.Off, []telemetry.LogInterceptor{})
-	dataCollector := telemetry.NewDataCollector(logger)
 	runnerConfig := runner.ServiceRunnerConfig{
 		WebServerPort:        cfg.WebServerPort,
 		GRPCServerPort:       cfg.GRPCServerPort,
@@ -61,7 +60,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		cfg.GithubClientID,
 		cfg.GithubClientSecret)
 
-	jwtAuthority := security.NewJWTAuthority(dataCollector, cfg.JWTSigningKey)
+	jwtAuthority := security.NewJWTAuthority(logger, cfg.JWTSigningKey)
 	googleOAuth := oauth.NewGoogle(
 		httpClient,
 		jwtAuthority,
@@ -95,7 +94,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 
 	allocatedRangeDao := daotest.NewAllocatedRange(inMemoryDB)
 	uniqueNumberGeneratorFactory := gen.NewUniqueNumberFactory(
-		dataCollector,
+		logger,
 		allocatedRangeDao,
 		cfg.GenUniqueNumberRangeSize)
 	signInSessionDao := daotest.NewSignInSession(inMemoryDB)
@@ -107,7 +106,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		slackOAuth,
 	}
 	identityService, err := service.NewIdentity(
-		dataCollector,
+		logger,
 		signInSessionDao,
 		userLinkDao,
 		serviceAccountDao,
@@ -122,8 +121,8 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		}
 	}
 
-	identityAPI := api.NewIdentity(dataCollector, identityService)
-	generatorAPI := api.NewGenerator(dataCollector, uniqueNumberGeneratorFactory)
+	identityAPI := api.NewIdentity(logger, identityService)
+	generatorAPI := api.NewGenerator(logger, uniqueNumberGeneratorFactory)
 
 	resourceRelationDao := daotest.NewResourceRelation(inMemoryDB)
 	userGroupMemberDao := daotest.NewUserGroupMember(inMemoryDB)
@@ -134,7 +133,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 	resourceDao := daotest.NewResource(inMemoryDB)
 	userGroupDao := daotest.NewUserGroup(inMemoryDB)
 	authorizationService, err := service.NewAuthorization(
-		dataCollector,
+		logger,
 		resourceRelationDao,
 		userGroupMemberDao,
 		permissionDao,
@@ -152,14 +151,14 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		}
 	}
 
-	authorizationAPI := api.NewAuthorization(dataCollector, authorizationService)
+	authorizationAPI := api.NewAuthorization(logger, authorizationService)
 
 	uploadSessionDao := daotest.NewUploadSession(inMemoryDB)
 	fileMetadataDao := daotest.NewFileMetadata(inMemoryDB)
 	chunkMetadataDao := daotest.NewChunkMetadata(inMemoryDB)
 	inMemoryMapBackend := storagetest.NewInMemoryMap()
 	fileService, err := service.NewFile(
-		dataCollector,
+		logger,
 		inMemoryMapBackend,
 		uniqueNumberGeneratorFactory,
 		uploadSessionDao,
@@ -172,11 +171,11 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		}
 	}
 
-	fileAPI := api.NewFile(dataCollector, fileService)
-	telemetryAPI := api.NewTelemetry(dataCollector)
+	fileAPI := api.NewFile(logger, fileService)
+	telemetryAPI := api.NewTelemetry(logger)
 
 	serviceRunner := runner.NewServiceRunnerBuilder(
-		dataCollector,
+		logger,
 		network,
 		metricstest.NewNoopMetrics(),
 		runnerConfig,

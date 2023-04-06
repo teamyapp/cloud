@@ -13,7 +13,7 @@ import (
 )
 
 type Telemetry struct {
-	dataCollector telemetry.DataCollector
+	logger telemetry.Logger
 }
 
 var _ runner.Service = (*Telemetry)(nil)
@@ -35,7 +35,7 @@ func (t *Telemetry) uploadLog(w http.ResponseWriter, r *http.Request) {
 	buf, err := io.ReadAll(r.Body)
 	if err != nil {
 		internalErr := errs.NewError(errs.IO, err.Error())
-		t.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		t.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, w)
 		return
 	}
@@ -44,7 +44,7 @@ func (t *Telemetry) uploadLog(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(buf, &logEntries)
 	if err != nil {
 		internalErr := errs.NewError(errs.Deserialization, err.Error())
-		t.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		t.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, w)
 		return
 	}
@@ -56,8 +56,8 @@ func (t *Telemetry) uploadLog(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func NewTelemetry(dataCollector telemetry.DataCollector) *Telemetry {
+func NewTelemetry(logger telemetry.Logger) *Telemetry {
 	return &Telemetry{
-		dataCollector: dataCollector,
+		logger: logger,
 	}
 }

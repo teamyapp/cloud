@@ -19,7 +19,7 @@ import (
 const TeamyOpenTelemetryTracerName = "com.teamyapp.open-telemetry.tracer"
 
 func InitTracerProvider(
-	dataCollector DataCollector,
+	logger Logger,
 	traceCollectorEndpoint string,
 	serviceName string,
 ) (func(ct context.Context) error, *errs.Error) {
@@ -42,7 +42,7 @@ func InitTracerProvider(
 		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	dataCollector.Logger.Info(fmt.Sprintf("Connected to trace collector at %v", traceCollectorEndpoint))
+	logger.Info(fmt.Sprintf("Connected to trace collector at %v", traceCollectorEndpoint))
 	traceExporter, err := otlptracegrpc.New(ct, otlptracegrpc.WithGRPCConn(conn))
 	if err != nil {
 		return nil, errs.NewError(errs.Unknown, err.Error())

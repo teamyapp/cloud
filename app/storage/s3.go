@@ -14,10 +14,10 @@ import (
 const appDataRoot = "appData"
 
 type S3Bucket struct {
-	dataCollector telemetry.DataCollector
-	client        *minio.Client
-	env           env.Environment
-	bucketName    string
+	logger     telemetry.Logger
+	client     *minio.Client
+	env        env.Environment
+	bucketName string
 }
 
 var _ MapBackend = (*S3Bucket)(nil)
@@ -59,7 +59,7 @@ func (s S3Bucket) Delete(key string) *errs.Error {
 }
 
 func NewS3Bucket(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	endpoint string,
 	accessKeyID string,
 	accessKey string,
@@ -72,9 +72,9 @@ func NewS3Bucket(
 	}
 
 	return S3Bucket{
-		dataCollector: dataCollector,
-		client:        client,
-		env:           env,
-		bucketName:    bucketName,
+		logger:     logger,
+		client:     client,
+		env:        env,
+		bucketName: bucketName,
 	}, nil
 }

@@ -17,7 +17,7 @@ var dbName string
 var migrationFileName string
 var migrationSteps int
 var seedFilePath string
-var dataCollector telemetry.DataCollector
+var logger telemetry.Logger
 
 func init() {
 	lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{
@@ -30,7 +30,7 @@ func init() {
 		telemetry.CauseProp,
 		telemetry.MessageProp,
 	})
-	logger := telemetry.NewLogger(
+	logger = telemetry.NewLogger(
 		lineFormatter,
 		os.Stdout,
 		telemetry.Info,
@@ -39,8 +39,6 @@ func init() {
 			telemetry.ClientLogInterceptor,
 		},
 	)
-
-	dataCollector = telemetry.NewDataCollector(logger)
 }
 
 const migrationTemplate = `
@@ -58,7 +56,7 @@ var newDBCmd = &cobra.Command{
 	Use:   "new",
 	Short: "Generate SQL to create new database",
 	Run: func(cmd *cobra.Command, args []string) {
-		sqldb.New(dataCollector, dbName)
+		sqldb.New(logger, dbName)
 	},
 }
 
@@ -69,8 +67,8 @@ var migrateCmd = &cobra.Command{
 var migrateUpCmd = &cobra.Command{
 	Use: "up",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return useSQLDB(dataCollector, func(sqlDB *sql.DB) *errs.Error {
-			return sqldb.MigrateUp(dataCollector, sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
+		return useSQLDB(logger, func(sqlDB *sql.DB) *errs.Error {
+			return sqldb.MigrateUp(logger, sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
 		})
 	},
 }
@@ -78,8 +76,8 @@ var migrateUpCmd = &cobra.Command{
 var migrateDownCmd = &cobra.Command{
 	Use: "down",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return useSQLDB(dataCollector, func(sqlDB *sql.DB) *errs.Error {
-			return sqldb.MigrateDown(dataCollector, sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
+		return useSQLDB(logger, func(sqlDB *sql.DB) *errs.Error {
+			return sqldb.MigrateDown(logger, sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
 		})
 	},
 }
@@ -99,8 +97,8 @@ var newMigrationCmd = &cobra.Command{
 var seedCmd = &cobra.Command{
 	Use: "seed",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return useSQLDB(dataCollector, func(sqlDB *sql.DB) *errs.Error {
-			return sqldb.ExecSQL(dataCollector, sqlDB, seedFilePath)
+		return useSQLDB(logger, func(sqlDB *sql.DB) *errs.Error {
+			return sqldb.ExecSQL(logger, sqlDB, seedFilePath)
 		})
 	},
 }
@@ -152,11 +150,11 @@ func addDBCmd() {
 	rootCmd.AddCommand(dbCmd)
 }
 
-func useSQLDB(dataCollector telemetry.DataCollector, action func(sqlDB *sql.DB) *errs.Error) error {
+func useSQLDB(logger telemetry.Logger, action func(sqlDB *sql.DB) *errs.Error) error {
 	cfg, err := config.AppFromEnv()
 	if err != nil {
 		return err.ToError()
 	}
 
-	return sqldb.Use(dataCollector, cfg.Config, action).ToError()
+	return sqldb.Use(logger, cfg.Config, action).ToError()
 }

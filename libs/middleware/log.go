@@ -29,13 +29,13 @@ const (
 	BodySizeProp = "BodySize"
 )
 
-func ServerHTTPLogRequest(dataCollector telemetry.DataCollector) Middleware[http.HandlerFunc] {
+func ServerHTTPLogRequest(logger telemetry.Logger) Middleware[http.HandlerFunc] {
 	return func(handlerFunc http.HandlerFunc) http.HandlerFunc {
 		return func(writer http.ResponseWriter, request *http.Request) {
 			ct := request.Context()
 			buf, err := io.ReadAll(request.Body)
 			if err != nil {
-				dataCollector.Logger.ErrorWithContext(
+				logger.ErrorWithContext(
 					ct,
 					errs.NewError(errs.IO, err.Error()),
 				)
@@ -56,8 +56,8 @@ func ServerHTTPLogRequest(dataCollector telemetry.DataCollector) Middleware[http
 			}
 
 			request.Body = io.NopCloser(bytes.NewReader(buf))
-			dataCollector.Logger.LogWithContext(ct, telemetry.Info, requestLogProps)
-			loggableWriter := newLoggableResponseWriter(dataCollector, writer, ct)
+			logger.LogWithContext(ct, telemetry.Info, requestLogProps)
+			loggableWriter := newLoggableResponseWriter(logger, writer, ct)
 
 			// Process request
 			handlerFunc(loggableWriter, request)
@@ -75,12 +75,12 @@ func ServerHTTPLogRequest(dataCollector telemetry.DataCollector) Middleware[http
 				responseLogProps[BodyProp] = string(loggableWriter.responseBody)
 			}
 
-			dataCollector.Logger.LogWithContext(ct, telemetry.Info, responseLogProps)
+			logger.LogWithContext(ct, telemetry.Info, responseLogProps)
 		}
 	}
 }
 
-func ServerGRPCLogRequest(dataCollector telemetry.DataCollector) grpc.UnaryServerInterceptor {
+func ServerGRPCLogRequest(logger telemetry.Logger) grpc.UnaryServerInterceptor {
 	return func(
 		ct context.Context,
 		req interface{},
@@ -101,7 +101,7 @@ func ServerGRPCLogRequest(dataCollector telemetry.DataCollector) grpc.UnaryServe
 			requestLogProps[MetadataProp] = fmt.Sprintf("%v", md)
 		}
 
-		dataCollector.Logger.LogWithContext(ct, telemetry.Info, requestLogProps)
+		logger.LogWithContext(ct, telemetry.Info, requestLogProps)
 
 		// Process request
 		res, err := handler(ct, req)
@@ -114,13 +114,13 @@ func ServerGRPCLogRequest(dataCollector telemetry.DataCollector) grpc.UnaryServe
 			BodyProp:     responseBody,
 			BodySizeProp: len(responseBody),
 		}
-		dataCollector.Logger.LogWithContext(ct, telemetry.Info, responseLogProps)
+		logger.LogWithContext(ct, telemetry.Info, responseLogProps)
 		return res, err
 	}
 }
 
 type LoggableResponseWriter struct {
-	dataCollector telemetry.DataCollector
+	logger telemetry.Logger
 	http.ResponseWriter
 	ct           context.Context
 	responseBody []byte
@@ -139,7 +139,7 @@ func (l *LoggableResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	hijacker, ok := l.ResponseWriter.(http.Hijacker)
 	if !ok {
 		err := errors.New("response does not implement http.Hijacker")
-		l.dataCollector.Logger.ErrorWithContext(l.ct, errs.NewError(errs.Unknown, err.Error()))
+		l.logger.ErrorWithContext(l.ct, errs.NewError(errs.Unknown, err.Error()))
 		return nil, nil, err
 	}
 
@@ -149,7 +149,7 @@ func (l *LoggableResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 func (l *LoggableResponseWriter) Flush() {
 	flusher, ok := l.ResponseWriter.(http.Flusher)
 	if !ok {
-		l.dataCollector.Logger.ErrorWithContext(l.ct, errs.NewError(errs.Unknown, "response does not implement http.Flusher"))
+		l.logger.ErrorWithContext(l.ct, errs.NewError(errs.Unknown, "response does not implement http.Flusher"))
 		return
 	}
 
@@ -157,11 +157,11 @@ func (l *LoggableResponseWriter) Flush() {
 }
 
 func newLoggableResponseWriter(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	writer http.ResponseWriter,
 	ct context.Context) *LoggableResponseWriter {
 	return &LoggableResponseWriter{
-		dataCollector:  dataCollector,
+		logger:         logger,
 		ResponseWriter: writer,
 		ct:             ct,
 	}

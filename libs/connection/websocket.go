@@ -51,7 +51,7 @@ func (w WebSocket) Close() *errs.Error {
 	return errs.NewError(ConnErr, err.Error())
 }
 
-func NewWebSocket(dataCollector telemetry.DataCollector, conn *websocket.Conn) WebSocket {
+func NewWebSocket(logger telemetry.Logger, conn *websocket.Conn) WebSocket {
 	receiveMessageCh := make(chan []byte)
 	sendMessageCh := make(chan []byte, 500)
 	errorCh := make(chan errs.Error)

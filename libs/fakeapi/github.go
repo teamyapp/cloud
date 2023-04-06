@@ -41,7 +41,7 @@ type GithubUser struct {
 }
 
 type Github struct {
-	dataCollector     telemetry.DataCollector
+	logger            telemetry.Logger
 	githubUsers       map[uint64]*GithubUser
 	thirdPartyClients map[string]*thirdPartyClient
 	accessTokenToUser map[string]*GithubUser
@@ -236,9 +236,9 @@ func (g *Github) RegisterUser(user *GithubUser) {
 	g.githubUsers[user.ID] = user
 }
 
-func NewGithub(dataCollector telemetry.DataCollector) *Github {
+func NewGithub(logger telemetry.Logger) *Github {
 	return &Github{
-		dataCollector:     dataCollector,
+		logger:            logger,
 		githubUsers:       map[uint64]*GithubUser{},
 		thirdPartyClients: map[string]*thirdPartyClient{},
 		accessTokenToUser: map[string]*GithubUser{},
@@ -262,7 +262,6 @@ type GithubTestKitConfig struct {
 func NewGithubTestKit(cfg GithubTestKitConfig, network network.Network) GithubTestKit {
 	lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{})
 	logger := telemetry.NewLogger(lineFormatter, os.Stdout, telemetry.Off, []telemetry.LogInterceptor{})
-	dataCollector := telemetry.NewDataCollector(logger)
 	runnerConfig := runner.ServiceRunnerConfig{
 		WebServerPort:        cfg.WebServerPort,
 		GRPCServerPort:       cfg.GRPCServerPort,
@@ -270,9 +269,9 @@ func NewGithubTestKit(cfg GithubTestKitConfig, network network.Network) GithubTe
 		RequestTimeout:       10 * time.Second,
 		EnableTracing:        false,
 	}
-	fakeGithubAPI := NewGithub(dataCollector)
+	fakeGithubAPI := NewGithub(logger)
 	serviceRunner := runner.NewServiceRunnerBuilder(
-		dataCollector,
+		logger,
 		network,
 		metricstest.NewNoopMetrics(),
 		runnerConfig,

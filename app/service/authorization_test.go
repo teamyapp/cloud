@@ -14,13 +14,12 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-var dataCollector = telemetry.NewDataCollector(
-	telemetry.NewLogger(
-		telemetry.NewOrderedColumnLineFormatter([]string{}),
-		os.Stdout,
-		telemetry.Info,
-		[]telemetry.LogInterceptor{},
-	))
+var logger = telemetry.NewLogger(
+	telemetry.NewOrderedColumnLineFormatter([]string{}),
+	os.Stdout,
+	telemetry.Info,
+	[]telemetry.LogInterceptor{},
+)
 
 func TestAuthorization_HasPermission(t *testing.T) {
 	resourceRelations := []entity.ResourceRelation{
@@ -482,7 +481,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 
 			mockAllocatedRange := daotest.NewAllocatedRange(inMemoryDB)
 			mockAuthorization, err := NewAuthorization(
-				dataCollector,
+				logger,
 				daotest.NewResourceRelation(inMemoryDB),
 				daotest.NewUserGroupMember(inMemoryDB),
 				daotest.NewPermission(inMemoryDB),
@@ -491,7 +490,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 				daotest.NewResourceType(inMemoryDB),
 				daotest.NewResource(inMemoryDB),
 				daotest.NewUserGroup(inMemoryDB),
-				gen.NewUniqueNumberFactory(dataCollector, mockAllocatedRange, 0),
+				gen.NewUniqueNumberFactory(logger, mockAllocatedRange, 0),
 			)
 			assert.Nil(t, err)
 

@@ -21,7 +21,7 @@ import (
 const chunksBufferSize = 10
 
 type File struct {
-	dataCollector      telemetry.DataCollector
+	logger             telemetry.Logger
 	mapBackend         storage.MapBackend
 	uploadSessionDao   dao.UploadSession
 	fileMetadataDao    dao.FileMetadata
@@ -213,7 +213,7 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 		return entity.File{}, err
 	}
 
-	chunksIterator := newChunksIterator(f.dataCollector, f.mapBackend, metadata.ChunkIDs)
+	chunksIterator := newChunksIterator(f.logger, f.mapBackend, metadata.ChunkIDs)
 	chunksBuffer := make(chan lang.Result[[]byte], chunksBufferSize)
 	go func() {
 		defer close(chunksBuffer)
@@ -254,7 +254,7 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 }
 
 func NewFile(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	mapBackend storage.MapBackend,
 	uniqueNumberFactory gen.UniqueNumberFactory,
 	uploadSessionDao dao.UploadSession,
@@ -277,7 +277,7 @@ func NewFile(
 	}
 
 	return File{
-		dataCollector:      dataCollector,
+		logger:             logger,
 		mapBackend:         mapBackend,
 		uploadSessionDao:   uploadSessionDao,
 		fileMetadataDao:    fileMetadataDao,

@@ -35,8 +35,8 @@ type MutationOptions struct {
 }
 
 type Client struct {
-	dataCollector telemetry.DataCollector
-	httpClient    web.HTTPClient
+	logger     telemetry.Logger
+	httpClient web.HTTPClient
 }
 
 func (c *Client) Query(
@@ -87,7 +87,7 @@ func (c *Client) sendRequest(
 
 	internalErr := web.WriteJSONToRequest(req, gqlRequest)
 	if internalErr != nil {
-		c.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		c.logger.ErrorWithContext(ct, internalErr)
 		return internalErr
 	}
 
@@ -125,9 +125,9 @@ func (c *Client) sendRequest(
 	return nil
 }
 
-func NewClient(dataCollector telemetry.DataCollector, httpClient web.HTTPClient) *Client {
+func NewClient(logger telemetry.Logger, httpClient web.HTTPClient) *Client {
 	return &Client{
-		dataCollector: dataCollector,
-		httpClient:    httpClient,
+		logger:     logger,
+		httpClient: httpClient,
 	}
 }

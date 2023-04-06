@@ -24,7 +24,7 @@ type ConnectionConfig struct {
 }
 
 func NewClientConnection(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	network network.Network,
 	clientGRPCMetrics middleware.ClientGRPCMetrics,
 	cfg ConnectionConfig,
@@ -44,7 +44,7 @@ func NewClientConnection(
 			middleware.ClientGRPCWithMetrics(clientGRPCMetrics),
 			middleware.ClientGRPCUnaryWithOpenTelemetry(),
 			middleware.ClientGRPCWithRetry(makeRetry),
-			middleware.ClientGRPCWithRequestID(dataCollector),
+			middleware.ClientGRPCWithRequestID(logger),
 			middleware.ClientGRPCWithTimout(cfg.RequestTimeout),
 			middleware.ClientGRPCWithIdentity(cfg.GetAccessToken),
 		),

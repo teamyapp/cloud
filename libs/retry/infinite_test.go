@@ -101,7 +101,7 @@ func TestInfinite(t *testing.T) {
 			beforeSkipRetry := func() {
 				beforeThreadSleepChan <- true
 			}
-			infiniteExecutor := NewInfinite(telemetry.NewDataCollector(logger), runtime, shortBackOff, longBackOff, &beforeSkipRetry)
+			infiniteExecutor := NewInfinite(logger, runtime, shortBackOff, longBackOff, &beforeSkipRetry)
 
 			go func() {
 				retries, err := infiniteExecutor.WithRetry(ct, execute)

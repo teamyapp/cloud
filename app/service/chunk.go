@@ -15,7 +15,7 @@ import (
 const chunkKeyPrefix = "chunks"
 
 type ChunksIterator struct {
-	dataCollector  telemetry.DataCollector
+	logger         telemetry.Logger
 	mapBackend     storage.MapBackend
 	chunkIDs       []uint64
 	nextChunkIndex int
@@ -51,12 +51,12 @@ func (c *ChunksIterator) Next(ct context.Context) ([]byte, *errs.Error) {
 }
 
 func newChunksIterator(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	mapBackend storage.MapBackend,
 	chunkIDs []uint64,
 ) *ChunksIterator {
 	return &ChunksIterator{
-		dataCollector:  dataCollector,
+		logger:         logger,
 		mapBackend:     mapBackend,
 		chunkIDs:       chunkIDs,
 		nextChunkIndex: 0,

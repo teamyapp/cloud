@@ -12,7 +12,7 @@ import (
 )
 
 type Generator struct {
-	dataCollector telemetry.DataCollector
+	logger telemetry.Logger
 	proto.UnimplementedGeneratorServer
 	uniqueNumberGeneratorFactory gen.UniqueNumberFactory
 	uniqueNumberGenerators       map[string]*gen.UniqueNumber
@@ -38,7 +38,7 @@ func (g Generator) GenerateUniqueNumber(
 		var err *errs.Error
 		uniqueNumGen, err = g.uniqueNumberGeneratorFactory.MakeUniqueNumber(request.SequenceName)
 		if err != nil {
-			g.dataCollector.Logger.ErrorWithContext(ct, err)
+			g.logger.ErrorWithContext(ct, err)
 			return nil, errs.ToGRPCErr(err)
 		}
 
@@ -47,7 +47,7 @@ func (g Generator) GenerateUniqueNumber(
 
 	uniqueNum, err := uniqueNumGen.GenerateUniqueNumber(ct)
 	if err != nil {
-		g.dataCollector.Logger.ErrorWithContext(ct, err)
+		g.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -66,7 +66,7 @@ func (g Generator) GenerateUniqueString(
 			request.Alphabet,
 			g.uniqueNumberGeneratorFactory)
 		if err != nil {
-			g.dataCollector.Logger.ErrorWithContext(ct, err)
+			g.logger.ErrorWithContext(ct, err)
 			return nil, errs.ToGRPCErr(err)
 		}
 		uniqueStringGen = &strGen
@@ -75,7 +75,7 @@ func (g Generator) GenerateUniqueString(
 
 	uniqueStr, err := uniqueStringGen.GenerateUniqueString(ct)
 	if err != nil {
-		g.dataCollector.Logger.ErrorWithContext(ct, err)
+		g.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -83,11 +83,11 @@ func (g Generator) GenerateUniqueString(
 }
 
 func NewGenerator(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	uniqueNumberGeneratorFactory gen.UniqueNumberFactory,
 ) Generator {
 	return Generator{
-		dataCollector:                dataCollector,
+		logger:                       logger,
 		uniqueNumberGeneratorFactory: uniqueNumberGeneratorFactory,
 		uniqueNumberGenerators:       make(map[string]*gen.UniqueNumber),
 		uniqueStringGenerators:       make(map[string]*gen.UniqueString),
