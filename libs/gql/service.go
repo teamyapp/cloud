@@ -13,7 +13,7 @@ import (
 )
 
 type Service[Resolver any] struct {
-	dataCollector telemetry.DataCollector
+	logger        telemetry.Logger
 	graphQLTracer tracer.Tracer
 	schema        string
 	resolver      *Resolver
@@ -43,14 +43,14 @@ func (s Service[Resolver]) Start(rn *runner.ServiceRunner) *errs.Error {
 }
 
 func NewService[Resolver any](
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	graphQLTracer tracer.Tracer,
 	schema string,
 	resolver *Resolver,
 	pathPrefix string,
 ) Service[Resolver] {
 	return Service[Resolver]{
-		dataCollector: dataCollector,
+		logger:        logger,
 		graphQLTracer: graphQLTracer,
 		schema:        schema,
 		resolver:      resolver,

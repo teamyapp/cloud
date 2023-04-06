@@ -10,8 +10,8 @@ import (
 )
 
 type JWTAuthority struct {
-	dataCollector telemetry.DataCollector
-	signingKey    []byte
+	logger     telemetry.Logger
+	signingKey []byte
 }
 
 func (j JWTAuthority) GenerateToken(ct context.Context, payload interface{}) (string, *errs.Error) {
@@ -70,9 +70,9 @@ func (j JWTAuthority) parseJWTClaims(ct context.Context, claims jwt.Claims, outp
 	return nil
 }
 
-func NewJWTAuthority(dataCollector telemetry.DataCollector, signingKey string) JWTAuthority {
+func NewJWTAuthority(logger telemetry.Logger, signingKey string) JWTAuthority {
 	return JWTAuthority{
-		dataCollector: dataCollector,
-		signingKey:    []byte(signingKey),
+		logger:     logger,
+		signingKey: []byte(signingKey),
 	}
 }

@@ -45,7 +45,7 @@ type Config struct {
 	DBConnectionMaxIdleTime time.Duration `envconfig:"DB_CONNECTION_MAX_IDLE_TIME" default:"2m"`
 }
 
-func Use(dataCollector telemetry.DataCollector, cfg Config, action func(sqlDB *sql.DB) *errs.Error) *errs.Error {
+func Use(logger telemetry.Logger, cfg Config, action func(sqlDB *sql.DB) *errs.Error) *errs.Error {
 	sqlDB, err := connect(cfg)
 	if err != nil {
 		return err
@@ -53,7 +53,7 @@ func Use(dataCollector telemetry.DataCollector, cfg Config, action func(sqlDB *s
 
 	defer sqlDB.Close()
 
-	waitUntilReady(dataCollector, sqlDB)
+	waitUntilReady(logger, sqlDB)
 	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConnections)
 	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConnections)
 	sqlDB.SetConnMaxLifetime(cfg.DBConnectionMaxLifeTime)
@@ -61,12 +61,12 @@ func Use(dataCollector telemetry.DataCollector, cfg Config, action func(sqlDB *s
 	return action(sqlDB)
 }
 
-func MigrateUp(dataCollector telemetry.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) *errs.Error {
-	return migrateDB(dataCollector, sqlDB, migrationRoot, migrate.Up, steps)
+func MigrateUp(logger telemetry.Logger, sqlDB *sql.DB, migrationRoot string, steps int) *errs.Error {
+	return migrateDB(logger, sqlDB, migrationRoot, migrate.Up, steps)
 }
 
-func MigrateDown(dataCollector telemetry.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) *errs.Error {
-	return migrateDB(dataCollector, sqlDB, migrationRoot, migrate.Down, steps)
+func MigrateDown(logger telemetry.Logger, sqlDB *sql.DB, migrationRoot string, steps int) *errs.Error {
+	return migrateDB(logger, sqlDB, migrationRoot, migrate.Down, steps)
 }
 
 func NewMigration(migrationDir string, fileName string) (string, *errs.Error) {
@@ -96,7 +96,7 @@ func NewMigration(migrationDir string, fileName string) (string, *errs.Error) {
 	return fullFilePath, nil
 }
 
-func New(dataCollector telemetry.DataCollector, dbName string) {
+func New(logger telemetry.Logger, dbName string) {
 	alphabet := concatenate([]string{
 		lowerCaseLetters,
 		upperCaseLetters,
@@ -107,7 +107,8 @@ func New(dataCollector telemetry.DataCollector, dbName string) {
 	dbNamePostfix := randgen.String(dbNamePostfixAlphabet, 5)
 	fullDBName := fmt.Sprintf("%s-%s", dbName, dbNamePostfix)
 	password := randgen.String(alphabet, dbPasswordLen)
-	dataCollector.Logger.Info(strings.TrimSpace(fmt.Sprintf(`
+	logger.
+		Info(strings.TrimSpace(fmt.Sprintf(`
 user: %s
 password: %s
 dbName: %s
@@ -118,18 +119,18 @@ CREATE USER "%s" WITH PASSWORD '%s';
 GRANT ALL PRIVILEGES ON DATABASE "%s" TO "%s";
 ================================================================================
 `,
-		fullDBName,
-		password,
-		fullDBName,
-		fullDBName,
-		fullDBName,
-		password,
-		fullDBName,
-		fullDBName,
-	)))
+			fullDBName,
+			password,
+			fullDBName,
+			fullDBName,
+			fullDBName,
+			password,
+			fullDBName,
+			fullDBName,
+		)))
 }
 
-func ExecSQL(dataCollector telemetry.DataCollector, sqlDB *sql.DB, sqlFileName string) *errs.Error {
+func ExecSQL(logger telemetry.Logger, sqlDB *sql.DB, sqlFileName string) *errs.Error {
 	buf, err := os.ReadFile(sqlFileName)
 	if err != nil {
 		return errs.NewError(errs.OS, err.Error())
@@ -147,24 +148,26 @@ func ExecSQL(dataCollector telemetry.DataCollector, sqlDB *sql.DB, sqlFileName s
 
 	err = tx.Commit()
 	if err == nil {
-		dataCollector.Logger.Info("successfully seeded DB")
+		logger.
+			Info("successfully seeded DB")
 	}
 
 	return errs.NewError(errs.Unknown, err.Error())
 }
 
-func waitUntilReady(dataCollector telemetry.DataCollector, sqlDB *sql.DB) {
+func waitUntilReady(logger telemetry.Logger, sqlDB *sql.DB) {
 	backOff := backoff.
 		NewUniformBuilder().
 		Delay(5 * time.Second).
 		Build()
 	runTime := runtime.NewBuiltInRuntime()
-	rt := retry.NewInfinite(dataCollector, runTime, backOff, backOff, nil)
+	rt := retry.NewInfinite(logger, runTime, backOff, backOff, nil)
 	ct := context.Background()
 	rt.WithRetry(ct, func() *errs.Error {
 		err := sqlDB.Ping()
 		if err == nil {
-			dataCollector.Logger.Info("successfully connected to the DB")
+			logger.
+				Info("successfully connected to the DB")
 			return nil
 		}
 
@@ -190,7 +193,7 @@ func connect(cfg Config) (*sql.DB, *errs.Error) {
 }
 
 func migrateDB(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	db *sql.DB,
 	migrationRoot string,
 	migrateDirection migrate.MigrationDirection,
@@ -204,7 +207,8 @@ func migrateDB(
 		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	dataCollector.Logger.Info("migration finished")
+	logger.
+		Info("migration finished")
 	return nil
 }
 

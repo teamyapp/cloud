@@ -122,7 +122,7 @@ func TestTimeout(t *testing.T) {
 				testClock.SetTime(duration)
 			}
 			timeoutExecutor := NewTimeout(
-				telemetry.NewDataCollector(logger),
+				logger,
 				runtime,
 				shortBackOff,
 				longBackOff,

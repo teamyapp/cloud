@@ -25,7 +25,7 @@ type tokenPayload struct {
 }
 
 type Identity struct {
-	dataCollector     telemetry.DataCollector
+	logger            telemetry.Logger
 	signInSessionDao  dao.SignInSession
 	userLinkDao       dao.UserLink
 	serviceAccountDao dao.ServiceAccount
@@ -110,7 +110,7 @@ func (i Identity) generateSignInURL(ct context.Context, authProviderName string,
 		return "", err
 	}
 
-	i.dataCollector.Logger.InfoWithContext(ct, fmt.Sprintf("SignInURL=%v", signInURL))
+	i.logger.InfoWithContext(ct, fmt.Sprintf("SignInURL=%v", signInURL))
 	return signInURL, nil
 }
 
@@ -346,7 +346,7 @@ func (i Identity) linkUsers(
 }
 
 func NewIdentity(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
@@ -371,7 +371,7 @@ func NewIdentity(
 	}
 
 	return Identity{
-		dataCollector:     dataCollector,
+		logger:            logger,
 		signInSessionDao:  signInSessionDao,
 		userLinkDao:       userLinkDao,
 		serviceAccountDao: serviceAccountDao,

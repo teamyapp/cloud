@@ -51,13 +51,13 @@ func (c *ClientRegistry) FileClient() proto.FileClient {
 }
 
 func NewClientRegistry(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	network network.Network,
 	clientGRPCMetrics middleware.ClientGRPCMetrics,
 	connCfg rpc.ConnectionConfig,
 	makeRetry func() retry.Retry,
 ) (*ClientRegistry, error) {
-	conn, err := rpc.NewClientConnection(dataCollector, network, clientGRPCMetrics, connCfg, makeRetry)
+	conn, err := rpc.NewClientConnection(logger, network, clientGRPCMetrics, connCfg, makeRetry)
 	if err != nil {
 		return nil, err
 	}

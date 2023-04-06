@@ -11,7 +11,7 @@ import (
 )
 
 type Infinite struct {
-	dataCollector   telemetry.DataCollector
+	logger          telemetry.Logger
 	runtime         runtime.Runtime
 	shortBackOff    backoff.BackOff
 	longBackOff     backoff.BackOff
@@ -31,9 +31,9 @@ func (i Infinite) WithRetry(ct context.Context, execute func() *errs.Error) (int
 			return retries, nil
 		}
 
-		i.dataCollector.Logger.ErrorWithContext(ct, err)
+		i.logger.ErrorWithContext(ct, err)
 		category := errs.GetErrorCategory(err.Code)
-		i.dataCollector.Logger.WarningWithContext(ct, fmt.Sprintf("Err category: %s", category))
+		i.logger.WarningWithContext(ct, fmt.Sprintf("Err category: %s", category))
 
 		switch category {
 		case errs.ClientInteraction:
@@ -44,11 +44,11 @@ func (i Infinite) WithRetry(ct context.Context, execute func() *errs.Error) (int
 			return retries, err
 		case errs.Transient:
 			i.shortBackOff.OnFailure()
-			i.dataCollector.Logger.Info(fmt.Sprintf("Retry after %v", i.shortBackOff.Delay()))
+			i.logger.Info(fmt.Sprintf("Retry after %v", i.shortBackOff.Delay()))
 			i.runtime.Sleep(i.shortBackOff.Delay())
 		case errs.Outage:
 			i.longBackOff.OnFailure()
-			i.dataCollector.Logger.Info(fmt.Sprintf("Retry after %v", i.longBackOff.Delay()))
+			i.logger.Info(fmt.Sprintf("Retry after %v", i.longBackOff.Delay()))
 			i.runtime.Sleep(i.longBackOff.Delay())
 		}
 
@@ -56,14 +56,14 @@ func (i Infinite) WithRetry(ct context.Context, execute func() *errs.Error) (int
 }
 
 func NewInfinite(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	runtime runtime.Runtime,
 	shortBackOff backoff.BackOff,
 	longBackOff backoff.BackOff,
 	beforeSkipRetry *func(),
 ) Infinite {
 	return Infinite{
-		dataCollector:   dataCollector,
+		logger:          logger,
 		runtime:         runtime,
 		shortBackOff:    shortBackOff,
 		longBackOff:     longBackOff,

@@ -17,7 +17,7 @@ import (
 )
 
 type Authorization struct {
-	dataCollector        telemetry.DataCollector
+	logger               telemetry.Logger
 	authorizationService service.Authorization
 	proto.UnimplementedAuthorizationServer
 }
@@ -35,7 +35,7 @@ func (a Authorization) Start(rn *runner.ServiceRunner) *errs.Error {
 func (a Authorization) HasPermission(ct context.Context, req *proto.HasPermissionRequest) (*proto.HasPermissionResponse, error) {
 	hasPermission, err := a.authorizationService.HasPermission(ct, req.ResourceType, req.ResourceId, req.Operation, req.UserId)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -61,7 +61,7 @@ func (a Authorization) ListResourceTypes(ct context.Context, query *proto.ListRe
 
 	resourceTypeEntities, err := a.authorizationService.ListResourceTypes(ct, resourceTypeQuery)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -79,7 +79,7 @@ func (a Authorization) ListResourceTypes(ct context.Context, query *proto.ListRe
 func (a Authorization) RegisterResourceType(ct context.Context, request *proto.RegisterResourceTypeRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RegisterResourceType(ct, request.ResourceType)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -89,7 +89,7 @@ func (a Authorization) RegisterResourceType(ct context.Context, request *proto.R
 func (a Authorization) UnregisterResourceType(ct context.Context, request *proto.UnregisterResourceTypeRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnregisterResourceType(ct, request.ResourceType)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -115,7 +115,7 @@ func (a Authorization) ListResources(ct context.Context, query *proto.ListResour
 
 	resourceEntities, err := a.authorizationService.ListResources(ct, resourceQuery)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -134,7 +134,7 @@ func (a Authorization) ListResources(ct context.Context, query *proto.ListResour
 func (a Authorization) RegisterResource(ct context.Context, request *proto.RegisterResourceRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RegisterResource(ct, request.ResourceType, request.ResourceId)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -144,7 +144,7 @@ func (a Authorization) RegisterResource(ct context.Context, request *proto.Regis
 func (a Authorization) UnregisterResource(ct context.Context, request *proto.UnregisterResourceRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnregisterResource(ct, request.ResourceType, request.ResourceId)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -172,7 +172,7 @@ func (a Authorization) ListResourceRelations(ct context.Context, query *proto.Li
 
 	resourceRelationEntities, err := a.authorizationService.ListResourceRelations(ct, resourceRelationQuery)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -199,7 +199,7 @@ func (a Authorization) AssignParentResource(ct context.Context, request *proto.A
 		request.ParentResourceId,
 	)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return &emptypb.Empty{}, errs.ToGRPCErr(err)
 	}
 
@@ -215,7 +215,7 @@ func (a Authorization) UnassignParentResource(ct context.Context, request *proto
 		request.ParentResourceId,
 	)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -241,7 +241,7 @@ func (a Authorization) ListOperations(ct context.Context, query *proto.ListOpera
 
 	operationEntities, err := a.authorizationService.ListOperations(ct, operationQuery)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -260,7 +260,7 @@ func (a Authorization) ListOperations(ct context.Context, query *proto.ListOpera
 func (a Authorization) RegisterOperation(ct context.Context, request *proto.RegisterOperationRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RegisterOperation(ct, request.ResourceType, request.Operation)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -270,7 +270,7 @@ func (a Authorization) RegisterOperation(ct context.Context, request *proto.Regi
 func (a Authorization) UnregisterOperation(ct context.Context, request *proto.UnregisterOperationRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnregisterOperation(ct, request.ResourceType, request.Operation)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return &emptypb.Empty{}, errs.ToGRPCErr(err)
 	}
 
@@ -298,7 +298,7 @@ func (a Authorization) ListOperationRelations(ct context.Context, query *proto.L
 
 	operationRelationEntities, err := a.authorizationService.ListOperationRelations(ct, operationRelationQuery)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -325,7 +325,7 @@ func (a Authorization) AssignParentOperation(ct context.Context, request *proto.
 		request.ParentOperation,
 	)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -341,7 +341,7 @@ func (a Authorization) UnassignParentOperation(ct context.Context, request *prot
 		request.ParentOperation,
 	)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -368,7 +368,7 @@ func (a Authorization) ListUserGroups(ct context.Context, query *proto.ListUserG
 
 	userGroupEntities, err := a.authorizationService.ListUserGroups(ct, userGroupQuery)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -388,7 +388,7 @@ func (a Authorization) ListUserGroups(ct context.Context, query *proto.ListUserG
 func (a Authorization) CreateUserGroup(ct context.Context, request *proto.CreateUserGroupRequest) (*proto.CreateUserGroupResponse, error) {
 	userGroup, err := a.authorizationService.CreateUserGroup(ct, request.Name, request.Description)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -405,7 +405,7 @@ func (a Authorization) CreateUserGroup(ct context.Context, request *proto.Create
 func (a Authorization) UpdateUserGroup(ct context.Context, request *proto.UpdateUserGroupRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UpdateUserGroup(ct, request.GroupId, request.Name, request.Description)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -415,7 +415,7 @@ func (a Authorization) UpdateUserGroup(ct context.Context, request *proto.Update
 func (a Authorization) DeleteUserGroup(ct context.Context, request *proto.DeleteUserGroupRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.DeleteUserGroup(ct, request.GroupId)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -441,7 +441,7 @@ func (a Authorization) ListUserGroupMembers(ct context.Context, query *proto.Lis
 
 	userGroupMemberEntities, err := a.authorizationService.ListUserGroupMembers(ct, userGroupMemberQuery)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -459,7 +459,7 @@ func (a Authorization) ListUserGroupMembers(ct context.Context, query *proto.Lis
 func (a Authorization) AddUserGroupMember(ct context.Context, request *proto.AddUserGroupMemberRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.AddUserGroupMember(ct, request.GroupId, request.UserId)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -469,7 +469,7 @@ func (a Authorization) AddUserGroupMember(ct context.Context, request *proto.Add
 func (a Authorization) RemoveUserGroupMember(ct context.Context, request *proto.RemoveUserGroupMemberRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RemoveUserGroupMember(ct, request.GroupId, request.UserId)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -497,7 +497,7 @@ func (a Authorization) ListPermissions(ct context.Context, query *proto.ListPerm
 
 	permissionEntities, err := a.authorizationService.ListPermissions(ct, permissionQuery)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -517,7 +517,7 @@ func (a Authorization) ListPermissions(ct context.Context, query *proto.ListPerm
 func (a Authorization) AddPermission(ct context.Context, request *proto.AddPermissionRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.AddPermission(ct, request.ResourceType, request.ResourceId, request.Operation, request.GroupId)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -527,7 +527,7 @@ func (a Authorization) AddPermission(ct context.Context, request *proto.AddPermi
 func (a Authorization) RemovePermission(ct context.Context, request *proto.RemovePermissionRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RemovePermission(ct, request.ResourceType, request.ResourceId, request.Operation, request.GroupId)
 	if err != nil {
-		a.dataCollector.Logger.ErrorWithContext(ct, err)
+		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -535,11 +535,11 @@ func (a Authorization) RemovePermission(ct context.Context, request *proto.Remov
 }
 
 func NewAuthorization(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	authorizationService service.Authorization,
 ) Authorization {
 	return Authorization{
-		dataCollector:        dataCollector,
+		logger:               logger,
 		authorizationService: authorizationService,
 	}
 }

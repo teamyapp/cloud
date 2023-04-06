@@ -12,7 +12,7 @@ import (
 )
 
 type Timeout struct {
-	dataCollector    telemetry.DataCollector
+	logger           telemetry.Logger
 	runtime          runtime.Runtime
 	shortBackOff     backoff.BackOff
 	longBackOff      backoff.BackOff
@@ -41,9 +41,9 @@ func (t Timeout) WithRetry(ct context.Context, execute func() *errs.Error) (int,
 			(*t.beforeRetryDelay)()
 		}
 
-		t.dataCollector.Logger.ErrorWithContext(ct, err)
+		t.logger.ErrorWithContext(ct, err)
 		category := errs.GetErrorCategory(err.Code)
-		t.dataCollector.Logger.WarningWithContext(ct, fmt.Sprintf("Err category: %s", category))
+		t.logger.WarningWithContext(ct, fmt.Sprintf("Err category: %s", category))
 
 		switch category {
 		case errs.ClientInteraction:
@@ -60,7 +60,7 @@ func (t Timeout) WithRetry(ct context.Context, execute func() *errs.Error) (int,
 				return retryCount, err
 			}
 
-			t.dataCollector.Logger.Info(fmt.Sprintf("Retry after %v", delay))
+			t.logger.Info(fmt.Sprintf("Retry after %v", delay))
 			t.runtime.Sleep(delay)
 		case errs.Outage:
 			t.longBackOff.OnFailure()
@@ -70,7 +70,7 @@ func (t Timeout) WithRetry(ct context.Context, execute func() *errs.Error) (int,
 				return retryCount, err
 			}
 
-			t.dataCollector.Logger.Info(fmt.Sprintf("Retry after %v", delay))
+			t.logger.Info(fmt.Sprintf("Retry after %v", delay))
 			t.runtime.Sleep(delay)
 		}
 	}
@@ -79,7 +79,7 @@ func (t Timeout) WithRetry(ct context.Context, execute func() *errs.Error) (int,
 }
 
 func NewTimeout(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	runtime runtime.Runtime,
 	shortBackOff backoff.BackOff,
 	longBackOff backoff.BackOff,
@@ -88,7 +88,7 @@ func NewTimeout(
 	beforeRetryDelay *func(),
 	beforeSkipRetry *func()) Timeout {
 	return Timeout{
-		dataCollector:    dataCollector,
+		logger:           logger,
 		runtime:          runtime,
 		shortBackOff:     shortBackOff,
 		longBackOff:      longBackOff,

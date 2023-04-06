@@ -114,7 +114,7 @@ func TestMaxCount(t *testing.T) {
 				beforeThreadSleepChan <- true
 			}
 			maxCountExecutor := NewMaxCount(
-				telemetry.NewDataCollector(logger),
+				logger,
 				runtime,
 				shortBackOff,
 				longBackOff,

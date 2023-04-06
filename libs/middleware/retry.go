@@ -24,7 +24,7 @@ func (h HttpClientExecuteFunc) Do(req *http.Request) (*http.Response, error) {
 	return h(req)
 }
 
-func ClientHTTPWithRetry(dataCollector telemetry.DataCollector, retry retry.Retry) Middleware[HttpClientExecutor] {
+func ClientHTTPWithRetry(logger telemetry.Logger, retry retry.Retry) Middleware[HttpClientExecutor] {
 	return func(httpClientExecutor HttpClientExecutor) HttpClientExecutor {
 		return (HttpClientExecuteFunc)(func(request *http.Request) (*http.Response, error) {
 			var res *http.Response
@@ -38,7 +38,8 @@ func ClientHTTPWithRetry(dataCollector telemetry.DataCollector, retry retry.Retr
 
 				internalErr := errs.GetFromHTTPErr(res)
 				if internalErr != nil {
-					dataCollector.Logger.ErrorWithContext(ct, internalErr)
+					logger.
+						ErrorWithContext(ct, internalErr)
 				}
 
 				return internalErr

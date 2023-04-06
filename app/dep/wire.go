@@ -74,7 +74,7 @@ var storageSet = wire.NewSet(
 	newS3Bucket,
 )
 
-func InitTelemetryAPI(dataCollector telemetry.DataCollector) *api.Telemetry {
+func InitTelemetryAPI(logger telemetry.Logger) *api.Telemetry {
 	wire.Build(
 		api.NewTelemetry,
 	)
@@ -82,7 +82,7 @@ func InitTelemetryAPI(dataCollector telemetry.DataCollector) *api.Telemetry {
 }
 
 func InitIdentityAPI(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	sqlDB *sql.DB,
 	oauthProviders OAuthProviders,
 	accessTokenTTL AccessTokenTTL,
@@ -100,7 +100,7 @@ func InitIdentityAPI(
 }
 
 func InitGeneratorAPI(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
 ) (api.Generator, error) {
@@ -113,7 +113,7 @@ func InitGeneratorAPI(
 }
 
 func InitAuthorizationAPI(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
 ) (api.Authorization, error) {
@@ -127,7 +127,7 @@ func InitAuthorizationAPI(
 }
 
 func InitFileAPI(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	env env.Environment,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
@@ -147,7 +147,7 @@ func InitFileAPI(
 }
 
 func newS3Bucket(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	s3Endpoint S3Endpoint,
 	s3AccessKeyID S3AccessKeyID,
 	s3AccessKey S3AccessKey,
@@ -155,7 +155,7 @@ func newS3Bucket(
 	env env.Environment,
 ) (storage.S3Bucket, error) {
 	return storage.NewS3Bucket(
-		dataCollector,
+		logger,
 		string(s3Endpoint),
 		string(s3AccessKeyID),
 		string(s3AccessKey),
@@ -164,7 +164,7 @@ func newS3Bucket(
 }
 
 func InitGitHubOAuthProvider(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
@@ -181,7 +181,7 @@ func InitGitHubOAuthProvider(
 }
 
 func InitGoogleOAuthProvider(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	webAPIBaseURL WebAPIBaseURL,
 	jwtSigningKey JWTSigningKey,
 	clientID ClientID,
@@ -200,7 +200,7 @@ func InitGoogleOAuthProvider(
 }
 
 func InitSlackOAuthProvider(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	webAPIBaseURL WebAPIBaseURL,
 	jwtSigningKey JWTSigningKey,
 	clientID ClientID,
@@ -247,19 +247,19 @@ func newSlackOAuthProvider(
 	return oauth.NewSlack(httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
-func newJWTAuthority(dataCollector telemetry.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {
-	return security.NewJWTAuthority(dataCollector, string(signingKey))
+func newJWTAuthority(logger telemetry.Logger, signingKey JWTSigningKey) security.JWTAuthority {
+	return security.NewJWTAuthority(logger, string(signingKey))
 }
 
 func newUniqueNumberGenFactory(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,
 	genRangeSize GenRangeSize) gen.UniqueNumberFactory {
-	return gen.NewUniqueNumberFactory(dataCollector, allocatedRangeDao, uint64(genRangeSize))
+	return gen.NewUniqueNumberFactory(logger, allocatedRangeDao, uint64(genRangeSize))
 }
 
 func newIdentityService(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
@@ -269,7 +269,7 @@ func newIdentityService(
 	accessTokenTLL AccessTokenTTL,
 ) (service.Identity, error) {
 	return service.NewIdentity(
-		dataCollector,
+		logger,
 		signInSessionDao,
 		userLinkDao,
 		serviceAccountDao,

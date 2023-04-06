@@ -11,7 +11,7 @@ import (
 )
 
 type MaxCount struct {
-	dataCollector   telemetry.DataCollector
+	logger          telemetry.Logger
 	runtime         runtime.Runtime
 	shortBackOff    backoff.BackOff
 	longBackOff     backoff.BackOff
@@ -31,9 +31,9 @@ func (m MaxCount) WithRetry(ct context.Context, execute func() *errs.Error) (int
 			return retry, nil
 		}
 
-		m.dataCollector.Logger.ErrorWithContext(ct, err)
+		m.logger.ErrorWithContext(ct, err)
 		category := errs.GetErrorCategory(err.Code)
-		m.dataCollector.Logger.WarningWithContext(ct, fmt.Sprintf("Err category: %s", category))
+		m.logger.WarningWithContext(ct, fmt.Sprintf("Err category: %s", category))
 
 		switch category {
 		case errs.ClientInteraction:
@@ -44,11 +44,11 @@ func (m MaxCount) WithRetry(ct context.Context, execute func() *errs.Error) (int
 			return retry, err
 		case errs.Transient:
 			m.shortBackOff.OnFailure()
-			m.dataCollector.Logger.Info(fmt.Sprintf("Retry after %v", m.shortBackOff.Delay()))
+			m.logger.Info(fmt.Sprintf("Retry after %v", m.shortBackOff.Delay()))
 			m.runtime.Sleep(m.shortBackOff.Delay())
 		case errs.Outage:
 			m.longBackOff.OnFailure()
-			m.dataCollector.Logger.Info(fmt.Sprintf("Retry after %v", m.longBackOff.Delay()))
+			m.logger.Info(fmt.Sprintf("Retry after %v", m.longBackOff.Delay()))
 			m.runtime.Sleep(m.longBackOff.Delay())
 		}
 	}
@@ -57,7 +57,7 @@ func (m MaxCount) WithRetry(ct context.Context, execute func() *errs.Error) (int
 }
 
 func NewMaxCount(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	runtime runtime.Runtime,
 	shortBackOff backoff.BackOff,
 	longBackOff backoff.BackOff,
@@ -65,7 +65,7 @@ func NewMaxCount(
 	beforeSkipRetry *func(),
 ) MaxCount {
 	return MaxCount{
-		dataCollector:   dataCollector,
+		logger:          logger,
 		runtime:         runtime,
 		shortBackOff:    shortBackOff,
 		longBackOff:     longBackOff,

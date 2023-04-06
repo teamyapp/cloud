@@ -58,15 +58,14 @@ func main() {
 		},
 	)
 
-	dataCollector := telemetry.NewDataCollector(logger)
 	gitCommitLink := fmt.Sprintf("https://github.com/%s/%s/commit/%s",
 		cfg.GitRepoOwner,
 		cfg.GitRepoName,
 		cfg.GitLongCommitHash)
-	dataCollector.Logger.Info(gitCommitLink)
+	logger.Info(gitCommitLink)
 
-	err = sqldb.Use(dataCollector, cfg.Config, func(sqlDB *sql.DB) *errs.Error {
-		internalErr := sqldb.MigrateUp(dataCollector, sqlDB, sqldb.DefaultMigrationRoot, sqldb.MigrateAll)
+	err = sqldb.Use(logger, cfg.Config, func(sqlDB *sql.DB) *errs.Error {
+		internalErr := sqldb.MigrateUp(logger, sqlDB, sqldb.DefaultMigrationRoot, sqldb.MigrateAll)
 		if internalErr != nil {
 			return internalErr
 		}
@@ -79,25 +78,25 @@ func main() {
 		webAPIBaseURL := dep.WebAPIBaseURL(cfg.WebAPIBaseURL)
 		oauthProviders := []oauth.Provider{
 			dep.InitGitHubOAuthProvider(
-				dataCollector,
+				logger,
 				webAPIBaseURL,
 				dep.ClientID(cfg.GitHubClientID),
 				dep.ClientSecret(cfg.GitHubClientSecret)),
 			dep.InitGoogleOAuthProvider(
-				dataCollector,
+				logger,
 				webAPIBaseURL,
 				dep.JWTSigningKey(cfg.JWTSigningKey),
 				dep.ClientID(cfg.GoogleClientID),
 				dep.ClientSecret(cfg.GoogleClientSecret)),
 			dep.InitSlackOAuthProvider(
-				dataCollector,
+				logger,
 				webAPIBaseURL,
 				dep.JWTSigningKey(cfg.JWTSigningKey),
 				dep.ClientID(cfg.SlackClientID),
 				dep.ClientSecret(cfg.SlackClientSecret)),
 		}
 		identityAPI, err := dep.InitIdentityAPI(
-			dataCollector,
+			logger,
 			sqlDB,
 			oauthProviders,
 			dep.AccessTokenTTL(cfg.AccessTokenTTL),
@@ -107,18 +106,18 @@ func main() {
 			return errs.NewError(errs.Unknown, err.Error())
 		}
 
-		generatorAPI, err := dep.InitGeneratorAPI(dataCollector, sqlDB, dep.GenRangeSize(cfg.GenRangeSize))
+		generatorAPI, err := dep.InitGeneratorAPI(logger, sqlDB, dep.GenRangeSize(cfg.GenRangeSize))
 		if err != nil {
 			return errs.NewError(errs.Unknown, err.Error())
 		}
 
-		authorizationAPI, err := dep.InitAuthorizationAPI(dataCollector, sqlDB, dep.GenRangeSize(cfg.GenRangeSize))
+		authorizationAPI, err := dep.InitAuthorizationAPI(logger, sqlDB, dep.GenRangeSize(cfg.GenRangeSize))
 		if err != nil {
 			return errs.NewError(errs.Unknown, err.Error())
 		}
 
 		fileAPI, err := dep.InitFileAPI(
-			dataCollector,
+			logger,
 			cfg.Environment,
 			sqlDB,
 			dep.GenRangeSize(cfg.GenRangeSize),
@@ -130,9 +129,9 @@ func main() {
 			return errs.NewError(errs.Unknown, err.Error())
 		}
 
-		telemetryAPI := dep.InitTelemetryAPI(dataCollector)
+		telemetryAPI := dep.InitTelemetryAPI(logger)
 		rn := runner.NewServiceRunnerBuilder(
-			dataCollector,
+			logger,
 			network.NewSocket(),
 			metrics.NewPrometheus(appName, serviceName, cfg.Environment),
 			runnerConfig,
@@ -149,7 +148,7 @@ func main() {
 		return rn.Start(nil)
 	})
 	if err != nil {
-		dataCollector.Logger.Error(err)
+		logger.Error(err)
 		panic(err)
 	}
 }

@@ -25,8 +25,8 @@ const uploadSessionIDParam = "uploadSessionId"
 const fileIDParam = "fileId"
 
 type File struct {
-	dataCollector telemetry.DataCollector
-	fileService   service.File
+	logger      telemetry.Logger
+	fileService service.File
 	proto.UnimplementedFileServer
 }
 
@@ -76,7 +76,7 @@ func (f File) Start(rn *runner.ServiceRunner) *errs.Error {
 func (f File) CreateUploadSession(ct context.Context, empty *emptypb.Empty) (*proto.CreateUploadSessionResponse, error) {
 	uploadSessionID, err := f.fileService.CreateUploadSession(ct)
 	if err != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, err)
+		f.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
@@ -88,7 +88,7 @@ func (f File) CreateUploadSession(ct context.Context, empty *emptypb.Empty) (*pr
 func (f File) FindUploadSession(ct context.Context, req *proto.FindUploadSessionRequest) (*proto.UploadSession, error) {
 	uploadSession, err := f.fileService.GetUploadSession(ct, req.UploadSessionId)
 	if err != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, err)
+		f.logger.ErrorWithContext(ct, err)
 		return &proto.UploadSession{}, errs.ToGRPCErr(err)
 	}
 
@@ -116,14 +116,14 @@ func (f File) webGetUploadSession(writer http.ResponseWriter, request *http.Requ
 	uploadSessionID, err := strconv.ParseUint(uploadSessionIDRaw, 10, 64)
 	if err != nil {
 		internalErr := errs.NewError(errs.InvalidArgument, err.Error())
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	uploadSession, internalErr := f.fileService.GetUploadSession(request.Context(), uploadSessionID)
 	if err != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -137,7 +137,7 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 	uploadSessionID, err := strconv.ParseUint(uploadSessionIDRaw, 10, 64)
 	if err != nil {
 		internalErr := errs.NewError(errs.InvalidArgument, err.Error())
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -145,7 +145,7 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
 		internalErr := errs.NewError(errs.IO, err.Error())
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -160,7 +160,7 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
 		internalErr := errs.NewError(errs.Deserialization, err.Error())
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -174,7 +174,7 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 		body.TotalSizeInBytes,
 		body.TotalNumOfChunks)
 	if internalErr != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -192,7 +192,7 @@ func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 	uploadSessionID, err := strconv.ParseUint(uploadSessionIDRaw, 10, 64)
 	if err != nil {
 		internalErr := errs.NewError(errs.InvalidArgument, err.Error())
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -200,14 +200,14 @@ func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 	data, err := io.ReadAll(request.Body)
 	if err != nil {
 		internalErr := errs.NewError(errs.Deserialization, err.Error())
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	uploadSession, internalErr := f.fileService.AddChunk(request.Context(), uploadSessionID, data)
 	if internalErr != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -221,14 +221,14 @@ func (f File) webGetFileMetadata(writer http.ResponseWriter, request *http.Reque
 	fileID, err := strconv.ParseUint(fileIDRaw, 10, 64)
 	if err != nil {
 		internalErr := errs.NewError(errs.InvalidArgument, err.Error())
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	fileMetadata, internalErr := f.fileService.GetFileMetadata(request.Context(), fileID)
 	if internalErr != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -242,14 +242,14 @@ func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 	fileID, err := strconv.ParseUint(fileIDRaw, 10, 64)
 	if err != nil {
 		internalErr := errs.NewError(errs.InvalidArgument, err.Error())
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	file, internalErr := f.fileService.GetFile(request.Context(), fileID)
 	if internalErr != nil {
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
@@ -263,14 +263,14 @@ func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 	flusher, ok := writer.(http.Flusher)
 	if !ok {
 		internalErr = errs.NewError(errs.Unknown, "writer must be http.Flusher")
-		f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
 		return
 	}
 
 	for chunkResult := range file.ChunksBuffer {
 		if chunkResult.Error != nil {
-			f.dataCollector.Logger.ErrorWithContext(ct, chunkResult.Error)
+			f.logger.ErrorWithContext(ct, chunkResult.Error)
 			errs.SetHTTPErr(chunkResult.Error, writer)
 			return
 		}
@@ -278,7 +278,7 @@ func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 		_, err = writer.Write(chunkResult.Value)
 		if err != nil {
 			internalErr = errs.NewError(errs.Unknown, err.Error())
-			f.dataCollector.Logger.ErrorWithContext(ct, internalErr)
+			f.logger.ErrorWithContext(ct, internalErr)
 			errs.SetHTTPErr(internalErr, writer)
 			return
 		}
@@ -287,9 +287,9 @@ func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 	}
 }
 
-func NewFile(dataCollector telemetry.DataCollector, fileService service.File) File {
+func NewFile(logger telemetry.Logger, fileService service.File) File {
 	return File{
-		dataCollector: dataCollector,
-		fileService:   fileService,
+		logger:      logger,
+		fileService: fileService,
 	}
 }

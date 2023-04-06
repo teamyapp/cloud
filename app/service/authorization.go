@@ -14,7 +14,7 @@ import (
 )
 
 type Authorization struct {
-	dataCollector        telemetry.DataCollector
+	logger               telemetry.Logger
 	resourceRelationDao  dao.ResourceRelation
 	userGroupMemberDao   dao.UserGroupMember
 	permissionDao        dao.Permission
@@ -449,7 +449,7 @@ func tryAddPermissionQueryToQueue(permissionQuery entity.PermissionQuery, visite
 }
 
 func NewAuthorization(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	resourceRelationDao dao.ResourceRelation,
 	userGroupMemberDao dao.UserGroupMember,
 	permissionDao dao.Permission,
@@ -466,7 +466,7 @@ func NewAuthorization(
 	}
 
 	return Authorization{
-		dataCollector:        dataCollector,
+		logger:               logger,
 		resourceRelationDao:  resourceRelationDao,
 		userGroupMemberDao:   userGroupMemberDao,
 		permissionDao:        permissionDao,

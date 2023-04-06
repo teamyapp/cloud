@@ -23,13 +23,13 @@ type IncludeIdentityWebFunc func(request *http.Request) bool
 type IncludeIdentityGRPCFunc func(info *grpc.UnaryServerInfo) bool
 
 func ServerHTTPWithIdentity(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	httpClient web.HTTPClient,
 	identityAPIEndpoint string,
 	includeIdentity IncludeIdentityWebFunc,
 ) Middleware[http.HandlerFunc] {
 	return withIdentity(
-		dataCollector,
+		logger,
 		httpClient,
 		identityAPIEndpoint,
 		identity.GetBearerToken,
@@ -37,12 +37,12 @@ func ServerHTTPWithIdentity(
 }
 
 func ServerWebSocketWithIdentity(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	httpClient web.HTTPClient,
 	identityAPIEndpoint string,
 	includeIdentity IncludeIdentityWebFunc,
 ) Middleware[http.HandlerFunc] {
-	return withIdentity(dataCollector, httpClient, identityAPIEndpoint, func(request *http.Request) (string, *errs.Error) {
+	return withIdentity(logger, httpClient, identityAPIEndpoint, func(request *http.Request) (string, *errs.Error) {
 		token := request.URL.Query().Get("accessToken")
 		if len(token) == 0 {
 			return "", errs.NewError(errs.NotFound, "access token not found")
@@ -53,7 +53,7 @@ func ServerWebSocketWithIdentity(
 }
 
 func ServerGRPCWithIdentity(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	httpClient web.HTTPClient,
 	identityAPIEndpoint string,
 	includeIdentity IncludeIdentityGRPCFunc,
@@ -69,9 +69,10 @@ func ServerGRPCWithIdentity(
 			values := md.Get(gRPCAuthorizationKey)
 			if len(values) > 0 {
 				accessToken := values[0]
-				updatedCt, err := ctxWithUserID(dataCollector, httpClient, verifyTokenURL, ct, accessToken)
+				updatedCt, err := ctxWithUserID(logger, httpClient, verifyTokenURL, ct, accessToken)
 				if err != nil {
-					dataCollector.Logger.WarningWithContext(ct, err.String())
+					logger.
+						WarningWithContext(ct, err.String())
 				} else {
 					ct = updatedCt
 				}
@@ -96,7 +97,7 @@ func ClientGRPCWithIdentity(getAccessToken func() string) grpc.UnaryClientInterc
 }
 
 func withIdentity(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	httpClient web.HTTPClient,
 	identityAPIEndpoint string,
 	getBearerToken func(request *http.Request) (string, *errs.Error),
@@ -110,14 +111,17 @@ func withIdentity(
 				token, err := getBearerToken(request)
 				if err != nil {
 					if err.Code == errs.NotFound {
-						dataCollector.Logger.WarningWithContext(ct, "access token not found")
+						logger.
+							WarningWithContext(ct, "access token not found")
 					} else {
-						dataCollector.Logger.ErrorWithContext(ct, err)
+						logger.
+							ErrorWithContext(ct, err)
 					}
 				} else {
-					updatedCt, err := ctxWithUserID(dataCollector, httpClient, verifyTokenURL, ct, token)
+					updatedCt, err := ctxWithUserID(logger, httpClient, verifyTokenURL, ct, token)
 					if err != nil {
-						dataCollector.Logger.ErrorWithContext(ct, err)
+						logger.
+							ErrorWithContext(ct, err)
 					} else {
 						request = request.WithContext(updatedCt)
 					}
@@ -130,14 +134,15 @@ func withIdentity(
 }
 
 func ctxWithUserID(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	httpClient web.HTTPClient,
 	verifyTokenURL string,
 	ct context.Context,
 	accessToken string,
 ) (context.Context, *errs.Error) {
-	dataCollector.Logger.DebugWithContext(ct, "enter ctxWithUserID")
-	defer dataCollector.Logger.DebugWithContext(ct, "exit ctxWithUserID")
+	logger.
+		DebugWithContext(ct, "enter ctxWithUserID")
+	defer logger.DebugWithContext(ct, "exit ctxWithUserID")
 
 	req, err := http.NewRequest(http.MethodPost, verifyTokenURL, bytes.NewReader([]byte(accessToken)))
 	if err != nil {
@@ -153,7 +158,8 @@ func ctxWithUserID(
 
 	internalErr := errs.GetFromHTTPErr(res)
 	if internalErr != nil {
-		dataCollector.Logger.ErrorWithContext(ct, internalErr)
+		logger.
+			ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 

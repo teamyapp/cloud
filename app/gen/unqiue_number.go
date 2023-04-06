@@ -11,7 +11,7 @@ import (
 )
 
 type UniqueNumber struct {
-	dataCollector     telemetry.DataCollector
+	logger            telemetry.Logger
 	allocatedRangeDao dao.AllocatedRange
 	name              string
 	rangeSize         uint64
@@ -49,7 +49,7 @@ func (u *UniqueNumber) allocateNewRange(ct context.Context) *errs.Error {
 	}
 
 	u.allocatedRange = newRange
-	u.dataCollector.Logger.InfoWithContext(ct, newRange)
+	u.logger.InfoWithContext(ct, newRange)
 	return nil
 }
 
@@ -62,7 +62,7 @@ func min[Number int | uint64](num1 Number, num2 Number) Number {
 }
 
 func newUniqueNumber(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,
 	name string,
 	rangeSize uint64,
@@ -82,13 +82,13 @@ func newUniqueNumber(
 
 		err = allocatedRangeDao.CreateAllocatedRange(ct, allocatedRange)
 		if err != nil {
-			dataCollector.Logger.WarningWithContext(ct, err)
+			logger.WarningWithContext(ct, err)
 			return nil, err
 		}
 	}
 
 	uniqueNumber := &UniqueNumber{
-		dataCollector:     dataCollector,
+		logger:            logger,
 		name:              name,
 		rangeSize:         rangeSize,
 		allocatedRange:    allocatedRange,
@@ -96,29 +96,29 @@ func newUniqueNumber(
 	}
 	err = uniqueNumber.allocateNewRange(ct)
 	if err != nil {
-		dataCollector.Logger.ErrorWithContext(ct, err)
+		logger.ErrorWithContext(ct, err)
 	}
 
 	return uniqueNumber, err
 }
 
 type UniqueNumberFactory struct {
-	dataCollector     telemetry.DataCollector
+	logger            telemetry.Logger
 	allocatedRangeDao dao.AllocatedRange
 	rangeSize         uint64
 }
 
 func (u UniqueNumberFactory) MakeUniqueNumber(name string) (*UniqueNumber, *errs.Error) {
-	return newUniqueNumber(u.dataCollector, u.allocatedRangeDao, name, u.rangeSize)
+	return newUniqueNumber(u.logger, u.allocatedRangeDao, name, u.rangeSize)
 }
 
 func NewUniqueNumberFactory(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,
 	rangeSize uint64,
 ) UniqueNumberFactory {
 	return UniqueNumberFactory{
-		dataCollector:     dataCollector,
+		logger:            logger,
 		allocatedRangeDao: allocatedRangeDao,
 		rangeSize:         rangeSize,
 	}

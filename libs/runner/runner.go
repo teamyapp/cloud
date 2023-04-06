@@ -49,7 +49,7 @@ func ServiceRunnerConfigFromEnv() (ServiceRunnerConfig, *errs.Error) {
 }
 
 type ServiceRunner struct {
-	dataCollector          telemetry.DataCollector
+	logger                 telemetry.Logger
 	network                network.Network
 	config                 ServiceRunnerConfig
 	serviceName            string
@@ -64,16 +64,16 @@ func (s *ServiceRunner) Start(afterServicesStarted func(listeners []net.Listener
 	var shutdown func(ct context.Context) error
 	if s.config.EnableTracing {
 		var internalErr *errs.Error
-		shutdown, internalErr = telemetry.InitTracerProvider(s.dataCollector, s.config.TraceCollectorEndpoint, s.serviceName)
+		shutdown, internalErr = telemetry.InitTracerProvider(s.logger, s.config.TraceCollectorEndpoint, s.serviceName)
 		if internalErr != nil {
-			s.dataCollector.Logger.Error(internalErr)
+			s.logger.Error(internalErr)
 		}
 	}
 
 	for _, service := range s.services {
 		err := service.Start(s)
 		if err != nil {
-			s.dataCollector.Logger.Error(err)
+			s.logger.Error(err)
 			return err
 		}
 	}
@@ -82,21 +82,21 @@ func (s *ServiceRunner) Start(afterServicesStarted func(listeners []net.Listener
 	listeners := make([]net.Listener, 0)
 	lis, err := s.startWebServer(&wg)
 	if err != nil {
-		s.dataCollector.Logger.Error(err)
+		s.logger.Error(err)
 		return err
 	}
 
 	listeners = append(listeners, lis)
 	lis, err = s.startGRPCServer(&wg)
 	if err != nil {
-		s.dataCollector.Logger.Error(err)
+		s.logger.Error(err)
 		return err
 	}
 
 	listeners = append(listeners, lis)
 	lis, err = s.startMonitoringServer(&wg)
 	if err != nil {
-		s.dataCollector.Logger.Error(err)
+		s.logger.Error(err)
 		return err
 	}
 
@@ -104,7 +104,7 @@ func (s *ServiceRunner) Start(afterServicesStarted func(listeners []net.Listener
 	if afterServicesStarted != nil {
 		err = afterServicesStarted(listeners)
 		if err != nil {
-			s.dataCollector.Logger.Error(err)
+			s.logger.Error(err)
 			return err
 		}
 	}
@@ -118,7 +118,7 @@ func (s *ServiceRunner) Start(afterServicesStarted func(listeners []net.Listener
 }
 
 func (s *ServiceRunner) startWebServer(wg *sync.WaitGroup) (net.Listener, *errs.Error) {
-	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
+	s.logger.Log(telemetry.Info, telemetry.Props{
 		telemetry.MessageProp: fmt.Sprintf("service runner Web server started at %v", s.config.WebServerPort),
 	})
 	addressAndPort := fmt.Sprintf(":%d", s.config.WebServerPort)
@@ -131,7 +131,7 @@ func (s *ServiceRunner) startWebServer(wg *sync.WaitGroup) (net.Listener, *errs.
 	go func() {
 		defer wg.Done()
 		if err = http.Serve(lis, s.webRouter); err != nil {
-			s.dataCollector.Logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
+			s.logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
 		}
 	}()
 	return lis, nil
@@ -144,7 +144,7 @@ func (s *ServiceRunner) startGRPCServer(wg *sync.WaitGroup) (net.Listener, *errs
 		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
+	s.logger.Log(telemetry.Info, telemetry.Props{
 		telemetry.MessageProp: fmt.Sprintf("service runner gRPC server started at %v", s.config.GRPCServerPort),
 	})
 
@@ -153,14 +153,14 @@ func (s *ServiceRunner) startGRPCServer(wg *sync.WaitGroup) (net.Listener, *errs
 		defer wg.Done()
 		err = s.gRPCServer.Serve(lis)
 		if err != nil {
-			s.dataCollector.Logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
+			s.logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
 		}
 	}()
 	return lis, nil
 }
 
 func (s *ServiceRunner) startMonitoringServer(wg *sync.WaitGroup) (net.Listener, *errs.Error) {
-	s.dataCollector.Logger.Log(telemetry.Info, telemetry.Props{
+	s.logger.Log(telemetry.Info, telemetry.Props{
 		telemetry.MessageProp: fmt.Sprintf("service runner Monitoring server started at %v", s.config.MonitoringServerPort),
 	})
 	router := chi.NewRouter()
@@ -177,7 +177,7 @@ func (s *ServiceRunner) startMonitoringServer(wg *sync.WaitGroup) (net.Listener,
 		defer wg.Done()
 		err = http.Serve(lis, router)
 		if err != nil {
-			s.dataCollector.Logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
+			s.logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
 		}
 	}()
 	return lis, nil
@@ -194,7 +194,7 @@ func (s *ServiceRunner) WithGRPCServer(withGRPCServer func(server *grpc.Server))
 }
 
 type ServiceRunnerBuilder struct {
-	dataCollector                   telemetry.DataCollector
+	logger                          telemetry.Logger
 	network                         network.Network
 	metrics                         metrics.Metrics
 	config                          ServiceRunnerConfig
@@ -231,24 +231,24 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 	httpClientMiddlewares := []middleware.Middleware[web.HTTPClient]{
 		middleware.ClientHTTPWithMetrics(s.metrics, s.getClientHTTPRequestPatternFunc),
 		middleware.ClientHTTPWithOpenTelemetry(s.getClientHTTPRequestPatternFunc),
-		middleware.ClientHTTPWithRequestID(s.dataCollector),
+		middleware.ClientHTTPWithRequestID(s.logger),
 	}
 	httpClient := middleware.WithMiddlewares[web.HTTPClient](rawHttpClient, httpClientMiddlewares)
 	webRouter := chi.NewRouter()
 	httpServerMiddlewares := []middleware.Middleware[http.HandlerFunc]{
 		middleware.ServerHTTPWithMetrics(s.metrics, getClientHTTPRequestPatternFunc),
-		middleware.ServerHTTPWithOpenTelemetry(s.dataCollector, getClientHTTPRequestPatternFunc),
+		middleware.ServerHTTPWithOpenTelemetry(s.logger, getClientHTTPRequestPatternFunc),
 		middleware.ServerHTTPEnableCORS,
-		middleware.ServerHTTPWithRequestID(s.dataCollector),
+		middleware.ServerHTTPWithRequestID(s.logger),
 		middleware.ServerHTTPWithTimeout(s.config.RequestTimeout),
-		middleware.ServerHTTPLogRequest(s.dataCollector),
+		middleware.ServerHTTPLogRequest(s.logger),
 		middleware.ServerHTTPWithIdentity(
-			s.dataCollector,
+			s.logger,
 			httpClient,
 			s.config.IdentityAPIEndpoint,
 			s.includeIdentityWebFunc),
 		middleware.ServerWebSocketWithIdentity(
-			s.dataCollector,
+			s.logger,
 			httpClient,
 			s.config.IdentityAPIEndpoint,
 			s.includeIdentityWebFunc),
@@ -257,21 +257,21 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 		return middleware.WithMiddlewares[http.HandlerFunc](handler.ServeHTTP, httpServerMiddlewares)
 	})
 	return ServiceRunner{
-		dataCollector: s.dataCollector,
-		network:       s.network,
-		config:        s.config,
-		serviceName:   s.serviceName,
-		httpClient:    httpClient,
-		webRouter:     webRouter,
+		logger:      s.logger,
+		network:     s.network,
+		config:      s.config,
+		serviceName: s.serviceName,
+		httpClient:  httpClient,
+		webRouter:   webRouter,
 		gRPCServer: grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
 				middleware.ServerGRPCWithMetrics(s.metrics),
 				middleware.ServerGRPCUnaryWithOpenTelemetry(),
 				middleware.ServerGRPCWithTimeout(s.config.RequestTimeout),
-				middleware.ServerGRPCWithRequestID(s.dataCollector),
-				middleware.ServerGRPCLogRequest(s.dataCollector),
+				middleware.ServerGRPCWithRequestID(s.logger),
+				middleware.ServerGRPCLogRequest(s.logger),
 				middleware.ServerGRPCWithIdentity(
-					s.dataCollector,
+					s.logger,
 					httpClient,
 					s.config.IdentityAPIEndpoint,
 					s.includeIdentityGRPCFunc),
@@ -282,7 +282,7 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 }
 
 func NewServiceRunnerBuilder(
-	dataCollector telemetry.DataCollector,
+	logger telemetry.Logger,
 	network network.Network,
 	metrics metrics.Metrics,
 	config ServiceRunnerConfig,
@@ -290,12 +290,12 @@ func NewServiceRunnerBuilder(
 	services []Service,
 ) *ServiceRunnerBuilder {
 	return &ServiceRunnerBuilder{
-		dataCollector: dataCollector,
-		network:       network,
-		metrics:       metrics,
-		config:        config,
-		serviceName:   serviceName,
-		services:      services,
+		logger:      logger,
+		network:     network,
+		metrics:     metrics,
+		config:      config,
+		serviceName: serviceName,
+		services:    services,
 		includeIdentityWebFunc: func(request *http.Request) bool {
 			return true
 		},
