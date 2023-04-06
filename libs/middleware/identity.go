@@ -71,8 +71,7 @@ func ServerGRPCWithIdentity(
 				accessToken := values[0]
 				updatedCt, err := ctxWithUserID(logger, httpClient, verifyTokenURL, ct, accessToken)
 				if err != nil {
-					logger.
-						WarningWithContext(ct, err.String())
+					logger.WarningWithContext(ct, err.String())
 				} else {
 					ct = updatedCt
 				}
@@ -111,17 +110,14 @@ func withIdentity(
 				token, err := getBearerToken(request)
 				if err != nil {
 					if err.Code == errs.NotFound {
-						logger.
-							WarningWithContext(ct, "access token not found")
+						logger.WarningWithContext(ct, "access token not found")
 					} else {
-						logger.
-							ErrorWithContext(ct, err)
+						logger.ErrorWithContext(ct, err)
 					}
 				} else {
 					updatedCt, err := ctxWithUserID(logger, httpClient, verifyTokenURL, ct, token)
 					if err != nil {
-						logger.
-							ErrorWithContext(ct, err)
+						logger.ErrorWithContext(ct, err)
 					} else {
 						request = request.WithContext(updatedCt)
 					}
@@ -140,8 +136,7 @@ func ctxWithUserID(
 	ct context.Context,
 	accessToken string,
 ) (context.Context, *errs.Error) {
-	logger.
-		DebugWithContext(ct, "enter ctxWithUserID")
+	logger.DebugWithContext(ct, "enter ctxWithUserID")
 	defer logger.DebugWithContext(ct, "exit ctxWithUserID")
 
 	req, err := http.NewRequest(http.MethodPost, verifyTokenURL, bytes.NewReader([]byte(accessToken)))
@@ -158,8 +153,7 @@ func ctxWithUserID(
 
 	internalErr := errs.GetFromHTTPErr(res)
 	if internalErr != nil {
-		logger.
-			ErrorWithContext(ct, internalErr)
+		logger.ErrorWithContext(ct, internalErr)
 		return nil, internalErr
 	}
 

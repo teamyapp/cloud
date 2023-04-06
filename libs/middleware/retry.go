@@ -38,8 +38,7 @@ func ClientHTTPWithRetry(logger telemetry.Logger, retry retry.Retry) Middleware[
 
 				internalErr := errs.GetFromHTTPErr(res)
 				if internalErr != nil {
-					logger.
-						ErrorWithContext(ct, internalErr)
+					logger.ErrorWithContext(ct, internalErr)
 				}
 
 				return internalErr

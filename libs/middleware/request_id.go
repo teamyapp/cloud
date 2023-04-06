@@ -64,11 +64,10 @@ func generateRequestIdIfNot(logger telemetry.Logger, ct context.Context, request
 		// it's okay to have conflicts for request ID
 		randomID := uuid.New()
 		requestID = randomID.String()
-		logger.
-			LogWithContext(ct, telemetry.Info, telemetry.Props{
-				telemetry.RequestIDProp: requestID,
-				telemetry.MessageProp:   "generate request ID",
-			})
+		logger.LogWithContext(ct, telemetry.Info, telemetry.Props{
+			telemetry.RequestIDProp: requestID,
+			telemetry.MessageProp:   "generate request ID",
+		})
 		return requestID
 	}
 

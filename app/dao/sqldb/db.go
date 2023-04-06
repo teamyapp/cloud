@@ -107,8 +107,7 @@ func New(logger telemetry.Logger, dbName string) {
 	dbNamePostfix := randgen.String(dbNamePostfixAlphabet, 5)
 	fullDBName := fmt.Sprintf("%s-%s", dbName, dbNamePostfix)
 	password := randgen.String(alphabet, dbPasswordLen)
-	logger.
-		Info(strings.TrimSpace(fmt.Sprintf(`
+	logger.Info(strings.TrimSpace(fmt.Sprintf(`
 user: %s
 password: %s
 dbName: %s
@@ -119,15 +118,15 @@ CREATE USER "%s" WITH PASSWORD '%s';
 GRANT ALL PRIVILEGES ON DATABASE "%s" TO "%s";
 ================================================================================
 `,
-			fullDBName,
-			password,
-			fullDBName,
-			fullDBName,
-			fullDBName,
-			password,
-			fullDBName,
-			fullDBName,
-		)))
+		fullDBName,
+		password,
+		fullDBName,
+		fullDBName,
+		fullDBName,
+		password,
+		fullDBName,
+		fullDBName,
+	)))
 }
 
 func ExecSQL(logger telemetry.Logger, sqlDB *sql.DB, sqlFileName string) *errs.Error {
@@ -148,8 +147,7 @@ func ExecSQL(logger telemetry.Logger, sqlDB *sql.DB, sqlFileName string) *errs.E
 
 	err = tx.Commit()
 	if err == nil {
-		logger.
-			Info("successfully seeded DB")
+		logger.Info("successfully seeded DB")
 	}
 
 	return errs.NewError(errs.Unknown, err.Error())
@@ -166,8 +164,7 @@ func waitUntilReady(logger telemetry.Logger, sqlDB *sql.DB) {
 	rt.WithRetry(ct, func() *errs.Error {
 		err := sqlDB.Ping()
 		if err == nil {
-			logger.
-				Info("successfully connected to the DB")
+			logger.Info("successfully connected to the DB")
 			return nil
 		}
 
@@ -207,8 +204,7 @@ func migrateDB(
 		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	logger.
-		Info("migration finished")
+	logger.Info("migration finished")
 	return nil
 }
 
