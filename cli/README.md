@@ -1,6 +1,6 @@
 ## Prerequisites
 
-- [Go v1.18](https://golang.org/dl)
+- [Go v1.20](https://golang.org/dl)
 
 ## Download internal private go modules
 
