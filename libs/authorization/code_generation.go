@@ -2,14 +2,14 @@ package authorization
 
 import (
 	"embed"
-	_ "embed"
 	"fmt"
-	"github.com/teamyapp/cloud/libs/errs"
 	"go/format"
 	"io/ioutil"
 	"os"
 	"strings"
 	"text/template"
+
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 //go:embed *.gotmpl

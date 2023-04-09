@@ -16,7 +16,7 @@ var generateCodeAuthorizeCmd = &cobra.Command{
 		if len(args) >= 1 {
 			authorizationSrcFile = args[0]
 		}
-		
+
 		config, err := authorization.ParseConfig(authorizationSrcFile, dataCollector)
 		if err != nil {
 			return err
