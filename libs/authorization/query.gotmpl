@@ -1,0 +1,28 @@
+package authorization
+
+import "fmt"
+
+type Query struct {
+	ResourceType ResourceType
+	ResourceID   uint64
+	Operation    string
+	UserID       uint64
+}
+
+{{- range .ResourceTypeOperations }}
+{{$resourceTypeString := .ResourceType}}
+{{- range $operation := .Operations }}
+func New{{$operation}}{{$resourceTypeString}}Query(userID uint64, {{$resourceTypeString | PascalToCamel}}ID uint64) Query {
+    return Query {
+        ResourceType: {{$resourceTypeString}}ResourceType,
+        ResourceID: {{$resourceTypeString | PascalToCamel}}ID,
+        Operation: "{{$operation}}",
+        UserID: userID,
+    }
+}
+{{- end }}
+{{- end }}
+
+func (q Query) String() string {
+	return fmt.Sprintf("[Query UserID=%v Operation=%v ResourceType=%v ResourceID=%v]", q.UserID, q.Operation, q.ResourceType, q.ResourceID)
+}

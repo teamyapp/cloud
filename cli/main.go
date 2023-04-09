@@ -9,11 +9,15 @@ import (
 const configFilePath = ".cli.toml"
 
 type Config struct {
-	DBMigrationsDir string `toml:"dbMigrationsDir"`
+	DBMigrationsDir            string `toml:"dbMigrationsDir"`
+	AuthorizationCoreSrcFile   string `toml:"authorizationCoreSrcFile"`
+	AuthorizationCoreOutputDir string `toml:"authorizationCoreOutputFile"`
 }
 
 var cliConfig = Config{
-	DBMigrationsDir: "app/dao/sqldb/migrations",
+	DBMigrationsDir:            "app/dao/sqldb/migrations",
+	AuthorizationCoreSrcFile:   "core/authorization.yml",
+	AuthorizationCoreOutputDir: "core/authorization/out",
 }
 
 func main() {

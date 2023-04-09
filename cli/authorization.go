@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"github.com/teamyapp/cloud/libs/authorization"
-	"github.com/teamyapp/cloud/libs/errs"
 )
 
 var authorizeCmd = &cobra.Command{
@@ -13,17 +12,22 @@ var authorizeCmd = &cobra.Command{
 var generateCodeAuthorizeCmd = &cobra.Command{
 	Use: "gen",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 2 {
-			return errs.NewError(errs.InvalidArgument, "Must provide authorization config file path and output directory").
-				ToError()
+		authorizationSrcFile := cliConfig.AuthorizationCoreSrcFile
+		if len(args) >= 1 {
+			authorizationSrcFile = args[0]
 		}
-
-		config, err := authorization.ParseConfig(args[0], dataCollector)
+		
+		config, err := authorization.ParseConfig(authorizationSrcFile, dataCollector)
 		if err != nil {
 			return err
 		}
 
-		internalErr := authorization.GenerateCode(config, args[1])
+		authorizationOutputFile := cliConfig.AuthorizationCoreOutputDir
+		if len(args) >= 2 {
+			authorizationOutputFile = args[1]
+		}
+
+		internalErr := authorization.GenerateCode(config, authorizationOutputFile)
 		if internalErr != nil {
 			return internalErr.ToError()
 		}
