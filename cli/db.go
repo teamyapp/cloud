@@ -67,18 +67,28 @@ var migrateCmd = &cobra.Command{
 var migrateUpCmd = &cobra.Command{
 	Use: "up",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return useSQLDB(logger, func(sqlDB *sql.DB) *errs.Error {
+		err := useSQLDB(logger, func(sqlDB *sql.DB) *errs.Error {
 			return sqldb.MigrateUp(logger, sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
 		})
+		if err != nil {
+			return err.ToError()
+		}
+
+		return nil
 	},
 }
 
 var migrateDownCmd = &cobra.Command{
 	Use: "down",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return useSQLDB(logger, func(sqlDB *sql.DB) *errs.Error {
+		err := useSQLDB(logger, func(sqlDB *sql.DB) *errs.Error {
 			return sqldb.MigrateDown(logger, sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
 		})
+		if err != nil {
+			return err.ToError()
+		}
+
+		return nil
 	},
 }
 
@@ -97,9 +107,14 @@ var newMigrationCmd = &cobra.Command{
 var seedCmd = &cobra.Command{
 	Use: "seed",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return useSQLDB(logger, func(sqlDB *sql.DB) *errs.Error {
+		err := useSQLDB(logger, func(sqlDB *sql.DB) *errs.Error {
 			return sqldb.ExecSQL(logger, sqlDB, seedFilePath)
 		})
+		if err != nil {
+			return err.ToError()
+		}
+
+		return nil
 	},
 }
 
@@ -150,11 +165,11 @@ func addDBCmd() {
 	rootCmd.AddCommand(dbCmd)
 }
 
-func useSQLDB(logger telemetry.Logger, action func(sqlDB *sql.DB) *errs.Error) error {
+func useSQLDB(logger telemetry.Logger, action func(sqlDB *sql.DB) *errs.Error) *errs.Error {
 	cfg, err := config.AppFromEnv()
 	if err != nil {
-		return err.ToError()
+		return err
 	}
 
-	return sqldb.Use(logger, cfg.Config, action).ToError()
+	return sqldb.Use(logger, cfg.Config, action)
 }
