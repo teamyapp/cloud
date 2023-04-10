@@ -14,9 +14,6 @@ import (
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
-////go:embed *.gotmpl
-//var fs embed.FS
-
 //go:embed resource_type.gotmpl
 var resourceTypeCodeTemplate string
 
@@ -57,16 +54,6 @@ var templateOperations = template.FuncMap{
 	"pascalToCamel": pascalToCamel,
 }
 
-func pascalToCamel(pascalCase string) string {
-	if len(pascalCase) == 0 {
-		return ""
-	}
-
-	firstLetter := strings.ToLower(string(pascalCase[0]))
-	restLetters := pascalCase[1:]
-	return firstLetter + restLetters
-}
-
 func GenerateCode(config *Config, logger telemetry.Logger, outputDir string) *errs.Error {
 	for _, codeTemplate := range codeTemplates {
 		err := generateCodeForTemplate(config, logger, codeTemplate, outputDir)
@@ -74,7 +61,7 @@ func GenerateCode(config *Config, logger telemetry.Logger, outputDir string) *er
 			return errs.NewError(errs.Unknown, err.Message)
 		}
 
-		logger.Info("Generated code for template " + codeTemplate.Name)
+		logger.Info(fmt.Sprintf("Generated code for template %v", codeTemplate.Name))
 	}
 
 	return nil
@@ -83,7 +70,7 @@ func GenerateCode(config *Config, logger telemetry.Logger, outputDir string) *er
 func generateCodeForTemplate(config *Config, logger telemetry.Logger, codeTemplate CodeTemplate, outputDir string) *errs.Error {
 	tmplName := codeTemplate.Name
 	tmplContent := codeTemplate.Content
-	logger.Info("Generating code for template: " + tmplName)
+	logger.Info(fmt.Sprintf("Generating code for template: %v", tmplName))
 	outputFileName := fmt.Sprintf("%s.go", tmplName)
 	outputFilePath := filepath.Join(outputDir, outputFileName)
 
@@ -100,7 +87,7 @@ func generateCodeForTemplate(config *Config, logger telemetry.Logger, codeTempla
 
 	formattedCode, err := format.Source([]byte(outputBuffer.String()))
 	if err != nil {
-		logger.Info("Error formatting code: " + err.Error())
+		logger.Info(fmt.Sprintf("Error formatting code: %v", err.Error()))
 		return errs.NewError(errs.Unknown, err.Error())
 	}
 
@@ -122,4 +109,14 @@ func overwriteFileContent(content string, outputFilePath string) *errs.Error {
 	}
 
 	return nil
+}
+
+func pascalToCamel(pascalCase string) string {
+	if len(pascalCase) == 0 {
+		return ""
+	}
+
+	firstLetter := strings.ToLower(string(pascalCase[0]))
+	restLetters := pascalCase[1:]
+	return firstLetter + restLetters
 }
