@@ -2,10 +2,11 @@ package main
 
 import (
 	"errors"
+	"os"
+
 	"github.com/spf13/cobra"
 	"github.com/teamyapp/cloud/libs/authorization"
 	"github.com/teamyapp/cloud/libs/errs"
-	"os"
 )
 
 var authorizeCmd = &cobra.Command{

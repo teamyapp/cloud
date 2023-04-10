@@ -3,12 +3,13 @@ package authorization
 import (
 	_ "embed"
 	"fmt"
-	"github.com/teamyapp/cloud/libs/telemetry"
 	"go/format"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/teamyapp/cloud/libs/telemetry"
 
 	"github.com/teamyapp/cloud/libs/errs"
 )
