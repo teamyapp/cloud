@@ -11,16 +11,16 @@ type Query struct {
 
 {{- range .ResourceTypeOperations }}
 {{$resourceTypeString := .ResourceType}}
-{{- range $operation := .Operations }}
-func New{{$operation}}{{$resourceTypeString}}Query(userID uint64, {{$resourceTypeString | PascalToCamel}}ID uint64) Query {
+    {{- range $operation := .Operations }}
+func New{{$operation}}{{$resourceTypeString}}Query(userID uint64, {{$resourceTypeString | pascalToCamel}}ID uint64) Query {
     return Query {
         ResourceType: {{$resourceTypeString}}ResourceType,
-        ResourceID: {{$resourceTypeString | PascalToCamel}}ID,
+        ResourceID: {{$resourceTypeString | pascalToCamel}}ID,
         Operation: "{{$operation}}",
         UserID: userID,
     }
 }
-{{- end }}
+    {{- end }}
 {{- end }}
 
 func (q Query) String() string {

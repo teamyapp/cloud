@@ -12,7 +12,7 @@ var (
     {{- range $operation := .Operations }}
     {{$operation}}{{$resourceTypeString}} = ResourceTypeOperation{
         ResourceType: "{{$resourceTypeString}}",
-    	Operation:    "{{$operation}}",
+    	Operation: "{{$operation}}",
     }
 	{{- end }}
 )

@@ -1,27 +1,62 @@
 package authorization
 
 import (
-	"embed"
+	_ "embed"
 	"fmt"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"go/format"
-	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
-//go:embed *.gotmpl
-var fs embed.FS
+////go:embed *.gotmpl
+//var fs embed.FS
 
-var funcMap = template.FuncMap{
-	"ToUpper":       strings.ToUpper,
-	"ToLower":       strings.ToLower,
-	"PascalToCamel": PascalToCamel,
+//go:embed resource_type.gotmpl
+var resourceTypeCodeTemplate string
+
+//go:embed resource_operation.gotmpl
+var resourceOperationCodeTemplate string
+
+//go:embed resource_type_operation.gotmpl
+var resourceTypeOperationCodeTemplate string
+
+//go:embed query.gotmpl
+var queryCodeTemplate string
+
+type CodeTemplate struct {
+	Name    string
+	Content string
 }
 
-func PascalToCamel(pascalCase string) string {
+var codeTemplates []CodeTemplate = []CodeTemplate{
+	{
+		Name:    "resource_type",
+		Content: resourceTypeCodeTemplate,
+	},
+	{
+		Name:    "resource_operation",
+		Content: resourceOperationCodeTemplate,
+	},
+	{
+		Name:    "resource_type_operation",
+		Content: resourceTypeOperationCodeTemplate,
+	},
+	{
+		Name:    "query",
+		Content: queryCodeTemplate,
+	},
+}
+
+var templateOperations = template.FuncMap{
+	"pascalToCamel": pascalToCamel,
+}
+
+func pascalToCamel(pascalCase string) string {
 	if len(pascalCase) == 0 {
 		return ""
 	}
@@ -31,37 +66,31 @@ func PascalToCamel(pascalCase string) string {
 	return firstLetter + restLetters
 }
 
-func GenerateCode(config *Config, outputDir string) *errs.Error {
-	templateFiles, _ := fs.ReadDir(".")
-	for _, templateFile := range templateFiles {
-		templateFileName := templateFile.Name()
-		fmt.Println("Generating code for template: ", templateFileName)
-		tmplString, err := fs.Open(templateFile.Name())
+func GenerateCode(config *Config, logger telemetry.Logger, outputDir string) *errs.Error {
+	for _, codeTemplate := range codeTemplates {
+		err := generateCodeForTemplate(config, logger, codeTemplate, outputDir)
 		if err != nil {
-			return errs.NewError(errs.IO, err.Error())
+			return errs.NewError(errs.Unknown, err.Message)
 		}
 
-		tmplContent, err := ioutil.ReadAll(tmplString)
-		if err != nil {
-			return errs.NewError(errs.IO, err.Error())
-		}
-
-		outputFileName := strings.Split(templateFileName, ".")[0] + ".go"
-		outputFilePath := outputDir + "/" + outputFileName
-		generateCodeErr := generateCodeForSingleTmpl(config, string(tmplContent), outputFilePath)
-		if generateCodeErr != nil {
-			return errs.NewError(errs.Unknown, err.Error())
-		}
-
-		fmt.Println("Generated code for template", templateFileName)
+		logger.Info("Generated code for template " + codeTemplate.Name)
 	}
 
 	return nil
 }
 
-func generateCodeForSingleTmpl(config *Config, tmplContent string, outputFilePath string) *errs.Error {
+func generateCodeForTemplate(config *Config, logger telemetry.Logger, codeTemplate CodeTemplate, outputDir string) *errs.Error {
+	tmplName := codeTemplate.Name
+	tmplContent := codeTemplate.Content
+	logger.Info("Generating code for template: " + tmplName)
+	outputFileName := fmt.Sprintf("%s.go", tmplName)
+	outputFilePath := filepath.Join(outputDir, outputFileName)
+
 	var outputBuffer strings.Builder
-	tmpl, err := template.New("test").Funcs(funcMap).Parse(tmplContent)
+	tmpl, err := template.New("test").Funcs(templateOperations).Parse(tmplContent)
+	if err != nil {
+		return errs.NewError(errs.Unknown, err.Error())
+	}
 
 	err = tmpl.Execute(&outputBuffer, config)
 	if err != nil {
@@ -70,19 +99,15 @@ func generateCodeForSingleTmpl(config *Config, tmplContent string, outputFilePat
 
 	formattedCode, err := format.Source([]byte(outputBuffer.String()))
 	if err != nil {
-		fmt.Println("Error formatting code: ", err)
+		logger.Info("Error formatting code: " + err.Error())
 		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	internalErr := writeOrOverwriteToDir(string(formattedCode), outputFilePath)
-	if internalErr != nil {
-		return internalErr
-	}
-
-	return nil
+	internalErr := overwriteFileContent(string(formattedCode), outputFilePath)
+	return internalErr
 }
 
-func writeOrOverwriteToDir(content string, outputFilePath string) *errs.Error {
+func overwriteFileContent(content string, outputFilePath string) *errs.Error {
 	file, err := os.OpenFile(outputFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return errs.NewError(errs.IO, err.Error())
