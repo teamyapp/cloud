@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/spf13/cobra"
 	"github.com/teamyapp/cloud/libs/authorization"
+	"github.com/teamyapp/cloud/libs/errs"
 	"os"
 )
 
@@ -33,16 +34,14 @@ var generateCodeAuthorizeCmd = &cobra.Command{
 			if _, err := os.Stat(authorizationOutputDir); errors.Is(err, os.ErrNotExist) {
 				err := os.Mkdir(authorizationOutputDir, os.ModePerm)
 				if err != nil {
-					logger.Info(err)
+					logger.Error(errs.NewError(errs.Unknown, err.Error()))
 				}
 			}
 
 			internalErr := authorization.GenerateCode(config, logger, authorizationOutputDir)
 			if internalErr != nil {
-				internalErr.ToError()
+				logger.Error(internalErr)
 			}
-
-			return nil
 		}
 
 		return nil
