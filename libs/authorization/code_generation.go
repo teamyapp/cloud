@@ -71,7 +71,7 @@ func generateCodeForTemplate(config *Config, logger telemetry.Logger, codeTempla
 	tmplName := codeTemplate.Name
 	tmplContent := codeTemplate.Content
 	logger.Info(fmt.Sprintf("Generating code for template: %v", tmplName))
-	outputFileName := fmt.Sprintf("%s.go", tmplName)
+	outputFileName := fmt.Sprintf("%s_gen.go", tmplName)
 	outputFilePath := filepath.Join(outputDir, outputFileName)
 
 	var outputBuffer strings.Builder
