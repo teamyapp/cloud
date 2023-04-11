@@ -12,7 +12,7 @@ type Query struct {
 {{- range .ResourceTypeOperations }}
 {{$resourceTypeString := .ResourceType}}
     {{- range $operation := .Operations }}
-func New{{$operation}}{{$resourceTypeString}}Query(userID uint64, {{$resourceTypeString | pascalToCamel}}ID uint64) Query {
+func New{{$operation}}In{{$resourceTypeString}}Query(userID uint64, {{$resourceTypeString | pascalToCamel}}ID uint64) Query {
     return Query {
         ResourceType: {{$resourceTypeString}}ResourceType,
         ResourceID: {{$resourceTypeString | pascalToCamel}}ID,

@@ -10,7 +10,7 @@ type ResourceTypeOperation struct {
 var (
     {{$resourceTypeString := .ResourceType}}
     {{- range $operation := .Operations }}
-    {{$operation}}{{$resourceTypeString}} = ResourceTypeOperation{
+    {{$operation}}In{{$resourceTypeString}} = ResourceTypeOperation{
         ResourceType: "{{$resourceTypeString}}",
     	Operation: "{{$operation}}",
     }
