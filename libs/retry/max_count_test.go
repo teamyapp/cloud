@@ -15,13 +15,13 @@ import (
 )
 
 func TestMaxCount(t *testing.T) {
-	var transientTimeoutErr errs.ErrorCode = errs.Timeout
-	var clientInteractionAlreadyExistsErr errs.ErrorCode = errs.AlreadyExists
-	var outageUnimplementedErr errs.ErrorCode = errs.Unimplemented
+	var transientTimeoutErr = errs.Timeout
+	var clientInteractionAlreadyExistsErr = errs.AlreadyExists
+	var outageUnimplementedErr = errs.Unimplemented
 
 	testCases := []struct {
 		name            string
-		errCodes        [](*errs.ErrorCode)
+		errCodes        []*errs.ErrorCode
 		durations       []time.Duration
 		maxCount        int
 		sleepAwakeCount int
@@ -124,7 +124,6 @@ func TestMaxCount(t *testing.T) {
 
 			go func() {
 				retries, err := maxCountExecutor.WithRetry(ct, execute)
-
 				assert.Equal(t, testCase.expectRetries, retries)
 				if testCase.expectErr == nil {
 					assert.Nil(t, err)
