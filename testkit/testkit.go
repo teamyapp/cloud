@@ -115,10 +115,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		oauthProviders,
 		cfg.AccessTokenTTL)
 	if err != nil {
-		return TestKit{}, &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		return TestKit{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	identityAPI := api.NewIdentity(logger, identityService)
@@ -145,10 +142,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		uniqueNumberGeneratorFactory,
 	)
 	if err != nil {
-		return TestKit{}, &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		return TestKit{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	authorizationAPI := api.NewAuthorization(logger, authorizationService)
@@ -165,10 +159,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		fileMetadataDao,
 		chunkMetadataDao)
 	if err != nil {
-		return TestKit{}, &errs.Error{
-			Code:     errs.Unknown,
-			EmbedErr: err,
-		}
+		return TestKit{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	fileAPI := api.NewFile(logger, fileService)
