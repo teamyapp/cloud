@@ -1,6 +1,7 @@
 package testkit
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -51,6 +52,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		MonitoringServerPort: 10000,
 		RequestTimeout:       10 * time.Second,
 		EnableTracing:        false,
+		IdentityAPIEndpoint:  fmt.Sprintf("%v/identity", cfg.WebAPIBaseURL),
 	}
 
 	httpClient := webtest.InsecureHTTPClient(network)
