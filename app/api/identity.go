@@ -302,7 +302,7 @@ func (i Identity) webCreateServiceAccount(writer http.ResponseWriter, request *h
 		return
 	}
 
-	internalErr := i.identityService.CreateServiceAccount(ct, userID, body.Name)
+	_, internalErr := i.identityService.CreateServiceAccount(ct, userID, body.Name)
 	if internalErr != nil {
 		i.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)

@@ -223,10 +223,10 @@ func (i Identity) ListServiceAccounts(ct context.Context, accountOwnerID uint64)
 	}), nil
 }
 
-func (i Identity) CreateServiceAccount(ct context.Context, accountOwnerID uint64, serviceAccountName string) *errs.Error {
+func (i Identity) CreateServiceAccount(ct context.Context, accountOwnerID uint64, serviceAccountName string) (uint64, *errs.Error) {
 	serviceAccountID, err := i.userIDGenerator.GenerateUniqueNumber(ct)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	account := entity.ServiceAccount{
@@ -236,7 +236,7 @@ func (i Identity) CreateServiceAccount(ct context.Context, accountOwnerID uint64
 		CreatedAt:   time.Now().UTC(),
 	}
 
-	return i.serviceAccountDao.CreateServiceAccount(ct, account)
+	return serviceAccountID, i.serviceAccountDao.CreateServiceAccount(ct, account)
 }
 
 func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64, serviceAccountID uint64) (string, *errs.Error) {
