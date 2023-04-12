@@ -34,9 +34,7 @@ const (
 )
 
 type Error struct {
-	Code ErrorCode
-	// Deprecated: EmbedErr is duplicate with Message and should not be used anymore.
-	EmbedErr   error
+	Code       ErrorCode
 	Message    string
 	stackTrace *StackTrace
 }
@@ -65,7 +63,6 @@ func (e Error) MarshalJSON() ([]byte, error) {
 	fields := map[string]interface{}{
 		"Code":       e.Code,
 		"Message":    e.Message,
-		"EmbedErr":   formatErr(e.EmbedErr),
 		"StackTrace": e.stackTrace,
 	}
 
@@ -77,11 +74,11 @@ func (e Error) StackTrace() *StackTrace {
 }
 
 func (e Error) String() string {
-	return fmt.Sprintf("[Code=%v Message=%v EmbedErr=%v, StackTrace=%v]", e.Code, e.Message, formatErr(e.EmbedErr), e.stackTrace)
+	return fmt.Sprintf("[Code=%v Message=%v StackTrace=%v]", e.Code, e.Message, e.stackTrace)
 }
 
 func (e Error) ToError() error {
-	return fmt.Errorf("[Code=%v Message=%v EmbedErr=%v, StackTrace=%v]", e.Code, e.Message, formatErr(e.EmbedErr), e.stackTrace)
+	return fmt.Errorf("[Code=%v Message=%v StackTrace=%v]", e.Code, e.Message, e.stackTrace)
 }
 
 func MergeErrs(errs []*Error) *Error {
@@ -100,12 +97,4 @@ func MergeErrs(errs []*Error) *Error {
 			return err.String()
 		}), "\n"),
 	}
-}
-
-func formatErr(err error) string {
-	if err == nil {
-		return "nil"
-	}
-
-	return err.Error()
 }

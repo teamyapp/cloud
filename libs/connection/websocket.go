@@ -64,12 +64,8 @@ func NewWebSocket(logger telemetry.Logger, conn *websocket.Conn) WebSocket {
 		for {
 			mt, message, err := conn.ReadMessage()
 			if err != nil {
-				internalErr := errs.Error{
-					Code:     errs.IO,
-					EmbedErr: err,
-				}
 				select {
-				case errorCh <- internalErr:
+				case errorCh <- *errs.NewError(errs.IO, err.Error()):
 				default:
 				}
 				return
