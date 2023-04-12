@@ -31,11 +31,7 @@ var serviceLabels = []string{appName, serviceName}
 var fullServiceName = strings.Join(serviceLabels, "-")
 
 type TestKit struct {
-	ServiceInstanceRunner runner.ServiceRunner
-	Refs                  Refs
-}
-
-type Refs struct {
+	ServiceInstanceRunner        runner.ServiceRunner
 	InMemoryDB                   *dbtest.InMemoryDB
 	UniqueNumberGeneratorFactory gen.UniqueNumberFactory
 	IdentityService              service.Identity
@@ -183,14 +179,12 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		IncludeIdentityWebFunc(api.IncludeIdentityWebFunc).
 		Build()
 	return TestKit{
-		ServiceInstanceRunner: serviceRunner,
-		Refs: Refs{
-			InMemoryDB:                   inMemoryDB,
-			UniqueNumberGeneratorFactory: uniqueNumberGeneratorFactory,
-			IdentityService:              identityService,
-			AuthorizationService:         authorizationService,
-			FileService:                  fileService,
-		},
+		ServiceInstanceRunner:        serviceRunner,
+		InMemoryDB:                   inMemoryDB,
+		UniqueNumberGeneratorFactory: uniqueNumberGeneratorFactory,
+		IdentityService:              identityService,
+		AuthorizationService:         authorizationService,
+		FileService:                  fileService,
 	}, nil
 }
 
