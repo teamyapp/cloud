@@ -15,14 +15,14 @@ import (
 )
 
 func TestTimeout(t *testing.T) {
-	var transientTimeoutErr errs.ErrorCode = errs.Timeout
-	var clientInteractionAlreadyExistsErr errs.ErrorCode = errs.AlreadyExists
-	var outageUnimplementedErr errs.ErrorCode = errs.Unimplemented
+	var transientTimeoutErr = errs.Timeout
+	var clientInteractionAlreadyExistsErr = errs.AlreadyExists
+	var outageUnimplementedErr = errs.Unimplemented
 	currentTime := time.Now()
 	testClock := runtime_test.NewTestClock(currentTime)
 	testCases := []struct {
 		name            string
-		errCodes        [](*errs.ErrorCode)
+		errCodes        []*errs.ErrorCode
 		durations       []time.Duration
 		timeout         time.Duration
 		executeDuration []time.Duration
@@ -38,7 +38,7 @@ func TestTimeout(t *testing.T) {
 				longDelay*2 + randomOffset,
 				longDelay*2 + randomOffset,
 			},
-			timeout:         10000 * time.Millisecond,
+			timeout:         10 * time.Second,
 			executeDuration: []time.Duration{2 * time.Millisecond, 3 * time.Millisecond, 4 * time.Millisecond},
 			expectRetries:   3,
 			expectErr:       errs.NewError(errs.InvalidArgument, ""),
@@ -52,7 +52,7 @@ func TestTimeout(t *testing.T) {
 				longDelay*2 + randomOffset,
 				longDelay*2 + randomOffset,
 			},
-			timeout:         10000 * time.Millisecond,
+			timeout:         10 * time.Second,
 			executeDuration: []time.Duration{2 * time.Millisecond, 3 * time.Millisecond, 4 * time.Millisecond},
 			expectRetries:   3,
 			expectErr:       nil,
@@ -66,8 +66,8 @@ func TestTimeout(t *testing.T) {
 				longDelay*2 + randomOffset,
 				longDelay*2 + randomOffset,
 			},
-			timeout:         10000 * time.Millisecond,
-			executeDuration: []time.Duration{2000 * time.Millisecond, 3000 * time.Millisecond, 4000 * time.Millisecond},
+			timeout:         10 * time.Second,
+			executeDuration: []time.Duration{2 * time.Second, 3 * time.Second, 4 * time.Second},
 			expectRetries:   3,
 			expectErr:       errs.NewError(transientTimeoutErr, ""),
 			sleepAwakeCount: 2,
@@ -134,7 +134,6 @@ func TestTimeout(t *testing.T) {
 
 			go func() {
 				retries, err := timeoutExecutor.WithRetry(ct, execute)
-
 				assert.Equal(t, testCase.expectRetries, retries)
 				if testCase.expectErr == nil {
 					assert.Nil(t, err)
