@@ -14,6 +14,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	addDBCmd()
 	addAuthorizationCmd()
+	addCompletionCmd()
 }
 
 func Execute() {
