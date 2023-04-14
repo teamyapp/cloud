@@ -26,9 +26,10 @@ Zsh:
   # you will need to enable it.  You can execute the following once:
 
   $ echo "autoload -U compinit; compinit" >> ~/.zshrc
+  $ mkdir -p ~/.oh-my-zsh/completions
 
   # To load completions for each session, execute once:
-  $ %[1]s completion zsh > "~/.oh-my-zsh/completions/_%[1]s"
+  $ %[1]s completion zsh > ~/.oh-my-zsh/completions/_%[1]s
 
   # You will need to start a new shell for this setup to take effect.
 ======================================================================
