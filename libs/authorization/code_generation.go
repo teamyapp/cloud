@@ -17,9 +17,6 @@ import (
 //go:embed resource_type.gotmpl
 var resourceTypeCodeTemplate string
 
-//go:embed resource_operation.gotmpl
-var resourceOperationCodeTemplate string
-
 //go:embed resource_type_operation.gotmpl
 var resourceTypeOperationCodeTemplate string
 
@@ -31,14 +28,10 @@ type CodeTemplate struct {
 	Content string
 }
 
-var codeTemplates []CodeTemplate = []CodeTemplate{
+var codeTemplates = []CodeTemplate{
 	{
 		Name:    "resource_type",
 		Content: resourceTypeCodeTemplate,
-	},
-	{
-		Name:    "resource_operation",
-		Content: resourceOperationCodeTemplate,
 	},
 	{
 		Name:    "resource_type_operation",
