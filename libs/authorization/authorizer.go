@@ -10,28 +10,6 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-type ResourceOperation struct {
-	ResourceType string
-	Operation    string
-	ResourceID   uint64
-}
-
-type ResourceTypeOperation struct {
-	ResourceType string
-	Operation    string
-}
-
-type Query struct {
-	ResourceType string
-	ResourceID   uint64
-	Operation    string
-	UserID       uint64
-}
-
-func (q Query) String() string {
-	return fmt.Sprintf("[Query UserID=%v Operation=%v ResourceType=%v ResourceID=%v]", q.UserID, q.Operation, q.ResourceType, q.ResourceID)
-}
-
 type Authorizer struct {
 	logger              telemetry.Logger
 	cloudClientRegistry *api.ClientRegistry
