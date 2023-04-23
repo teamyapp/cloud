@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/teamyapp/cloud/app/gen"
+	"github.com/teamyapp/cloud/libs/authorization"
+	"github.com/teamyapp/cloud/libs/delta"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 
@@ -436,6 +438,35 @@ func (a Authorization) getParentPermissionQueries(ct context.Context, currQuery 
 	}
 
 	return parentPermissionQueries, nil
+}
+
+func (a Authorization) ApplyAuthorizationConfig(ct context.Context, configContent string) *errs.Error {
+	newConfig, err := authorization.ParseConfig(configContent)
+	if err != nil {
+		return err
+	}
+
+	oldConfig, err := a.configFromCurrentData(ct)
+	if err != nil {
+		return err
+	}
+
+	configDelta := authorization.DetectConfigDelta(oldConfig, newConfig)
+	if configDelta.Status == delta.UnchangedStatus {
+		return nil
+	}
+
+	return a.applyConfigDelta(ct, configDelta.Value)
+}
+
+func (a Authorization) configFromCurrentData(ct context.Context) (authorization.Config, *errs.Error) {
+	// TODO: generate authorization config based on data in database
+	panic("implement me")
+}
+
+func (a Authorization) applyConfigDelta(ct context.Context, configDelta authorization.ConfigDelta) *errs.Error {
+	// TODO: apply config delta by triggering authorization service APIs
+	panic("implement me")
 }
 
 func tryAddPermissionQueryToQueue(permissionQuery entity.PermissionQuery, visited map[entity.PermissionQuery]bool, queries []entity.PermissionQuery) []entity.PermissionQuery {

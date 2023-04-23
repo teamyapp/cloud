@@ -49,6 +49,7 @@ type AuthorizationClient interface {
 	ListPermissions(ctx context.Context, in *ListPermissionsQuery, opts ...grpc.CallOption) (*ListPermissionsResponse, error)
 	AddPermission(ctx context.Context, in *AddPermissionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	RemovePermission(ctx context.Context, in *RemovePermissionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	ApplyAuthorizationConfig(ctx context.Context, in *ApplyAuthorizationConfigRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type authorizationClient struct {
@@ -293,6 +294,15 @@ func (c *authorizationClient) RemovePermission(ctx context.Context, in *RemovePe
 	return out, nil
 }
 
+func (c *authorizationClient) ApplyAuthorizationConfig(ctx context.Context, in *ApplyAuthorizationConfigRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, "/Authorization/ApplyAuthorizationConfig", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthorizationServer is the server API for Authorization service.
 // All implementations must embed UnimplementedAuthorizationServer
 // for forward compatibility
@@ -323,6 +333,7 @@ type AuthorizationServer interface {
 	ListPermissions(context.Context, *ListPermissionsQuery) (*ListPermissionsResponse, error)
 	AddPermission(context.Context, *AddPermissionRequest) (*emptypb.Empty, error)
 	RemovePermission(context.Context, *RemovePermissionRequest) (*emptypb.Empty, error)
+	ApplyAuthorizationConfig(context.Context, *ApplyAuthorizationConfigRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedAuthorizationServer()
 }
 
@@ -407,6 +418,9 @@ func (UnimplementedAuthorizationServer) AddPermission(context.Context, *AddPermi
 }
 func (UnimplementedAuthorizationServer) RemovePermission(context.Context, *RemovePermissionRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemovePermission not implemented")
+}
+func (UnimplementedAuthorizationServer) ApplyAuthorizationConfig(context.Context, *ApplyAuthorizationConfigRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ApplyAuthorizationConfig not implemented")
 }
 func (UnimplementedAuthorizationServer) mustEmbedUnimplementedAuthorizationServer() {}
 
@@ -889,6 +903,24 @@ func _Authorization_RemovePermission_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Authorization_ApplyAuthorizationConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApplyAuthorizationConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthorizationServer).ApplyAuthorizationConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Authorization/ApplyAuthorizationConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthorizationServer).ApplyAuthorizationConfig(ctx, req.(*ApplyAuthorizationConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Authorization_ServiceDesc is the grpc.ServiceDesc for Authorization service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -999,6 +1031,10 @@ var Authorization_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemovePermission",
 			Handler:    _Authorization_RemovePermission_Handler,
+		},
+		{
+			MethodName: "ApplyAuthorizationConfig",
+			Handler:    _Authorization_ApplyAuthorizationConfig_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
