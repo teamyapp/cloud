@@ -465,7 +465,7 @@ func (a Authorization) configFromCurrentData(ct context.Context) (authorization.
 }
 
 func (a Authorization) applyConfigDelta(ct context.Context, configDelta authorization.ConfigDelta) *errs.Error {
-	// TODO: apply config delta by triggering authorization service APIs
+	// TODO: apply config delta by triggering the corresponding authorization service APIs
 	panic("implement me")
 }
 
