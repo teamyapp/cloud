@@ -1,4 +1,4 @@
-package authorization
+package client
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/api/proto"
+	"github.com/teamyapp/cloud/libs/authorization"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
@@ -15,7 +16,7 @@ type Authorizer struct {
 	cloudClientRegistry *api.ClientRegistry
 }
 
-func (a Authorizer) HasPermission(ct context.Context, query Query) (bool, *errs.Error) {
+func (a Authorizer) HasPermission(ct context.Context, query authorization.Query) (bool, *errs.Error) {
 	hasPermissionReq := &proto.HasPermissionRequest{
 		ResourceType: query.ResourceType,
 		ResourceId:   query.ResourceID,
@@ -104,7 +105,7 @@ func (a Authorizer) CreateUserGroup(ct context.Context, creatorUserID uint64, us
 
 func (a Authorizer) AssignPermission(
 	ct context.Context,
-	resourceOperation ResourceOperation,
+	resourceOperation authorization.ResourceOperation,
 	userGroupID uint64,
 ) *errs.Error {
 	addPermissionReq := &proto.AddPermissionRequest{
@@ -125,7 +126,7 @@ func (a Authorizer) AssignPermission(
 
 func (a Authorizer) assignUserGroupPermissions(
 	ct context.Context,
-	resourceOperations []ResourceOperation,
+	resourceOperations []authorization.ResourceOperation,
 	groupID uint64,
 ) *errs.Error {
 	for _, resourceOperation := range resourceOperations {
@@ -143,7 +144,7 @@ func (a Authorizer) CreateUserGroupAndAssignPermissions(
 	creatorUserID uint64,
 	userGroupName string,
 	description *string,
-	resourceOperations []ResourceOperation,
+	resourceOperations []authorization.ResourceOperation,
 ) (uint64, *errs.Error) {
 	userGroupID, err := a.CreateUserGroup(ct, creatorUserID, userGroupName, description)
 	if err != nil {
