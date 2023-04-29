@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/libs/authorization"
 	"github.com/teamyapp/cloud/libs/errs"
@@ -12,8 +11,8 @@ import (
 )
 
 type Authorizer struct {
-	logger              telemetry.Logger
-	cloudClientRegistry *api.ClientRegistry
+	logger   telemetry.Logger
+	registry *Registry
 }
 
 func (a Authorizer) HasPermission(ct context.Context, query authorization.Query) (bool, *errs.Error) {
@@ -23,7 +22,7 @@ func (a Authorizer) HasPermission(ct context.Context, query authorization.Query)
 		Operation:    query.Operation,
 		UserId:       query.UserID,
 	}
-	hasPermissionRes, err := a.cloudClientRegistry.AuthorizationClient().HasPermission(ct, hasPermissionReq)
+	hasPermissionRes, err := a.registry.AuthorizationClient().HasPermission(ct, hasPermissionReq)
 	if err != nil {
 		internalErr := errs.FromGRPCErr(err)
 		return false, internalErr
@@ -37,7 +36,7 @@ func (a Authorizer) RegisterResource(ct context.Context, resourceType string, re
 		ResourceType: resourceType,
 		ResourceId:   resourceID,
 	}
-	_, err := a.cloudClientRegistry.AuthorizationClient().RegisterResource(ct, registerResourceReq)
+	_, err := a.registry.AuthorizationClient().RegisterResource(ct, registerResourceReq)
 	if err != nil {
 		internalErr := errs.FromGRPCErr(err)
 		return internalErr
@@ -58,7 +57,7 @@ func (a Authorizer) AssignParentResource(
 		ParentResourceType: parentResourceType,
 		ParentResourceId:   parentResourceID,
 	}
-	_, err := a.cloudClientRegistry.AuthorizationClient().AssignParentResource(ct, assignParentResourceReq)
+	_, err := a.registry.AuthorizationClient().AssignParentResource(ct, assignParentResourceReq)
 	if err != nil {
 		internalErr := errs.FromGRPCErr(err)
 		return internalErr
@@ -72,7 +71,7 @@ func (a Authorizer) AddMemberToUserGroup(ct context.Context, userGroupID uint64,
 		GroupId: userGroupID,
 		UserId:  memberID,
 	}
-	_, err := a.cloudClientRegistry.AuthorizationClient().AddUserGroupMember(ct, addUserGroupMemberReq)
+	_, err := a.registry.AuthorizationClient().AddUserGroupMember(ct, addUserGroupMemberReq)
 	if err != nil {
 		internalErr := errs.FromGRPCErr(err)
 		return internalErr
@@ -87,7 +86,7 @@ func (a Authorizer) CreateUserGroup(ct context.Context, creatorUserID uint64, us
 		Description: description,
 	}
 
-	createUserGroupRes, err := a.cloudClientRegistry.AuthorizationClient().CreateUserGroup(ct, createUserGroupReq)
+	createUserGroupRes, err := a.registry.AuthorizationClient().CreateUserGroup(ct, createUserGroupReq)
 	if err != nil {
 		internalErr := errs.FromGRPCErr(err)
 		return 0, internalErr
@@ -114,7 +113,7 @@ func (a Authorizer) AssignPermission(
 		Operation:    resourceOperation.Operation,
 		GroupId:      userGroupID,
 	}
-	_, err := a.cloudClientRegistry.AuthorizationClient().AddPermission(ct, addPermissionReq)
+	_, err := a.registry.AuthorizationClient().AddPermission(ct, addPermissionReq)
 	if err != nil {
 		internalErr := errs.FromGRPCErr(err)
 		return internalErr
@@ -161,10 +160,10 @@ func (a Authorizer) CreateUserGroupAndAssignPermissions(
 
 func NewAuthorizer(
 	logger telemetry.Logger,
-	cloudClientRegistry *api.ClientRegistry,
+	registry *Registry,
 ) Authorizer {
 	return Authorizer{
-		logger:              logger,
-		cloudClientRegistry: cloudClientRegistry,
+		logger:   logger,
+		registry: registry,
 	}
 }

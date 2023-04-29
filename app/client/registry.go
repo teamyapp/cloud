@@ -1,4 +1,4 @@
-package api
+package client
 
 import (
 	"github.com/teamyapp/cloud/app/api/proto"
@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-type ClientRegistry struct {
+type Registry struct {
 	conn                *grpc.ClientConn
 	generatorClient     proto.GeneratorClient
 	identityClient      proto.IdentityClient
@@ -18,51 +18,51 @@ type ClientRegistry struct {
 	fileClient          proto.FileClient
 }
 
-func (c *ClientRegistry) GeneratorClient() proto.GeneratorClient {
-	if c.generatorClient == nil {
-		c.generatorClient = proto.NewGeneratorClient(c.conn)
+func (r *Registry) GeneratorClient() proto.GeneratorClient {
+	if r.generatorClient == nil {
+		r.generatorClient = proto.NewGeneratorClient(r.conn)
 	}
 
-	return c.generatorClient
+	return r.generatorClient
 }
 
-func (c *ClientRegistry) IdentityClient() proto.IdentityClient {
-	if c.identityClient == nil {
-		c.identityClient = proto.NewIdentityClient(c.conn)
+func (r *Registry) IdentityClient() proto.IdentityClient {
+	if r.identityClient == nil {
+		r.identityClient = proto.NewIdentityClient(r.conn)
 	}
 
-	return c.identityClient
+	return r.identityClient
 }
 
-func (c *ClientRegistry) AuthorizationClient() proto.AuthorizationClient {
-	if c.authorizationClient == nil {
-		c.authorizationClient = proto.NewAuthorizationClient(c.conn)
+func (r *Registry) AuthorizationClient() proto.AuthorizationClient {
+	if r.authorizationClient == nil {
+		r.authorizationClient = proto.NewAuthorizationClient(r.conn)
 	}
 
-	return c.authorizationClient
+	return r.authorizationClient
 }
 
-func (c *ClientRegistry) FileClient() proto.FileClient {
-	if c.fileClient == nil {
-		c.fileClient = proto.NewFileClient(c.conn)
+func (r *Registry) FileClient() proto.FileClient {
+	if r.fileClient == nil {
+		r.fileClient = proto.NewFileClient(r.conn)
 	}
 
-	return c.fileClient
+	return r.fileClient
 }
 
-func NewClientRegistry(
+func NewRegistry(
 	logger telemetry.Logger,
 	network network.Network,
 	clientGRPCMetrics middleware.ClientGRPCMetrics,
 	connCfg rpc.ConnectionConfig,
 	makeRetry func() retry.Retry,
-) (*ClientRegistry, error) {
+) (*Registry, error) {
 	conn, err := rpc.NewClientConnection(logger, network, clientGRPCMetrics, connCfg, makeRetry)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ClientRegistry{
+	return &Registry{
 		conn: conn,
 	}, nil
 }
