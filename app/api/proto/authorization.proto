@@ -40,6 +40,10 @@ service Authorization {
   rpc ListPermissions(ListPermissionsQuery) returns (ListPermissionsResponse);
   rpc AddPermission(AddPermissionRequest) returns (google.protobuf.Empty);
   rpc RemovePermission(RemovePermissionRequest) returns (google.protobuf.Empty);
+
+  rpc ListResourceUserGroupRelations(ListResourceUserGroupRelationsQuery) returns (ListResourceUserGroupRelationsResponse);
+  rpc AddListResourceUserGroupRelation(AddResourceUserGroupRelationRequest) returns (google.protobuf.Empty);
+  rpc RemoveListResourceUserGroupRelation(RemoveResourceUserGroupRelationRequest) returns (google.protobuf.Empty);
 }
 
 // HasPermission
@@ -351,4 +355,39 @@ message RemovePermissionRequest {
   uint64 groupId = 4;
 }
 
+message ListResourceUserGroupRelationsQuery {
+  optional string resourceType = 1;
+  optional uint64 resourceId =2;
+  optional uint64 groupId = 3;
+  optional string key = 4;
+  optional uint64 creatorUserId = 5;
+  optional google.protobuf.Timestamp startCreationTime = 6;
+  optional google.protobuf.Timestamp endCreationTime = 7;
+  optional uint64 limit = 8;
+}
 
+message ListResourceUserGroupRelationsResponse {
+  repeated ResourceUserGroupRelation resourceUserGroupRelations = 1;
+}
+
+message ResourceUserGroupRelation {
+  string resourceType = 1;
+  uint64 resourceId = 2;
+  uint64 groupId = 3;
+  optional string key = 4;
+  google.protobuf.Timestamp createdAt = 5;
+  uint64 creatorUserId = 6;
+}
+
+message AddResourceUserGroupRelationRequest {
+  string resourceType = 1;
+  uint64 resourceId = 2;
+  uint64 groupId = 3;
+  optional string key = 4;
+}
+
+message RemoveResourceUserGroupRelationRequest {
+  string resourceType = 1;
+  uint64 resourceId = 2;
+  uint64 groupId = 3;
+}

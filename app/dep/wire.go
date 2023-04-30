@@ -52,6 +52,7 @@ var daoSet = wire.NewSet(
 	wire.Bind(new(dao.UploadSession), new(sqldb.UploadSession)),
 	wire.Bind(new(dao.FileMetadata), new(sqldb.FileMetadata)),
 	wire.Bind(new(dao.ChunkMetadata), new(sqldb.ChunkMetadata)),
+	wire.Bind(new(dao.ResourceUserGroupRelation), new(sqldb.ResourceUserGroupRelation)),
 	sqldb.NewAllocatedRange,
 	sqldb.NewUserLink,
 	sqldb.NewSignInSession,
@@ -67,6 +68,7 @@ var daoSet = wire.NewSet(
 	sqldb.NewUploadSession,
 	sqldb.NewFileMetadata,
 	sqldb.NewChunkMetadata,
+	sqldb.NewResourceUserGroupRelation,
 )
 
 var storageSet = wire.NewSet(

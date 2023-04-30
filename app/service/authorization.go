@@ -14,16 +14,17 @@ import (
 )
 
 type Authorization struct {
-	logger               telemetry.Logger
-	resourceRelationDao  dao.ResourceRelation
-	userGroupMemberDao   dao.UserGroupMember
-	permissionDao        dao.Permission
-	operationRelationDao dao.OperationRelation
-	operationDao         dao.Operation
-	resourceTypeDao      dao.ResourceType
-	resourceDao          dao.Resource
-	userGroupDao         dao.UserGroup
-	userGroupIDGenerator *gen.UniqueNumber
+	logger                       telemetry.Logger
+	resourceRelationDao          dao.ResourceRelation
+	userGroupMemberDao           dao.UserGroupMember
+	permissionDao                dao.Permission
+	operationRelationDao         dao.OperationRelation
+	operationDao                 dao.Operation
+	resourceTypeDao              dao.ResourceType
+	resourceDao                  dao.Resource
+	userGroupDao                 dao.UserGroup
+	resourceUserGroupRelationDao dao.ResourceUserGroupRelation
+	userGroupIDGenerator         *gen.UniqueNumber
 }
 
 func (a Authorization) HasPermission(ct context.Context, resourceType string, resourceID uint64, operation string, userID uint64) (bool, *errs.Error) {
@@ -448,6 +449,51 @@ func tryAddPermissionQueryToQueue(permissionQuery entity.PermissionQuery, visite
 	return append(queries, permissionQuery)
 }
 
+func (a Authorization) AddResourceUserGroupRelation(ct context.Context, groupID uint64, resourceType string, resourceID uint64, key *string) *errs.Error {
+	creatorUserID, ok := ctx.UserIDFromContext(ct)
+	if !ok {
+		return errs.NewError(errs.Unauthenticated, "user ID not found")
+	}
+
+	resourceUserGroupRelation := entity.ResourceUserGroupRelation{
+		GroupID:       groupID,
+		ResourceType:  resourceType,
+		ResourceID:    resourceID,
+		Key:           key,
+		CreatedAt:     time.Now().UTC(),
+		CreatorUserID: creatorUserID,
+	}
+	return a.resourceUserGroupRelationDao.CreateResourceUserGroupRelation(ct, resourceUserGroupRelation)
+}
+
+func (a Authorization) RemoveResourceUserGroupRelation(ct context.Context, groupID uint64, resourceType string, resourceID uint64) *errs.Error {
+	return a.resourceUserGroupRelationDao.DeleteResourceUserGroupRelation(ct, resourceType, resourceID, groupID)
+}
+
+func (a Authorization) ListResourceUserGroupRelations(ct context.Context, query ResourceUserGroupRelationQuery) ([]entity.ResourceUserGroupRelation, *errs.Error) {
+	var resourceUserGroupRelations []entity.ResourceUserGroupRelation
+	var err *errs.Error
+	if query.GroupID != nil {
+		resourceUserGroupRelations, err = a.resourceUserGroupRelationDao.FindResourceUserGroupRelationByUserGroup(ct, *query.GroupID)
+		if err != nil {
+			return nil, err
+		}
+	} else if query.ResourceType != nil && query.ResourceID != nil {
+		resourceUserGroupRelations, err = a.resourceUserGroupRelationDao.FindResourceUserGroupRelationByResource(ct, *query.ResourceType, *query.ResourceID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		resourceUserGroupRelations, err = a.resourceUserGroupRelationDao.FindAllResourceUserGroupRelations(ct)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	resourceUserGroupRelations = queryResourceUserGroupRelations(resourceUserGroupRelations, query)
+	return resourceUserGroupRelations, nil
+}
+
 func NewAuthorization(
 	logger telemetry.Logger,
 	resourceRelationDao dao.ResourceRelation,
@@ -458,6 +504,7 @@ func NewAuthorization(
 	resourceTypeDao dao.ResourceType,
 	resourceDao dao.Resource,
 	userGroupDao dao.UserGroup,
+	resourceUserGroupRelationDao dao.ResourceUserGroupRelation,
 	uniqueNumberFactory gen.UniqueNumberFactory,
 ) (Authorization, error) {
 	userGroupIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("userGroupID")
@@ -466,15 +513,16 @@ func NewAuthorization(
 	}
 
 	return Authorization{
-		logger:               logger,
-		resourceRelationDao:  resourceRelationDao,
-		userGroupMemberDao:   userGroupMemberDao,
-		permissionDao:        permissionDao,
-		operationRelationDao: operationRelationDao,
-		operationDao:         operationDao,
-		resourceTypeDao:      resourceTypeDao,
-		resourceDao:          resourceDao,
-		userGroupDao:         userGroupDao,
-		userGroupIDGenerator: userGroupIDGenerator,
+		logger:                       logger,
+		resourceRelationDao:          resourceRelationDao,
+		userGroupMemberDao:           userGroupMemberDao,
+		permissionDao:                permissionDao,
+		operationRelationDao:         operationRelationDao,
+		operationDao:                 operationDao,
+		resourceTypeDao:              resourceTypeDao,
+		resourceDao:                  resourceDao,
+		userGroupDao:                 userGroupDao,
+		resourceUserGroupRelationDao: resourceUserGroupRelationDao,
+		userGroupIDGenerator:         userGroupIDGenerator,
 	}, nil
 }

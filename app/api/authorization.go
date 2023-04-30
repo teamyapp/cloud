@@ -534,6 +534,65 @@ func (a Authorization) RemovePermission(ct context.Context, request *proto.Remov
 	return &emptypb.Empty{}, nil
 }
 
+func (a Authorization) AddResourceUserGroupRelation(ct context.Context, request *proto.AddResourceUserGroupRelationRequest) (*emptypb.Empty, error) {
+	err := a.authorizationService.AddResourceUserGroupRelation(ct, request.GroupId, request.ResourceType, request.ResourceId, request.Key)
+	if err != nil {
+		a.logger.ErrorWithContext(ct, err)
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
+}
+
+func (a Authorization) RemoveResourceUserGroupRelation(ct context.Context, request *proto.RemoveResourceUserGroupRelationRequest) (*emptypb.Empty, error) {
+	err := a.authorizationService.RemoveResourceUserGroupRelation(ct, request.GroupId, request.ResourceType, request.ResourceId)
+	if err != nil {
+		a.logger.ErrorWithContext(ct, err)
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
+}
+
+func (a Authorization) ListResourceUserGroupRelations(ct context.Context, query *proto.ListResourceUserGroupRelationsQuery) (*proto.ListResourceUserGroupRelationsResponse, error) {
+	listResourceUserGroupRelationsQuery := service.ResourceUserGroupRelationQuery{
+		ResourceType:  query.ResourceType,
+		ResourceID:    query.ResourceId,
+		GroupID:       query.GroupId,
+		Key:           query.Key,
+		CreatorUserID: query.CreatorUserId,
+		Limit:         query.Limit,
+	}
+	if query.StartCreationTime != nil {
+		startCreationTime := query.StartCreationTime.AsTime()
+		listResourceUserGroupRelationsQuery.StartCreationTime = &startCreationTime
+	}
+
+	if query.EndCreationTime != nil {
+		endCreationTime := query.EndCreationTime.AsTime()
+		listResourceUserGroupRelationsQuery.EndCreationTime = &endCreationTime
+	}
+
+	resourceUserGroupRelationEntities, err := a.authorizationService.ListResourceUserGroupRelations(ct, listResourceUserGroupRelationsQuery)
+	if err != nil {
+		a.logger.ErrorWithContext(ct, err)
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	resourceUserGroupRelations := collect.Map(resourceUserGroupRelationEntities,
+		func(resourceUserGroupRelation entity.ResourceUserGroupRelation, _ int) *proto.ResourceUserGroupRelation {
+			return &proto.ResourceUserGroupRelation{
+				ResourceType:  resourceUserGroupRelation.ResourceType,
+				ResourceId:    resourceUserGroupRelation.ResourceID,
+				GroupId:       resourceUserGroupRelation.GroupID,
+				Key:           resourceUserGroupRelation.Key,
+				CreatedAt:     timestamppb.New(resourceUserGroupRelation.CreatedAt),
+				CreatorUserId: resourceUserGroupRelation.CreatorUserID,
+			}
+		})
+	return &proto.ListResourceUserGroupRelationsResponse{ResourceUserGroupRelations: resourceUserGroupRelations}, nil
+}
+
 func NewAuthorization(
 	logger telemetry.Logger,
 	authorizationService service.Authorization,

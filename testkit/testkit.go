@@ -127,6 +127,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 	resourceTypeDao := daotest.NewResourceType(inMemoryDB)
 	resourceDao := daotest.NewResource(inMemoryDB)
 	userGroupDao := daotest.NewUserGroup(inMemoryDB)
+	resourceUserGroupRelation := daotest.NewResourceUserGroupRelation(inMemoryDB)
 	authorizationService, err := service.NewAuthorization(
 		logger,
 		resourceRelationDao,
@@ -137,6 +138,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		resourceTypeDao,
 		resourceDao,
 		userGroupDao,
+		resourceUserGroupRelation,
 		uniqueNumberGeneratorFactory,
 	)
 	if err != nil {

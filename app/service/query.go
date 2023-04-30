@@ -86,6 +86,17 @@ type PermissionQuery struct {
 	Limit             *uint64
 }
 
+type ResourceUserGroupRelationQuery struct {
+	ResourceType      *string
+	ResourceID        *uint64
+	GroupID           *uint64
+	Key               *string
+	CreatorUserID     *uint64
+	StartCreationTime *time.Time
+	EndCreationTime   *time.Time
+	Limit             *uint64
+}
+
 func queryResourceTypes(resourceTypeEntities []entity.ResourceType, resourceTypeQuery ResourceTypeQuery) []entity.ResourceType {
 	return collect.Filter(resourceTypeEntities, func(resourceTypeEntity entity.ResourceType) bool {
 		if resourceTypeQuery.ResourceTypeName != nil && *resourceTypeQuery.ResourceTypeName != resourceTypeEntity.ResourceTypeName {
@@ -312,6 +323,47 @@ func queryPermission(permissions []entity.Permission, permissionQuery Permission
 		}
 
 		if permissionQuery.EndCreationTime != nil && (*permissionQuery.EndCreationTime).Before(permission.CreatedAt) {
+			return false
+		}
+
+		return true
+	})
+}
+
+func queryResourceUserGroupRelations(resourceUserGroupRelations []entity.ResourceUserGroupRelation,
+	resourceUserGroupRelationQuery ResourceUserGroupRelationQuery) []entity.ResourceUserGroupRelation {
+	return collect.Filter(resourceUserGroupRelations, func(resourceUserGroupRelation entity.ResourceUserGroupRelation) bool {
+		if resourceUserGroupRelationQuery.ResourceType != nil && *resourceUserGroupRelationQuery.ResourceType != resourceUserGroupRelation.ResourceType {
+			return false
+		}
+
+		if resourceUserGroupRelationQuery.ResourceID != nil && *resourceUserGroupRelationQuery.ResourceID != resourceUserGroupRelation.ResourceID {
+			return false
+		}
+
+		if resourceUserGroupRelationQuery.GroupID != nil && *resourceUserGroupRelationQuery.GroupID != resourceUserGroupRelation.GroupID {
+			return false
+		}
+
+		if resourceUserGroupRelationQuery.Key == nil {
+			if resourceUserGroupRelation.Key != nil {
+				return false
+			}
+		} else {
+			if resourceUserGroupRelation.Key == nil || *resourceUserGroupRelationQuery.Key != *resourceUserGroupRelation.Key {
+				return false
+			}
+		}
+
+		if resourceUserGroupRelationQuery.CreatorUserID != nil && *resourceUserGroupRelationQuery.CreatorUserID != resourceUserGroupRelation.CreatorUserID {
+			return false
+		}
+
+		if resourceUserGroupRelationQuery.StartCreationTime != nil && (*resourceUserGroupRelationQuery.StartCreationTime).After(resourceUserGroupRelation.CreatedAt) {
+			return false
+		}
+
+		if resourceUserGroupRelationQuery.EndCreationTime != nil && (*resourceUserGroupRelationQuery.EndCreationTime).Before(resourceUserGroupRelation.CreatedAt) {
 			return false
 		}
 
