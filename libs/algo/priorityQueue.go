@@ -31,7 +31,6 @@ func (pq *PriorityQueue[Value, Priority]) hasHigherPriority(item1, item2 Priorit
 func (pq *PriorityQueue[Value, Priority]) shiftDown(index int) {
 	left := index*2 + 1
 	right := index*2 + 2
-
 	largest := index
 
 	if left < pq.Size() && pq.hasHigherPriority(pq.items[left], pq.items[largest]) {
