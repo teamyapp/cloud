@@ -1,70 +1,69 @@
 package algo
 
-import "golang.org/x/exp/constraints"
-
-type PriorityQueueItem[Value any, Priority constraints.Ordered] struct {
-	value    Value
-	priority Priority
+type PriorityQueueItem[Value any] struct {
+	value Value
 }
 
-type PriorityQueue[Value any, Priority constraints.Ordered] struct {
-	items      []PriorityQueueItem[Value, Priority]
-	comparator func(priority1, priority2 Priority) bool
+type PriorityQueue[Value any] struct {
+	items   []PriorityQueueItem[Value]
+	compare func(value1, value2 Value) int
 }
 
-func (pq *PriorityQueue[Value, Priority]) shiftUp(index int) {
+func (pq *PriorityQueue[Value]) shiftUp(index int) {
 	for index > 0 {
-		parent := (index - 1) / 2
-		if pq.hasHigherPriority(pq.items[index], pq.items[parent]) {
-			pq.items[index], pq.items[parent] = pq.items[parent], pq.items[index]
-			index = parent
-		} else {
+		parentIndex := (index - 1) / 2
+		if pq.hasHigherPriority(pq.items[parentIndex], pq.items[index]) {
 			break
 		}
+
+		pq.items[index], pq.items[parentIndex] = pq.items[parentIndex], pq.items[index]
+		index = parentIndex
 	}
 }
 
-func (pq *PriorityQueue[Value, Priority]) hasHigherPriority(item1, item2 PriorityQueueItem[Value, Priority]) bool {
-	return pq.comparator(item1.priority, item2.priority)
+func (pq *PriorityQueue[Value]) hasHigherPriority(item1, item2 PriorityQueueItem[Value]) bool {
+	return pq.compare(item1.value, item2.value) == GreaterThan
 }
 
-func (pq *PriorityQueue[Value, Priority]) shiftDown(index int) {
-	for index*2+1 < pq.Size() {
-		left := index*2 + 1
-		right := index*2 + 2
+func (pq *PriorityQueue[Value]) shiftDown(index int) {
+	for pq.leftChildIndex(index) < pq.Size() {
+		leftChildIndex := pq.leftChildIndex(index)
+		rightChildIndex := pq.rightChildIndex(index)
 
-		largest := index
+		largerChildIndex := leftChildIndex
 
-		if left < pq.Size() && pq.hasHigherPriority(pq.items[left], pq.items[largest]) {
-			largest = left
+		if rightChildIndex < pq.Size() && pq.hasHigherPriority(pq.items[rightChildIndex], pq.items[leftChildIndex]) {
+			largerChildIndex = rightChildIndex
 		}
 
-		if right < pq.Size() && pq.hasHigherPriority(pq.items[right], pq.items[largest]) {
-			largest = right
-		}
-
-		if largest != index {
-			pq.items[index], pq.items[largest] = pq.items[largest], pq.items[index]
-			index = largest
-		} else {
+		if pq.hasHigherPriority(pq.items[index], pq.items[largerChildIndex]) {
 			break
 		}
+
+		pq.items[index], pq.items[largerChildIndex] = pq.items[largerChildIndex], pq.items[index]
 	}
 }
 
-func (pq *PriorityQueue[Value, Priority]) Size() int {
+func (pq *PriorityQueue[Value]) leftChildIndex(index int) int {
+	return index*2 + 1
+}
+
+func (pq *PriorityQueue[Value]) rightChildIndex(index int) int {
+	return index*2 + 2
+}
+
+func (pq *PriorityQueue[Value]) Size() int {
 	return len(pq.items)
 }
 
-func (pq *PriorityQueue[Value, Priority]) Push(value Value, priority Priority) {
-	pq.items = append(pq.items, PriorityQueueItem[Value, Priority]{
-		value:    value,
-		priority: priority,
+func (pq *PriorityQueue[Value]) Push(value Value) {
+	pq.items = append(pq.items, PriorityQueueItem[Value]{
+		value: value,
 	})
 	pq.shiftUp(pq.Size() - 1)
 }
 
-func (pq *PriorityQueue[Value, Priority]) Pop() *Value {
+func (pq *PriorityQueue[Value]) Pop() *Value {
 	if pq.Size() == 0 {
 		return nil
 	}
@@ -76,7 +75,7 @@ func (pq *PriorityQueue[Value, Priority]) Pop() *Value {
 	return &value
 }
 
-func (pq *PriorityQueue[Value, Priority]) Peek() *Value {
+func (pq *PriorityQueue[Value]) Peek() *Value {
 	if pq.Size() == 0 {
 		return nil
 	}
@@ -84,11 +83,11 @@ func (pq *PriorityQueue[Value, Priority]) Peek() *Value {
 	return &pq.items[0].value
 }
 
-func NewPriorityQueue[Value any, Priority constraints.Ordered](
-	comparator func(priority1, priority2 Priority) bool,
-) *PriorityQueue[Value, Priority] {
-	return &PriorityQueue[Value, Priority]{
-		items:      make([]PriorityQueueItem[Value, Priority], 0),
-		comparator: comparator,
+func NewPriorityQueue[Value any](
+	compare func(value1, value2 Value) int,
+) *PriorityQueue[Value] {
+	return &PriorityQueue[Value]{
+		items:   make([]PriorityQueueItem[Value], 0),
+		compare: compare,
 	}
 }
