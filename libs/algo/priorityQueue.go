@@ -70,7 +70,6 @@ func (pq *PriorityQueue[Value, Priority]) Pop() *Value {
 	pq.items[0] = pq.items[pq.Size()-1]
 	pq.items = pq.items[:pq.Size()-1]
 	pq.shiftDown(0)
-
 	return &value
 }
 
