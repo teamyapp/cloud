@@ -67,7 +67,6 @@ func TestPriorityQuery_Int(t *testing.T) {
 }
 
 func TestPriorityQuery_String(t *testing.T) {
-
 	testCases := []struct {
 		name       string
 		comparator func(priority1, priority2 int) bool
@@ -120,7 +119,6 @@ func TestPriorityQuery_String(t *testing.T) {
 
 	for _, testCase := range testCases {
 		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			pq := NewPriorityQueue[string](
@@ -145,7 +143,5 @@ func TestPriorityQuery_String(t *testing.T) {
 			assert.Nil(t, pq.Peek())
 			assert.Nil(t, pq.Pop())
 		})
-
 	}
-
 }
