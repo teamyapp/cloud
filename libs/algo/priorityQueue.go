@@ -57,7 +57,6 @@ func (pq *PriorityQueue[Value, Priority]) Push(value Value, priority Priority) {
 		value:    value,
 		priority: priority,
 	})
-
 	pq.shiftUp(pq.Size() - 1)
 }
 
