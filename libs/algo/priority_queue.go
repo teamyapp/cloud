@@ -40,6 +40,7 @@ func (pq *PriorityQueue[Value]) shiftDown(index int) {
 		}
 
 		pq.items[index], pq.items[largerChildIndex] = pq.items[largerChildIndex], pq.items[index]
+		index = largerChildIndex
 	}
 }
 
