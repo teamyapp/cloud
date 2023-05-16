@@ -109,7 +109,6 @@ func TestPriorityQuery_String(t *testing.T) {
 			)
 
 			assert.Equal(t, 0, pq.Size())
-
 			for index, insert := range testCase.inserts {
 				pq.Push(insert)
 				assert.Equal(t, index+1, pq.Size())
@@ -126,13 +125,11 @@ func TestPriorityQuery_String(t *testing.T) {
 			assert.Nil(t, pq.Peek())
 			assert.Nil(t, pq.Pop())
 		})
-
 	}
 
 }
 
 func TestPriorityQuery_Date(t *testing.T) {
-
 	testCases := []struct {
 		name    string
 		compare func(value1, value2 time.Time) int
@@ -228,7 +225,6 @@ func TestPriorityQuery_Date(t *testing.T) {
 			)
 
 			assert.Equal(t, 0, pq.Size())
-
 			for index, insert := range testCase.inserts {
 				pq.Push(insert)
 				assert.Equal(t, index+1, pq.Size())

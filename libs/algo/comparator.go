@@ -1,14 +1,13 @@
 package algo
 
-import "golang.org/x/exp/constraints"
-
+type Comparison int
 const (
-	Equal       int = 0
-	GreaterThan     = 1
-	SmallerThan     = 2
+	Equal        Comparison = 0
+	GreaterThan  Comparison = 1
+	SmallerThan  Comparison = 2
 )
-
-func DefaultCompareDesc[Value constraints.Ordered](value1 Value, value2 Value) int {
+type Comparator [Value any] func(value1 Value, value2 Value) Comparison
+func CompareAsc[Value comparable](value1 Value, value2 Value) Comparison {
 	if value1 == value2 {
 		return Equal
 	}
@@ -20,7 +19,9 @@ func DefaultCompareDesc[Value constraints.Ordered](value1 Value, value2 Value) i
 	return SmallerThan
 }
 
-func DefaultCompareAsc[Value constraints.Ordered](value1 Value, value2 Value) int {
+var _ Comparator = CompareAsc
+
+func CompareDesc[Value comparable](value1 Value, value2 Value) Comparison {
 	if value1 == value2 {
 		return Equal
 	}
@@ -31,3 +32,5 @@ func DefaultCompareAsc[Value constraints.Ordered](value1 Value, value2 Value) in
 
 	return GreaterThan
 }
+
+var _ Comparator = CompareDesc

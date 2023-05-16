@@ -5,14 +5,14 @@ type PriorityQueueItem[Value any] struct {
 }
 
 type PriorityQueue[Value any] struct {
-	items   []PriorityQueueItem[Value]
-	compare func(value1, value2 Value) int
+	items   []Value
+	compare Comparator
 }
 
 func (pq *PriorityQueue[Value]) shiftUp(index int) {
 	for index > 0 {
 		parentIndex := (index - 1) / 2
-		if pq.hasHigherPriority(pq.items[parentIndex], pq.items[index]) {
+		if parentIndex  == 0 || pq.hasHigherPriority(pq.items[parentIndex], pq.items[index]) {
 			break
 		}
 
@@ -22,7 +22,7 @@ func (pq *PriorityQueue[Value]) shiftUp(index int) {
 }
 
 func (pq *PriorityQueue[Value]) hasHigherPriority(item1, item2 PriorityQueueItem[Value]) bool {
-	return pq.compare(item1.value, item2.value) == GreaterThan
+	return pq.compare(item1.value, item2.value) == SmallerThan
 }
 
 func (pq *PriorityQueue[Value]) shiftDown(index int) {
@@ -31,7 +31,6 @@ func (pq *PriorityQueue[Value]) shiftDown(index int) {
 		rightChildIndex := pq.rightChildIndex(index)
 
 		largerChildIndex := leftChildIndex
-
 		if rightChildIndex < pq.Size() && pq.hasHigherPriority(pq.items[rightChildIndex], pq.items[leftChildIndex]) {
 			largerChildIndex = rightChildIndex
 		}
@@ -44,11 +43,11 @@ func (pq *PriorityQueue[Value]) shiftDown(index int) {
 	}
 }
 
-func (pq *PriorityQueue[Value]) leftChildIndex(index int) int {
+func leftChildIndex(index int) int {
 	return index*2 + 1
 }
 
-func (pq *PriorityQueue[Value]) rightChildIndex(index int) int {
+func rightChildIndex(index int) int {
 	return index*2 + 2
 }
 
@@ -57,37 +56,35 @@ func (pq *PriorityQueue[Value]) Size() int {
 }
 
 func (pq *PriorityQueue[Value]) Push(value Value) {
-	pq.items = append(pq.items, PriorityQueueItem[Value]{
-		value: value,
-	})
+	pq.items = append(pq.items, value)
 	pq.shiftUp(pq.Size() - 1)
 }
 
-func (pq *PriorityQueue[Value]) Pop() *Value {
+func (pq *PriorityQueue[Value]) Pop() (Value, error) {
 	if pq.Size() == 0 {
 		return nil
 	}
 
-	value := pq.items[0].value
+	root := pq.items[0]
 	pq.items[0] = pq.items[pq.Size()-1]
 	pq.items = pq.items[:pq.Size()-1]
 	pq.shiftDown(0)
-	return &value
+	return root, nil
 }
 
-func (pq *PriorityQueue[Value]) Peek() *Value {
+func (pq *PriorityQueue[Value]) Peek() (Value, error) {
 	if pq.Size() == 0 {
 		return nil
 	}
 
-	return &pq.items[0].value
+	return pq.items[0].value, nil
 }
 
 func NewPriorityQueue[Value any](
-	compare func(value1, value2 Value) int,
+	comparator func(value1, value2 Value) int,
 ) *PriorityQueue[Value] {
 	return &PriorityQueue[Value]{
-		items:   make([]PriorityQueueItem[Value], 0),
+		items:   make([]Value, 0),
 		compare: compare,
 	}
 }
