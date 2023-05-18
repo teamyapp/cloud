@@ -5,26 +5,27 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 func TestPriorityQuery_Int(t *testing.T) {
 	testCases := []struct {
 		name    string
-		compare func(value1, value2 int) int
+		compare Comparator[int]
 		inserts []int
 		peaks   []int
 		tops    []int
 	}{
 		{
 			name:    "min priority queue",
-			compare: DefaultCompareAsc[int],
+			compare: CompareAsc[int],
 			inserts: []int{1, 3, 5, 2, 4, 0},
 			peaks:   []int{1, 1, 1, 1, 1, 0},
 			tops:    []int{0, 1, 2, 3, 4, 5},
 		},
 		{
 			name:    "max priority queue",
-			compare: DefaultCompareDesc[int],
+			compare: CompareDesc[int],
 			inserts: []int{1, 3, 5, 2, 4, 0},
 			peaks:   []int{1, 3, 5, 5, 5, 5},
 			tops:    []int{5, 4, 3, 2, 1, 0},
@@ -36,7 +37,7 @@ func TestPriorityQuery_Int(t *testing.T) {
 
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			pq := NewPriorityQueue[int](
+			pq := NewPriorityQueue(
 				testCase.compare,
 			)
 
@@ -45,18 +46,26 @@ func TestPriorityQuery_Int(t *testing.T) {
 			for index, insert := range testCase.inserts {
 				pq.Push(insert)
 				assert.Equal(t, index+1, pq.Size())
-				assert.Equal(t, testCase.peaks[index], *pq.Peek())
+				value, _ := pq.Peek()
+				assert.Equal(t, testCase.peaks[index], value)
 			}
 
 			for index, top := range testCase.tops {
-				assert.Equal(t, top, *pq.Peek())
-				assert.Equal(t, top, *pq.Pop())
+				value, _ := pq.Peek()
+				assert.Equal(t, top, value)
+				value, _ = pq.Pop()
+				assert.Equal(t, top, value)
 				assert.Equal(t, len(testCase.tops)-index-1, pq.Size())
 			}
 
 			assert.Zero(t, pq.Size())
-			assert.Nil(t, pq.Peek())
-			assert.Nil(t, pq.Pop())
+
+			value, err := pq.Peek()
+			assert.Equal(t, err.Code, errs.InvalidOperation)
+			assert.Equal(t, 0, value)
+			value, err = pq.Pop()
+			assert.Equal(t, 0, value)
+			assert.Equal(t, err.Code, errs.InvalidOperation)
 		})
 	}
 
@@ -65,14 +74,14 @@ func TestPriorityQuery_Int(t *testing.T) {
 func TestPriorityQuery_String(t *testing.T) {
 	testCases := []struct {
 		name    string
-		compare func(value1, value2 string) int
+		compare Comparator[string]
 		inserts []string
 		peaks   []string
 		tops    []string
 	}{
 		{
 			name:    "min priority queue",
-			compare: DefaultCompareAsc[string],
+			compare: CompareAsc[string],
 			inserts: []string{
 				"1",
 				"3",
@@ -86,7 +95,7 @@ func TestPriorityQuery_String(t *testing.T) {
 		},
 		{
 			name:    "max priority queue",
-			compare: DefaultCompareDesc[string],
+			compare: CompareDesc[string],
 			inserts: []string{
 				"1",
 				"3",
@@ -109,21 +118,30 @@ func TestPriorityQuery_String(t *testing.T) {
 			)
 
 			assert.Equal(t, 0, pq.Size())
+
 			for index, insert := range testCase.inserts {
 				pq.Push(insert)
 				assert.Equal(t, index+1, pq.Size())
-				assert.Equal(t, testCase.peaks[index], *pq.Peek())
+				value, _ := pq.Peek()
+				assert.Equal(t, testCase.peaks[index], value)
 			}
 
 			for index, top := range testCase.tops {
-				assert.Equal(t, top, *pq.Peek())
-				assert.Equal(t, top, *pq.Pop())
+				value, _ := pq.Peek()
+				assert.Equal(t, top, value)
+				value, _ = pq.Pop()
+				assert.Equal(t, top, value)
 				assert.Equal(t, len(testCase.tops)-index-1, pq.Size())
 			}
 
 			assert.Zero(t, pq.Size())
-			assert.Nil(t, pq.Peek())
-			assert.Nil(t, pq.Pop())
+
+			value, err := pq.Peek()
+			assert.Equal(t, err.Code, errs.InvalidOperation)
+			assert.Equal(t, "", value)
+			value, err = pq.Pop()
+			assert.Equal(t, "", value)
+			assert.Equal(t, err.Code, errs.InvalidOperation)
 		})
 	}
 
@@ -132,19 +150,19 @@ func TestPriorityQuery_String(t *testing.T) {
 func TestPriorityQuery_Date(t *testing.T) {
 	testCases := []struct {
 		name    string
-		compare func(value1, value2 time.Time) int
+		compare func(value1, value2 time.Time) Comparison
 		inserts []time.Time
 		peaks   []time.Time
 		tops    []time.Time
 	}{
 		{
 			name: "min priority queue",
-			compare: func(time1 time.Time, time2 time.Time) int {
-				if time1.Before(time2) {
+			compare: func(time1 time.Time, time2 time.Time) Comparison {
+				if time1.After(time2) {
 					return GreaterThan
 				}
 
-				if time1.After(time2) {
+				if time1.Before(time2) {
 					return SmallerThan
 				}
 
@@ -177,12 +195,12 @@ func TestPriorityQuery_Date(t *testing.T) {
 		},
 		{
 			name: "max priority queue",
-			compare: func(time1 time.Time, time2 time.Time) int {
-				if time1.Before(time2) {
+			compare: func(time1 time.Time, time2 time.Time) Comparison {
+				if time1.After(time2) {
 					return SmallerThan
 				}
 
-				if time1.After(time2) {
+				if time1.Before(time2) {
 					return GreaterThan
 				}
 
@@ -225,21 +243,30 @@ func TestPriorityQuery_Date(t *testing.T) {
 			)
 
 			assert.Equal(t, 0, pq.Size())
+
 			for index, insert := range testCase.inserts {
 				pq.Push(insert)
 				assert.Equal(t, index+1, pq.Size())
-				assert.Equal(t, testCase.peaks[index], *pq.Peek())
+				value, _ := pq.Peek()
+				assert.Equal(t, testCase.peaks[index], value)
 			}
 
 			for index, top := range testCase.tops {
-				assert.Equal(t, top, *pq.Peek())
-				assert.Equal(t, top, *pq.Pop())
+				value, _ := pq.Peek()
+				assert.Equal(t, top, value)
+				value, _ = pq.Pop()
+				assert.Equal(t, top, value)
 				assert.Equal(t, len(testCase.tops)-index-1, pq.Size())
 			}
 
 			assert.Zero(t, pq.Size())
-			assert.Nil(t, pq.Peek())
-			assert.Nil(t, pq.Pop())
+
+			value, err := pq.Peek()
+			assert.Equal(t, err.Code, errs.InvalidOperation)
+			assert.Equal(t, time.Time(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)), value)
+			value, err = pq.Pop()
+			assert.Equal(t, time.Time(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)), value)
+			assert.Equal(t, err.Code, errs.InvalidOperation)
 		})
 	}
 }

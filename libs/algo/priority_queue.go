@@ -1,18 +1,18 @@
 package algo
 
-type PriorityQueueItem[Value any] struct {
-	value Value
-}
+import (
+	"github.com/teamyapp/cloud/libs/errs"
+)
 
 type PriorityQueue[Value any] struct {
 	items   []Value
-	compare Comparator
+	compare Comparator[Value]
 }
 
 func (pq *PriorityQueue[Value]) shiftUp(index int) {
 	for index > 0 {
 		parentIndex := (index - 1) / 2
-		if parentIndex  == 0 || pq.hasHigherPriority(pq.items[parentIndex], pq.items[index]) {
+		if pq.hasHigherPriority(pq.items[parentIndex], pq.items[index]) {
 			break
 		}
 
@@ -21,14 +21,14 @@ func (pq *PriorityQueue[Value]) shiftUp(index int) {
 	}
 }
 
-func (pq *PriorityQueue[Value]) hasHigherPriority(item1, item2 PriorityQueueItem[Value]) bool {
-	return pq.compare(item1.value, item2.value) == SmallerThan
+func (pq *PriorityQueue[Value]) hasHigherPriority(item1, item2 Value) bool {
+	return pq.compare(item1, item2) == SmallerThan
 }
 
 func (pq *PriorityQueue[Value]) shiftDown(index int) {
-	for pq.leftChildIndex(index) < pq.Size() {
-		leftChildIndex := pq.leftChildIndex(index)
-		rightChildIndex := pq.rightChildIndex(index)
+	for leftChildIndex(index) < pq.Size() {
+		leftChildIndex := leftChildIndex(index)
+		rightChildIndex := rightChildIndex(index)
 
 		largerChildIndex := leftChildIndex
 		if rightChildIndex < pq.Size() && pq.hasHigherPriority(pq.items[rightChildIndex], pq.items[leftChildIndex]) {
@@ -61,9 +61,9 @@ func (pq *PriorityQueue[Value]) Push(value Value) {
 	pq.shiftUp(pq.Size() - 1)
 }
 
-func (pq *PriorityQueue[Value]) Pop() (Value, error) {
+func (pq *PriorityQueue[Value]) Pop() (Value, *errs.Error) {
 	if pq.Size() == 0 {
-		return nil
+		return *new(Value), errs.NewError(errs.InvalidOperation, "empty priority queue")
 	}
 
 	root := pq.items[0]
@@ -73,19 +73,19 @@ func (pq *PriorityQueue[Value]) Pop() (Value, error) {
 	return root, nil
 }
 
-func (pq *PriorityQueue[Value]) Peek() (Value, error) {
+func (pq *PriorityQueue[Value]) Peek() (Value, *errs.Error) {
 	if pq.Size() == 0 {
-		return nil
+		return *new(Value), errs.NewError(errs.InvalidOperation, "empty priority queue")
 	}
 
-	return pq.items[0].value, nil
+	return pq.items[0], nil
 }
 
 func NewPriorityQueue[Value any](
-	comparator func(value1, value2 Value) int,
+	comparator Comparator[Value],
 ) *PriorityQueue[Value] {
 	return &PriorityQueue[Value]{
 		items:   make([]Value, 0),
-		compare: compare,
+		compare: comparator,
 	}
 }
