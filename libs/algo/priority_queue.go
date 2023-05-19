@@ -13,7 +13,7 @@ func (pq *PriorityQueue[Value]) Size() int {
 	return len(pq.items)
 }
 
-func (pq *PriorityQueue[Value]) Push(value Value) {
+func (pq *PriorityQueue[Value]) Insert(value Value) {
 	pq.items = append(pq.items, value)
 	pq.shiftUp(pq.Size() - 1)
 }
