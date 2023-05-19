@@ -56,6 +56,12 @@ func (pq *PriorityQueue[Value]) Size() int {
 	return len(pq.items)
 }
 
+func (pq *PriorityQueue[Value]) heapify() {
+	for index := pq.Size()/2 - 1; index >= 0; index-- {
+		pq.shiftDown(index)
+	}
+}
+
 func (pq *PriorityQueue[Value]) Push(value Value) {
 	pq.items = append(pq.items, value)
 	pq.shiftUp(pq.Size() - 1)
@@ -83,9 +89,13 @@ func (pq *PriorityQueue[Value]) Peek() (Value, *errs.Error) {
 
 func NewPriorityQueue[Value any](
 	comparator Comparator[Value],
+	items []Value,
 ) *PriorityQueue[Value] {
-	return &PriorityQueue[Value]{
-		items:   make([]Value, 0),
+	pq := &PriorityQueue[Value]{
+		items:   items,
 		compare: comparator,
 	}
+
+	pq.heapify()
+	return pq
 }
