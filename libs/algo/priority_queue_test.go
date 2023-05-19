@@ -98,6 +98,7 @@ func TestPriorityQuery_Int(t *testing.T) {
 			for index, insert := range testCase.inserts {
 				pq.Insert(insert)
 				assert.Equal(t, index+1+initialSize, pq.Size())
+
 				value, err := pq.Peek()
 				assert.Nil(t, err)
 				assert.Equal(t, testCase.peeks[index], value)
