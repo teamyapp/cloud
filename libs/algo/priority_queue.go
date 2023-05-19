@@ -9,57 +9,8 @@ type PriorityQueue[Value any] struct {
 	compare Comparator[Value]
 }
 
-func (pq *PriorityQueue[Value]) shiftUp(index int) {
-	for index > 0 {
-		parentIndex := (index - 1) / 2
-		if pq.hasHigherPriority(pq.items[parentIndex], pq.items[index]) {
-			break
-		}
-
-		pq.items[index], pq.items[parentIndex] = pq.items[parentIndex], pq.items[index]
-		index = parentIndex
-	}
-}
-
-func (pq *PriorityQueue[Value]) hasHigherPriority(item1, item2 Value) bool {
-	return pq.compare(item1, item2) == SmallerThan
-}
-
-func (pq *PriorityQueue[Value]) shiftDown(index int) {
-	for leftChildIndex(index) < pq.Size() {
-		leftChildIndex := leftChildIndex(index)
-		rightChildIndex := rightChildIndex(index)
-
-		largerChildIndex := leftChildIndex
-		if rightChildIndex < pq.Size() && pq.hasHigherPriority(pq.items[rightChildIndex], pq.items[leftChildIndex]) {
-			largerChildIndex = rightChildIndex
-		}
-
-		if pq.hasHigherPriority(pq.items[index], pq.items[largerChildIndex]) {
-			break
-		}
-
-		pq.items[index], pq.items[largerChildIndex] = pq.items[largerChildIndex], pq.items[index]
-		index = largerChildIndex
-	}
-}
-
-func leftChildIndex(index int) int {
-	return index*2 + 1
-}
-
-func rightChildIndex(index int) int {
-	return index*2 + 2
-}
-
 func (pq *PriorityQueue[Value]) Size() int {
 	return len(pq.items)
-}
-
-func (pq *PriorityQueue[Value]) heapify() {
-	for index := pq.Size()/2 - 1; index >= 0; index-- {
-		pq.shiftDown(index)
-	}
 }
 
 func (pq *PriorityQueue[Value]) Push(value Value) {
@@ -85,6 +36,55 @@ func (pq *PriorityQueue[Value]) Peek() (Value, *errs.Error) {
 	}
 
 	return pq.items[0], nil
+}
+
+func (pq *PriorityQueue[Value]) heapify() {
+	for index := pq.Size()/2 - 1; index >= 0; index-- {
+		pq.shiftDown(index)
+	}
+}
+
+func leftChildIndex(index int) int {
+	return index*2 + 1
+}
+
+func rightChildIndex(index int) int {
+	return index*2 + 2
+}
+
+func (pq *PriorityQueue[Value]) shiftUp(index int) {
+	for index > 0 {
+		parentIndex := (index - 1) / 2
+		if pq.hasHigherPriority(pq.items[parentIndex], pq.items[index]) {
+			break
+		}
+
+		pq.items[index], pq.items[parentIndex] = pq.items[parentIndex], pq.items[index]
+		index = parentIndex
+	}
+}
+
+func (pq *PriorityQueue[Value]) shiftDown(index int) {
+	for leftChildIndex(index) < pq.Size() {
+		leftChildIndex := leftChildIndex(index)
+		rightChildIndex := rightChildIndex(index)
+
+		largerChildIndex := leftChildIndex
+		if rightChildIndex < pq.Size() && pq.hasHigherPriority(pq.items[rightChildIndex], pq.items[leftChildIndex]) {
+			largerChildIndex = rightChildIndex
+		}
+
+		if pq.hasHigherPriority(pq.items[index], pq.items[largerChildIndex]) {
+			break
+		}
+
+		pq.items[index], pq.items[largerChildIndex] = pq.items[largerChildIndex], pq.items[index]
+		index = largerChildIndex
+	}
+}
+
+func (pq *PriorityQueue[Value]) hasHigherPriority(item1, item2 Value) bool {
+	return pq.compare(item1, item2) == SmallerThan
 }
 
 func NewPriorityQueue[Value any](

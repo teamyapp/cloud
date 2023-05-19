@@ -99,26 +99,27 @@ func TestPriorityQuery_Int(t *testing.T) {
 			for index, insert := range testCase.inserts {
 				pq.Push(insert)
 				assert.Equal(t, index+1+initialSize, pq.Size())
-				value, _ := pq.Peek()
+				value, err := pq.Peek()
+				assert.Nil(t, err)
 				assert.Equal(t, testCase.peaks[index], value)
 			}
 
 			for _, top := range testCase.tops {
 				cur_size := pq.Size()
-				value, _ := pq.Peek()
+				value, err := pq.Peek()
+				assert.Nil(t, err)
 				assert.Equal(t, top, value)
-				value, _ = pq.Pop()
+				value, err = pq.Pop()
+				assert.Nil(t, err)
 				assert.Equal(t, top, value)
 				assert.Equal(t, cur_size-1, pq.Size())
 			}
 
 			assert.Zero(t, pq.Size())
 
-			value, err := pq.Peek()
+			_, err := pq.Peek()
 			assert.Equal(t, err.Code, errs.InvalidOperation)
-			assert.Equal(t, 0, value)
-			value, err = pq.Pop()
-			assert.Equal(t, 0, value)
+			_, err = pq.Pop()
 			assert.Equal(t, err.Code, errs.InvalidOperation)
 		})
 	}
@@ -185,20 +186,20 @@ func TestPriorityQuery_String(t *testing.T) {
 			}
 
 			for index, top := range testCase.tops {
-				value, _ := pq.Peek()
+				value, err := pq.Peek()
+				assert.Nil(t, err)
 				assert.Equal(t, top, value)
-				value, _ = pq.Pop()
+				value, err = pq.Pop()
+				assert.Nil(t, err)
 				assert.Equal(t, top, value)
 				assert.Equal(t, len(testCase.tops)-index-1, pq.Size())
 			}
 
 			assert.Zero(t, pq.Size())
 
-			value, err := pq.Peek()
+			_, err := pq.Peek()
 			assert.Equal(t, err.Code, errs.InvalidOperation)
-			assert.Equal(t, "", value)
-			value, err = pq.Pop()
-			assert.Equal(t, "", value)
+			_, err = pq.Pop()
 			assert.Equal(t, err.Code, errs.InvalidOperation)
 		})
 	}
@@ -309,25 +310,26 @@ func TestPriorityQuery_Date(t *testing.T) {
 			for index, insert := range testCase.inserts {
 				pq.Push(insert)
 				assert.Equal(t, index+1, pq.Size())
-				value, _ := pq.Peek()
+				value, err := pq.Peek()
+				assert.Nil(t, err)
 				assert.Equal(t, testCase.peaks[index], value)
 			}
 
 			for index, top := range testCase.tops {
-				value, _ := pq.Peek()
+				value, err := pq.Peek()
+				assert.Nil(t, err)
 				assert.Equal(t, top, value)
-				value, _ = pq.Pop()
+				value, err = pq.Pop()
+				assert.Nil(t, err)
 				assert.Equal(t, top, value)
 				assert.Equal(t, len(testCase.tops)-index-1, pq.Size())
 			}
 
 			assert.Zero(t, pq.Size())
 
-			value, err := pq.Peek()
+			_, err := pq.Peek()
 			assert.Equal(t, err.Code, errs.InvalidOperation)
-			assert.Equal(t, time.Time(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)), value)
-			value, err = pq.Pop()
-			assert.Equal(t, time.Time(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)), value)
+			_, err = pq.Pop()
 			assert.Equal(t, err.Code, errs.InvalidOperation)
 		})
 	}
