@@ -85,7 +85,6 @@ func TestPriorityQuery_Int(t *testing.T) {
 
 	for _, testCase := range testCases {
 		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			pq := NewPriorityQueue(
@@ -130,7 +129,7 @@ func TestPriorityQuery_String(t *testing.T) {
 	testCases := []struct {
 		name     string
 		compare  Comparator[string]
-		initials []string
+		initialValues []string
 		inserts  []string
 		peaks    []string
 		pops     []string
@@ -147,7 +146,7 @@ func TestPriorityQuery_String(t *testing.T) {
 				"4",
 				"0",
 			},
-			peaks: []string{"1", "1", "1", "1", "1", "0"},
+			peeks: []string{"1", "1", "1", "1", "1", "0"},
 			pops:  []string{"0", "1", "2", "3", "4", "5"},
 		},
 		{
@@ -181,6 +180,7 @@ func TestPriorityQuery_String(t *testing.T) {
 			for index, insert := range testCase.inserts {
 				pq.Insert(insert)
 				assert.Equal(t, index+1, pq.Size())
+
 				value, _ := pq.Peek()
 				assert.Equal(t, testCase.peaks[index], value)
 			}
@@ -189,6 +189,7 @@ func TestPriorityQuery_String(t *testing.T) {
 				value, err := pq.Peek()
 				assert.Nil(t, err)
 				assert.Equal(t, top, value)
+				
 				value, err = pq.Pop()
 				assert.Nil(t, err)
 				assert.Equal(t, top, value)
@@ -199,6 +200,7 @@ func TestPriorityQuery_String(t *testing.T) {
 
 			_, err := pq.Peek()
 			assert.Equal(t, err.Code, errs.InvalidOperation)
+
 			_, err = pq.Pop()
 			assert.Equal(t, err.Code, errs.InvalidOperation)
 		})
@@ -319,6 +321,7 @@ func TestPriorityQuery_Date(t *testing.T) {
 				value, err := pq.Peek()
 				assert.Nil(t, err)
 				assert.Equal(t, top, value)
+				
 				value, err = pq.Pop()
 				assert.Nil(t, err)
 				assert.Equal(t, top, value)
@@ -329,6 +332,7 @@ func TestPriorityQuery_Date(t *testing.T) {
 
 			_, err := pq.Peek()
 			assert.Equal(t, err.Code, errs.InvalidOperation)
+
 			_, err = pq.Pop()
 			assert.Equal(t, err.Code, errs.InvalidOperation)
 		})
