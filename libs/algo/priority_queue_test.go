@@ -314,6 +314,7 @@ func TestPriorityQuery_Date(t *testing.T) {
 			for index, insert := range testCase.inserts {
 				pq.Insert(insert)
 				assert.Equal(t, index+1, pq.Size())
+
 				value, err := pq.Peek()
 				assert.Nil(t, err)
 				assert.Equal(t, testCase.peeks[index], value)
