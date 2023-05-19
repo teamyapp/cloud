@@ -120,6 +120,7 @@ func TestPriorityQuery_Int(t *testing.T) {
 
 			_, err := pq.Peek()
 			assert.Equal(t, err.Code, errs.InvalidOperation)
+
 			_, err = pq.Pop()
 			assert.Equal(t, err.Code, errs.InvalidOperation)
 		})
