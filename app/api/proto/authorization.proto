@@ -40,6 +40,7 @@ service Authorization {
   rpc ListPermissions(ListPermissionsQuery) returns (ListPermissionsResponse);
   rpc AddPermission(AddPermissionRequest) returns (google.protobuf.Empty);
   rpc RemovePermission(RemovePermissionRequest) returns (google.protobuf.Empty);
+  rpc ApplyAuthorizationConfig(ApplyAuthorizationConfigRequest) returns (google.protobuf.Empty);
 }
 
 // HasPermission
@@ -351,4 +352,7 @@ message RemovePermissionRequest {
   uint64 groupId = 4;
 }
 
+message ApplyAuthorizationConfigRequest {
+  string configContent = 1;
+}
 

@@ -47,7 +47,7 @@ var templateOperations = template.FuncMap{
 	"pascalToCamel": pascalToCamel,
 }
 
-func GenerateCode(config *Config, logger telemetry.Logger, outputDir string) *errs.Error {
+func GenerateCode(config Config, logger telemetry.Logger, outputDir string) *errs.Error {
 	for _, codeTemplate := range codeTemplates {
 		err := generateCodeForTemplate(config, logger, codeTemplate, outputDir)
 		if err != nil {
@@ -60,7 +60,7 @@ func GenerateCode(config *Config, logger telemetry.Logger, outputDir string) *er
 	return nil
 }
 
-func generateCodeForTemplate(config *Config, logger telemetry.Logger, codeTemplate CodeTemplate, outputDir string) *errs.Error {
+func generateCodeForTemplate(config Config, logger telemetry.Logger, codeTemplate CodeTemplate, outputDir string) *errs.Error {
 	tmplName := codeTemplate.Name
 	tmplContent := codeTemplate.Content
 	logger.Info(fmt.Sprintf("Generating code for template: %v", tmplName))

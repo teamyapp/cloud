@@ -534,6 +534,16 @@ func (a Authorization) RemovePermission(ct context.Context, request *proto.Remov
 	return &emptypb.Empty{}, nil
 }
 
+func (a Authorization) ApplyAuthorizationConfig(ct context.Context, request *proto.ApplyAuthorizationConfigRequest) (*emptypb.Empty, error) {
+	err := a.authorizationService.ApplyAuthorizationConfig(ct, request.ConfigContent)
+	if err != nil {
+		a.logger.ErrorWithContext(ct, err)
+		return nil, errs.ToGRPCErr(err)
+	}
+
+	return &emptypb.Empty{}, nil
+}
+
 func NewAuthorization(
 	logger telemetry.Logger,
 	authorizationService service.Authorization,
