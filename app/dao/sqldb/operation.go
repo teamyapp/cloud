@@ -48,15 +48,20 @@ func (o Operation) FindOperation(ct context.Context, resourceTypeName string, op
 	return operation, nil
 }
 
-func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *errs.Error) {
+func (o Operation) FindOperationsByResourceType(
+	ct context.Context,
+	resourceTypeName string,
+) ([]entity.Operation, *errs.Error) {
 	rows, err := o.db.Query(`
 		SELECT
 			resource_type,
 			operation,
 			created_at,
 			creator_user_id
-		FROM operation;
-	`)
+		FROM operation
+		WHERE resource_type = $1;
+	`,
+		resourceTypeName)
 	if err != nil {
 		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
@@ -82,20 +87,15 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *e
 	return operations, nil
 }
 
-func (o Operation) FindOperationsByResourceType(
-	ct context.Context,
-	resourceTypeName string,
-) ([]entity.Operation, *errs.Error) {
+func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *errs.Error) {
 	rows, err := o.db.Query(`
 		SELECT
 			resource_type,
 			operation,
 			created_at,
 			creator_user_id
-		FROM operation
-		WHERE resource_type = $1;
-	`,
-		resourceTypeName)
+		FROM operation;
+	`)
 	if err != nil {
 		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
