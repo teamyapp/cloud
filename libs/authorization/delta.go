@@ -10,19 +10,14 @@ type ConfigDelta struct {
 }
 
 type ResourceTypeOperationsDelta struct {
-	ResourceTypeDelta delta.Delta[string]
-	OperationsDelta   delta.Delta[map[string]delta.KeyValueDelta[bool]]
+	ResourceType    string
+	OperationsDelta delta.Delta[map[string]delta.KeyValueDelta[bool]]
 }
 
 type OperationRelationsDelta struct {
-	ResourceTypeDelta     delta.Delta[string]
-	OperationDelta        delta.Delta[string]
-	ParentOperationsDelta delta.Delta[map[string]delta.KeyValueDelta[ParentOperationDelta]]
-}
-
-type ParentOperationDelta struct {
-	ParentResourceTypeDelta delta.Delta[string]
-	ParentOperationDelta    delta.Delta[string]
+	ChildResourceType     string
+	ChildOperation        string
+	ParentOperationsDelta delta.Delta[map[string]delta.KeyValueDelta[Operation]]
 }
 
 func DetectConfigDelta(
@@ -45,8 +40,8 @@ func DetectConfigDelta(
 	}
 
 	status := delta.UnchangedStatus
-	if configDelta.OperationRelationsDelta.Status != delta.UnchangedStatus ||
-		configDelta.ResourceTypeOperationsDelta.Status != delta.UnchangedStatus {
+	if resourceTypeOperationsDelta.Status != delta.UnchangedStatus ||
+		operationRelationsDelta.Status != delta.UnchangedStatus {
 		status = delta.UpdatedStatus
 	}
 
@@ -80,10 +75,7 @@ func detectResourceTypeOperationsDelta(
 	return delta.Delta[ResourceTypeOperationsDelta]{
 		Status: status,
 		Value: ResourceTypeOperationsDelta{
-			ResourceTypeDelta: delta.Delta[string]{
-				Status: resourceTypeStatus,
-				Value:  newResourceTypeOperations.ResourceType,
-			},
+			ResourceType:    newResourceTypeOperations.ResourceType,
 			OperationsDelta: operationsDeltaMap,
 		},
 	}
@@ -94,10 +86,7 @@ func toResourceTypeOperationsDelta(
 	resourceTypeOperations ResourceTypeOperations,
 ) ResourceTypeOperationsDelta {
 	return ResourceTypeOperationsDelta{
-		ResourceTypeDelta: delta.Delta[string]{
-			Status: status,
-			Value:  resourceTypeOperations.ResourceType,
-		},
+		ResourceType: resourceTypeOperations.ResourceType,
 		OperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[bool]]{
 			Status: status,
 			Value:  delta.ToMapDelta(status, resourceTypeOperations.Operations, delta.ToValueDelta[bool]),
@@ -120,7 +109,7 @@ func detectOperationRelationsDelta(oldRelations OperationRelations, newRelations
 		oldRelations.ParentOperations,
 		newRelations.ParentOperations,
 		detectParentOperationDelta,
-		toParentOperationDelta)
+		delta.ToValueDelta[Operation])
 
 	status := delta.UnchangedStatus
 	if resourceTypeStatus != delta.UnchangedStatus ||
@@ -132,14 +121,8 @@ func detectOperationRelationsDelta(oldRelations OperationRelations, newRelations
 	return delta.Delta[OperationRelationsDelta]{
 		Status: status,
 		Value: OperationRelationsDelta{
-			ResourceTypeDelta: delta.Delta[string]{
-				Status: resourceTypeStatus,
-				Value:  newRelations.ResourceType,
-			},
-			OperationDelta: delta.Delta[string]{
-				Status: operationStatus,
-				Value:  newRelations.Operation,
-			},
+			ChildResourceType:     newRelations.ResourceType,
+			ChildOperation:        newRelations.Operation,
 			ParentOperationsDelta: parentOperationsDeltaMap,
 		},
 	}
@@ -147,29 +130,23 @@ func detectOperationRelationsDelta(oldRelations OperationRelations, newRelations
 
 func toOperationRelationsDelta(status delta.Status, value OperationRelations) OperationRelationsDelta {
 	return OperationRelationsDelta{
-		ResourceTypeDelta: delta.Delta[string]{
+		ChildResourceType: value.ResourceType,
+		ChildOperation:    value.Operation,
+		ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[Operation]]{
 			Status: status,
-			Value:  value.ResourceType,
-		},
-		OperationDelta: delta.Delta[string]{
-			Status: status,
-			Value:  value.Operation,
-		},
-		ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[ParentOperationDelta]]{
-			Status: status,
-			Value:  delta.ToMapDelta(status, value.ParentOperations, toParentOperationDelta),
+			Value:  delta.ToMapDelta(status, value.ParentOperations, delta.ToValueDelta[Operation]),
 		},
 	}
 }
 
-func detectParentOperationDelta(oldParentOperation ParentOperation, newParentOperation ParentOperation) delta.Delta[ParentOperationDelta] {
+func detectParentOperationDelta(oldParentOperation Operation, newParentOperation Operation) delta.Delta[Operation] {
 	resourceTypeStatus := delta.UnchangedStatus
-	if oldParentOperation.ParentResourceType != newParentOperation.ParentResourceType {
+	if oldParentOperation.ResourceType != newParentOperation.ResourceType {
 		resourceTypeStatus = delta.UpdatedStatus
 	}
 
 	operationStatus := delta.UnchangedStatus
-	if oldParentOperation.ParentOperation != newParentOperation.ParentOperation {
+	if oldParentOperation.Operation != newParentOperation.Operation {
 		operationStatus = delta.UpdatedStatus
 	}
 
@@ -179,30 +156,11 @@ func detectParentOperationDelta(oldParentOperation ParentOperation, newParentOpe
 		status = delta.UpdatedStatus
 	}
 
-	return delta.Delta[ParentOperationDelta]{
+	return delta.Delta[Operation]{
 		Status: status,
-		Value: ParentOperationDelta{
-			ParentResourceTypeDelta: delta.Delta[string]{
-				Status: resourceTypeStatus,
-				Value:  newParentOperation.ParentResourceType,
-			},
-			ParentOperationDelta: delta.Delta[string]{
-				Status: operationStatus,
-				Value:  newParentOperation.ParentOperation,
-			},
-		},
-	}
-}
-
-func toParentOperationDelta(status delta.Status, value ParentOperation) ParentOperationDelta {
-	return ParentOperationDelta{
-		ParentResourceTypeDelta: delta.Delta[string]{
-			Status: status,
-			Value:  value.ParentResourceType,
-		},
-		ParentOperationDelta: delta.Delta[string]{
-			Status: status,
-			Value:  value.ParentOperation,
+		Value: Operation{
+			ResourceType: newParentOperation.ResourceType,
+			Operation:    newParentOperation.Operation,
 		},
 	}
 }

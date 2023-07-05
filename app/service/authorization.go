@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/teamyapp/cloud/app/gen"
@@ -460,13 +461,266 @@ func (a Authorization) ApplyAuthorizationConfig(ct context.Context, configConten
 }
 
 func (a Authorization) configFromCurrentData(ct context.Context) (authorization.Config, *errs.Error) {
-	// TODO: generate authorization config based on data in database
-	panic("implement me")
+	resourceTypeOperationsMap := make(map[string]authorization.ResourceTypeOperations)
+	resourceTypes, err := a.resourceTypeDao.FindAllResourceTypes(ct)
+	if err != nil {
+		return authorization.Config{}, err
+	}
+
+	for _, resourceType := range resourceTypes {
+		resourceTypeOperations, err := a.getResourceTypeOperations(ct, resourceType.ResourceTypeName)
+		if err != nil {
+			return authorization.Config{}, nil
+		}
+
+		resourceTypeOperationsMap[resourceType.ResourceTypeName] = resourceTypeOperations
+	}
+
+	operationRelations, err := a.operationRelationDao.FindAllOperationRelations(ct)
+	if err != nil {
+		return authorization.Config{}, nil
+	}
+
+	operationRelationsMap := getOperationRelations(operationRelations)
+	return authorization.NewConfig(resourceTypeOperationsMap, operationRelationsMap), nil
 }
 
 func (a Authorization) applyConfigDelta(ct context.Context, configDelta authorization.ConfigDelta) *errs.Error {
-	// TODO: apply config delta by triggering the corresponding authorization service APIs
-	panic("implement me")
+	err := a.applyResourceTypeOperationsMapDelta(ct, configDelta.ResourceTypeOperationsDelta)
+	if err != nil {
+		return err
+	}
+
+	return a.applyOperationRelationsMapDelta(ct, configDelta.OperationRelationsDelta)
+}
+
+func (a Authorization) getResourceTypeOperations(ct context.Context, resourceTypeName string) (
+	authorization.ResourceTypeOperations,
+	*errs.Error,
+) {
+	operations, err := a.operationDao.FindOperationsByResourceType(ct, resourceTypeName)
+	if err != nil {
+		return authorization.ResourceTypeOperations{}, err
+	}
+
+	opsMap := make(map[string]bool)
+	for _, operation := range operations {
+		opsMap[operation.OperationName] = true
+	}
+
+	return authorization.ResourceTypeOperations{
+		ResourceType: resourceTypeName,
+		Operations:   opsMap,
+	}, nil
+}
+
+func (a Authorization) applyResourceTypeOperationsMapDelta(
+	ct context.Context,
+	dt delta.Delta[map[string]delta.KeyValueDelta[authorization.ResourceTypeOperationsDelta]],
+) *errs.Error {
+	if dt.Status == delta.UnchangedStatus {
+		return nil
+	}
+
+	for resourceTypeName, keyValueDelta := range dt.Value {
+		switch keyValueDelta.KeyStatus {
+		case delta.UnchangedStatus:
+			resourceTypeOperations := keyValueDelta.Value
+			err := a.applyResourceTypeOperationsDelta(ct, resourceTypeOperations)
+			if err != nil {
+				return err
+			}
+		case delta.AddedStatus:
+			creatorUserID, ok := ctx.UserIDFromContext(ct)
+			if !ok {
+				return errs.NewError(errs.Unauthenticated, "user id not found")
+			}
+
+			resourceTypeOperations := keyValueDelta.Value
+			resourceType := entity.ResourceType{
+				ResourceTypeName: resourceTypeName,
+				CreatedAt:        time.Now().UTC(),
+				CreatorUserID:    creatorUserID,
+			}
+
+			err := a.resourceTypeDao.CreateResourceType(ct, resourceType)
+			if err != nil {
+				return err
+			}
+
+			err = a.applyResourceTypeOperationsDelta(ct, resourceTypeOperations)
+			if err != nil {
+				return err
+			}
+		case delta.RemovedStatus:
+			resourceTypeOperations := keyValueDelta.Value
+			err := a.applyResourceTypeOperationsDelta(ct, resourceTypeOperations)
+			if err != nil {
+				return err
+			}
+
+			err = a.resourceTypeDao.DeleteResourceType(
+				ct,
+				resourceTypeOperations.ResourceType)
+			if err != nil {
+				return err
+			}
+		case delta.UpdatedStatus:
+			return errs.NewError(
+				errs.InvalidArgument,
+				fmt.Sprintf("resource type key cannot be updated: %v", resourceTypeName))
+		}
+	}
+
+	return nil
+}
+
+func (a *Authorization) applyResourceTypeOperationsDelta(
+	ct context.Context,
+	dt authorization.ResourceTypeOperationsDelta,
+) *errs.Error {
+	for operation, operationDelta := range dt.OperationsDelta.Value {
+		switch operationDelta.KeyStatus {
+		case delta.AddedStatus:
+			creatorUserID, ok := ctx.UserIDFromContext(ct)
+			if !ok {
+				return errs.NewError(errs.Unauthenticated, "user ID not found")
+			}
+
+			return a.operationDao.CreateOperation(ct, entity.Operation{
+				ResourceTypeName: dt.ResourceType,
+				OperationName:    operation,
+				CreatedAt:        time.Now().UTC(),
+				CreatorUserID:    creatorUserID,
+			})
+		case delta.RemovedStatus:
+			return a.operationDao.DeleteOperation(ct, dt.ResourceType, operation)
+		case delta.UpdatedStatus:
+			return errs.NewError(
+				errs.InvalidArgument,
+				fmt.Sprintf("operation key cannot be updated: %v", operation))
+		}
+	}
+
+	return nil
+}
+
+func (a Authorization) applyOperationRelationsMapDelta(
+	ct context.Context,
+	dt delta.Delta[map[string]delta.KeyValueDelta[authorization.OperationRelationsDelta]],
+) *errs.Error {
+	if dt.Status == delta.UnchangedStatus {
+		return nil
+	}
+
+	for key, keyValueDelta := range dt.Value {
+		switch keyValueDelta.KeyStatus {
+		case delta.UnchangedStatus, delta.AddedStatus, delta.RemovedStatus:
+			operationRelations := keyValueDelta.Value
+			err := a.applyOperationRelationsDelta(ct, operationRelations)
+			if err != nil {
+				return err
+			}
+		case delta.UpdatedStatus:
+			return errs.NewError(
+				errs.InvalidArgument,
+				fmt.Sprintf("operation relations key cannot be updated: %v", key))
+		}
+	}
+
+	return nil
+}
+
+func (a Authorization) applyOperationRelationsDelta(
+	ct context.Context,
+	dt authorization.OperationRelationsDelta,
+) *errs.Error {
+	switch dt.ParentOperationsDelta.Status {
+	case delta.AddedStatus, delta.RemovedStatus:
+		for _, parentOperationDelta := range dt.ParentOperationsDelta.Value {
+			err := a.applyOperationRelationDelta(
+				ct,
+				dt.ChildResourceType,
+				dt.ChildOperation,
+				parentOperationDelta.ValueStatus,
+				parentOperationDelta.Value)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (a Authorization) applyOperationRelationDelta(
+	ct context.Context,
+	childResourceType string,
+	childOperation string,
+	parentOperationStatus delta.Status,
+	parentOperation authorization.Operation,
+) *errs.Error {
+	switch parentOperationStatus {
+	case delta.AddedStatus:
+		creatorUserID, ok := ctx.UserIDFromContext(ct)
+		if !ok {
+			return errs.NewError(errs.Unauthenticated, "user ID not found")
+		}
+
+		return a.operationRelationDao.CreateOperationRelation(ct, entity.OperationRelation{
+			ChildResourceType:  childResourceType,
+			ChildOperation:     childOperation,
+			ParentResourceType: parentOperation.ResourceType,
+			ParentOperation:    parentOperation.Operation,
+			CreatedAt:          time.Now().UTC(),
+			CreatorUserID:      creatorUserID,
+		})
+	case delta.RemovedStatus:
+		return a.operationRelationDao.DeleteOperationRelation(
+			ct, childResourceType,
+			childOperation,
+			parentOperation.ResourceType,
+			parentOperation.Operation,
+		)
+	case delta.UpdatedStatus:
+		return errs.NewError(
+			errs.InvalidArgument,
+			fmt.Sprintf("parent operation cannot be updated: %v", parentOperation))
+	}
+
+	return nil
+}
+
+func getOperationRelations(
+	operationRelations []entity.OperationRelation,
+) map[string]authorization.OperationRelations {
+	operationRelationsMap := make(map[string]authorization.OperationRelations)
+	for _, operationRelation := range operationRelations {
+		childOpKey := authorization.GetOperationKey(
+			operationRelation.ChildResourceType,
+			operationRelation.ChildOperation,
+		)
+		operationRelationsItem, ok := operationRelationsMap[childOpKey]
+		if !ok {
+			operationRelationsItem = authorization.OperationRelations{
+				ResourceType:     operationRelation.ChildResourceType,
+				Operation:        operationRelation.ChildOperation,
+				ParentOperations: make(map[string]authorization.Operation),
+			}
+		}
+
+		parentOpKey := authorization.GetOperationKey(
+			operationRelation.ParentResourceType,
+			operationRelation.ParentOperation,
+		)
+		operationRelationsItem.ParentOperations[parentOpKey] = authorization.Operation{
+			ResourceType: operationRelation.ParentResourceType,
+			Operation:    operationRelation.ParentOperation,
+		}
+		operationRelationsMap[childOpKey] = operationRelationsItem
+	}
+
+	return operationRelationsMap
 }
 
 func tryAddPermissionQueryToQueue(permissionQuery entity.PermissionQuery, visited map[entity.PermissionQuery]bool, queries []entity.PermissionQuery) []entity.PermissionQuery {

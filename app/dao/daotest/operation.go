@@ -52,6 +52,25 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *e
 	return operations, nil
 }
 
+func (o Operation) FindOperationsByResourceType(ct context.Context, resourceTypeName string) ([]entity.Operation, *errs.Error) {
+	table, err := o.db.GetTable(OperationTableName)
+	if err != nil {
+		return nil, err
+	}
+
+	operations := make([]entity.Operation, 0)
+	for _, rawRow := range table.Rows {
+		operation := rawRow.(entity.Operation)
+		if operation.ResourceTypeName != resourceTypeName {
+			continue
+		}
+
+		operations = append(operations, operation)
+	}
+
+	return operations, nil
+}
+
 func (o Operation) CreateOperation(ct context.Context, operation entity.Operation) *errs.Error {
 	_, err := o.FindOperation(ct, operation.ResourceTypeName, operation.OperationName)
 	if err == nil {

@@ -1,6 +1,7 @@
 package authorization
 
 import (
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,10 +54,7 @@ resourceTypeOperations:
 								KeyStatus:   delta.AddedStatus,
 								ValueStatus: delta.AddedStatus,
 								Value: ResourceTypeOperationsDelta{
-									ResourceTypeDelta: delta.Delta[string]{
-										Status: delta.AddedStatus,
-										Value:  "Task",
-									},
+									ResourceType: "Task",
 									OperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[bool]]{
 										Status: delta.AddedStatus,
 										Value: map[string]delta.KeyValueDelta[bool]{
@@ -109,10 +107,7 @@ resourceTypeOperations:
 								KeyStatus:   delta.RemovedStatus,
 								ValueStatus: delta.RemovedStatus,
 								Value: ResourceTypeOperationsDelta{
-									ResourceTypeDelta: delta.Delta[string]{
-										Status: delta.RemovedStatus,
-										Value:  "Task",
-									},
+									ResourceType: "Task",
 									OperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[bool]]{
 										Status: delta.RemovedStatus,
 										Value: map[string]delta.KeyValueDelta[bool]{
@@ -172,10 +167,7 @@ resourceTypeOperations:
 								KeyStatus:   delta.UnchangedStatus,
 								ValueStatus: delta.UpdatedStatus,
 								Value: ResourceTypeOperationsDelta{
-									ResourceTypeDelta: delta.Delta[string]{
-										Status: delta.UnchangedStatus,
-										Value:  "Task",
-									},
+									ResourceType: "Task",
 									OperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[bool]]{
 										Status: delta.UpdatedStatus,
 										Value: map[string]delta.KeyValueDelta[bool]{
@@ -235,47 +227,29 @@ operationRelations:
 					OperationRelationsDelta: delta.Delta[map[string]delta.KeyValueDelta[OperationRelationsDelta]]{
 						Status: delta.UpdatedStatus,
 						Value: map[string]delta.KeyValueDelta[OperationRelationsDelta]{
-							"Task/Read": {
+							path.Join("Task", "Read"): {
 								KeyStatus:   delta.AddedStatus,
 								ValueStatus: delta.AddedStatus,
 								Value: OperationRelationsDelta{
-									ResourceTypeDelta: delta.Delta[string]{
+									ChildResourceType: "Task",
+									ChildOperation:    "Read",
+									ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[Operation]]{
 										Status: delta.AddedStatus,
-										Value:  "Task",
-									},
-									OperationDelta: delta.Delta[string]{
-										Status: delta.AddedStatus,
-										Value:  "Read",
-									},
-									ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[ParentOperationDelta]]{
-										Status: delta.AddedStatus,
-										Value: map[string]delta.KeyValueDelta[ParentOperationDelta]{
-											"Task/Update": {
+										Value: map[string]delta.KeyValueDelta[Operation]{
+											path.Join("Task", "Update"): {
 												KeyStatus:   delta.AddedStatus,
 												ValueStatus: delta.AddedStatus,
-												Value: ParentOperationDelta{
-													ParentResourceTypeDelta: delta.Delta[string]{
-														Status: delta.AddedStatus,
-														Value:  "Task",
-													},
-													ParentOperationDelta: delta.Delta[string]{
-														Status: delta.AddedStatus,
-														Value:  "Update",
-													},
+												Value: Operation{
+													ResourceType: "Task",
+													Operation:    "Update",
 												},
 											},
-											"Task/Delete": {
+											path.Join("Task", "Delete"): {
 												KeyStatus:   delta.AddedStatus,
 												ValueStatus: delta.AddedStatus,
-												Value: ParentOperationDelta{
-													ParentResourceTypeDelta: delta.Delta[string]{
-														Status: delta.AddedStatus,
-														Value:  "Task",
-													},
-													ParentOperationDelta: delta.Delta[string]{
-														Status: delta.AddedStatus,
-														Value:  "Delete",
-													},
+												Value: Operation{
+													ResourceType: "Task",
+													Operation:    "Delete",
 												},
 											},
 										},
@@ -314,43 +288,25 @@ operationRelations:
 								KeyStatus:   delta.RemovedStatus,
 								ValueStatus: delta.RemovedStatus,
 								Value: OperationRelationsDelta{
-									ResourceTypeDelta: delta.Delta[string]{
+									ChildResourceType: "Task",
+									ChildOperation:    "Read",
+									ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[Operation]]{
 										Status: delta.RemovedStatus,
-										Value:  "Task",
-									},
-									OperationDelta: delta.Delta[string]{
-										Status: delta.RemovedStatus,
-										Value:  "Read",
-									},
-									ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[ParentOperationDelta]]{
-										Status: delta.RemovedStatus,
-										Value: map[string]delta.KeyValueDelta[ParentOperationDelta]{
-											"Task/Update": {
+										Value: map[string]delta.KeyValueDelta[Operation]{
+											path.Join("Task", "Update"): {
 												KeyStatus:   delta.RemovedStatus,
 												ValueStatus: delta.RemovedStatus,
-												Value: ParentOperationDelta{
-													ParentResourceTypeDelta: delta.Delta[string]{
-														Status: delta.RemovedStatus,
-														Value:  "Task",
-													},
-													ParentOperationDelta: delta.Delta[string]{
-														Status: delta.RemovedStatus,
-														Value:  "Update",
-													},
+												Value: Operation{
+													ResourceType: "Task",
+													Operation:    "Update",
 												},
 											},
-											"Task/Delete": {
+											path.Join("Task", "Delete"): {
 												KeyStatus:   delta.RemovedStatus,
 												ValueStatus: delta.RemovedStatus,
-												Value: ParentOperationDelta{
-													ParentResourceTypeDelta: delta.Delta[string]{
-														Status: delta.RemovedStatus,
-														Value:  "Task",
-													},
-													ParentOperationDelta: delta.Delta[string]{
-														Status: delta.RemovedStatus,
-														Value:  "Delete",
-													},
+												Value: Operation{
+													ResourceType: "Task",
+													Operation:    "Delete",
 												},
 											},
 										},
@@ -394,61 +350,37 @@ operationRelations:
 					OperationRelationsDelta: delta.Delta[map[string]delta.KeyValueDelta[OperationRelationsDelta]]{
 						Status: delta.UpdatedStatus,
 						Value: map[string]delta.KeyValueDelta[OperationRelationsDelta]{
-							"Task/Read": {
+							path.Join("Task", "Read"): {
 								KeyStatus:   delta.UnchangedStatus,
 								ValueStatus: delta.UpdatedStatus,
 								Value: OperationRelationsDelta{
-									ResourceTypeDelta: delta.Delta[string]{
-										Status: delta.UnchangedStatus,
-										Value:  "Task",
-									},
-									OperationDelta: delta.Delta[string]{
-										Status: delta.UnchangedStatus,
-										Value:  "Read",
-									},
-									ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[ParentOperationDelta]]{
+									ChildResourceType: "Task",
+									ChildOperation:    "Read",
+									ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[Operation]]{
 										Status: delta.UpdatedStatus,
-										Value: map[string]delta.KeyValueDelta[ParentOperationDelta]{
-											"Task/Update": {
+										Value: map[string]delta.KeyValueDelta[Operation]{
+											path.Join("Task", "Update"): {
 												KeyStatus:   delta.UnchangedStatus,
 												ValueStatus: delta.UnchangedStatus,
-												Value: ParentOperationDelta{
-													ParentResourceTypeDelta: delta.Delta[string]{
-														Status: delta.UnchangedStatus,
-														Value:  "Task",
-													},
-													ParentOperationDelta: delta.Delta[string]{
-														Status: delta.UnchangedStatus,
-														Value:  "Update",
-													},
+												Value: Operation{
+													ResourceType: "Task",
+													Operation:    "Update",
 												},
 											},
-											"Task/Operate": {
+											path.Join("Task", "Operate"): {
 												KeyStatus:   delta.AddedStatus,
 												ValueStatus: delta.AddedStatus,
-												Value: ParentOperationDelta{
-													ParentResourceTypeDelta: delta.Delta[string]{
-														Status: delta.AddedStatus,
-														Value:  "Task",
-													},
-													ParentOperationDelta: delta.Delta[string]{
-														Status: delta.AddedStatus,
-														Value:  "Operate",
-													},
+												Value: Operation{
+													ResourceType: "Task",
+													Operation:    "Operate",
 												},
 											},
-											"Task/Delete": {
+											path.Join("Task", "Delete"): {
 												KeyStatus:   delta.RemovedStatus,
 												ValueStatus: delta.RemovedStatus,
-												Value: ParentOperationDelta{
-													ParentResourceTypeDelta: delta.Delta[string]{
-														Status: delta.RemovedStatus,
-														Value:  "Task",
-													},
-													ParentOperationDelta: delta.Delta[string]{
-														Status: delta.RemovedStatus,
-														Value:  "Delete",
-													},
+												Value: Operation{
+													ResourceType: "Task",
+													Operation:    "Delete",
 												},
 											},
 										},
@@ -515,10 +447,7 @@ operationRelations:
 								KeyStatus:   delta.UnchangedStatus,
 								ValueStatus: delta.UpdatedStatus,
 								Value: ResourceTypeOperationsDelta{
-									ResourceTypeDelta: delta.Delta[string]{
-										Status: delta.UnchangedStatus,
-										Value:  "Task",
-									},
+									ResourceType: "Task",
 									OperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[bool]]{
 										Status: delta.UpdatedStatus,
 										Value: map[string]delta.KeyValueDelta[bool]{
@@ -545,10 +474,7 @@ operationRelations:
 								KeyStatus:   delta.RemovedStatus,
 								ValueStatus: delta.RemovedStatus,
 								Value: ResourceTypeOperationsDelta{
-									ResourceTypeDelta: delta.Delta[string]{
-										Status: delta.RemovedStatus,
-										Value:  "TaskLink",
-									},
+									ResourceType: "TaskLink",
 									OperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[bool]]{
 										Status: delta.RemovedStatus,
 										Value: map[string]delta.KeyValueDelta[bool]{
@@ -566,127 +492,79 @@ operationRelations:
 					OperationRelationsDelta: delta.Delta[map[string]delta.KeyValueDelta[OperationRelationsDelta]]{
 						Status: delta.UpdatedStatus,
 						Value: map[string]delta.KeyValueDelta[OperationRelationsDelta]{
-							"Task/Read": {
+							path.Join("Task", "Read"): {
 								KeyStatus:   delta.UnchangedStatus,
 								ValueStatus: delta.UpdatedStatus,
 								Value: OperationRelationsDelta{
-									ResourceTypeDelta: delta.Delta[string]{
-										Status: delta.UnchangedStatus,
-										Value:  "Task",
-									},
-									OperationDelta: delta.Delta[string]{
-										Status: delta.UnchangedStatus,
-										Value:  "Read",
-									},
-									ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[ParentOperationDelta]]{
+									ChildResourceType: "Task",
+									ChildOperation:    "Read",
+									ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[Operation]]{
 										Status: delta.UpdatedStatus,
-										Value: map[string]delta.KeyValueDelta[ParentOperationDelta]{
-											"Task/Update": {
+										Value: map[string]delta.KeyValueDelta[Operation]{
+											path.Join("Task", "Update"): {
 												KeyStatus:   delta.UnchangedStatus,
 												ValueStatus: delta.UnchangedStatus,
-												Value: ParentOperationDelta{
-													ParentResourceTypeDelta: delta.Delta[string]{
-														Status: delta.UnchangedStatus,
-														Value:  "Task",
-													},
-													ParentOperationDelta: delta.Delta[string]{
-														Status: delta.UnchangedStatus,
-														Value:  "Update",
-													},
+												Value: Operation{
+													ResourceType: "Task",
+													Operation:    "Update",
 												},
 											},
-											"Task/Operate": {
+											path.Join("Task", "Operate"): {
 												KeyStatus:   delta.AddedStatus,
 												ValueStatus: delta.AddedStatus,
-												Value: ParentOperationDelta{
-													ParentResourceTypeDelta: delta.Delta[string]{
-														Status: delta.AddedStatus,
-														Value:  "Task",
-													},
-													ParentOperationDelta: delta.Delta[string]{
-														Status: delta.AddedStatus,
-														Value:  "Operate",
-													},
+												Value: Operation{
+													ResourceType: "Task",
+													Operation:    "Operate",
 												},
 											},
-											"Task/Delete": {
+											path.Join("Task", "Delete"): {
 												KeyStatus:   delta.RemovedStatus,
 												ValueStatus: delta.RemovedStatus,
-												Value: ParentOperationDelta{
-													ParentResourceTypeDelta: delta.Delta[string]{
-														Status: delta.RemovedStatus,
-														Value:  "Task",
-													},
-													ParentOperationDelta: delta.Delta[string]{
-														Status: delta.RemovedStatus,
-														Value:  "Delete",
-													},
+												Value: Operation{
+													ResourceType: "Task",
+													Operation:    "Delete",
 												},
 											},
 										},
 									},
 								},
 							},
-							"Task/Update": {
+							path.Join("Task", "Update"): {
 								KeyStatus:   delta.RemovedStatus,
 								ValueStatus: delta.RemovedStatus,
 								Value: OperationRelationsDelta{
-									ResourceTypeDelta: delta.Delta[string]{
+									ChildResourceType: "Task",
+									ChildOperation:    "Update",
+									ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[Operation]]{
 										Status: delta.RemovedStatus,
-										Value:  "Task",
-									},
-									OperationDelta: delta.Delta[string]{
-										Status: delta.RemovedStatus,
-										Value:  "Update",
-									},
-									ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[ParentOperationDelta]]{
-										Status: delta.RemovedStatus,
-										Value: map[string]delta.KeyValueDelta[ParentOperationDelta]{
-											"Team/UpdateTask": {
+										Value: map[string]delta.KeyValueDelta[Operation]{
+											path.Join("Team", "UpdateTask"): {
 												KeyStatus:   delta.RemovedStatus,
 												ValueStatus: delta.RemovedStatus,
-												Value: ParentOperationDelta{
-													ParentResourceTypeDelta: delta.Delta[string]{
-														Status: delta.RemovedStatus,
-														Value:  "Team",
-													},
-													ParentOperationDelta: delta.Delta[string]{
-														Status: delta.RemovedStatus,
-														Value:  "UpdateTask",
-													},
+												Value: Operation{
+													ResourceType: "Team",
+													Operation:    "UpdateTask",
 												},
 											},
 										},
 									},
 								},
 							},
-							"Task/Manage": {
+							path.Join("Task", "Manage"): {
 								KeyStatus:   delta.AddedStatus,
 								ValueStatus: delta.AddedStatus,
 								Value: OperationRelationsDelta{
-									ResourceTypeDelta: delta.Delta[string]{
+									ChildResourceType: "Task",
+									ChildOperation:    "Manage",
+									ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[Operation]]{
 										Status: delta.AddedStatus,
-										Value:  "Task",
-									},
-									OperationDelta: delta.Delta[string]{
-										Status: delta.AddedStatus,
-										Value:  "Manage",
-									},
-									ParentOperationsDelta: delta.Delta[map[string]delta.KeyValueDelta[ParentOperationDelta]]{
-										Status: delta.AddedStatus,
-										Value: map[string]delta.KeyValueDelta[ParentOperationDelta]{
-											"Team/ManageTask": {
+										Value: map[string]delta.KeyValueDelta[Operation]{
+											path.Join("Team", "ManageTask"): {
 												KeyStatus:   delta.AddedStatus,
 												ValueStatus: delta.AddedStatus,
-												Value: ParentOperationDelta{
-													ParentResourceTypeDelta: delta.Delta[string]{
-														Status: delta.AddedStatus,
-														Value:  "Team",
-													},
-													ParentOperationDelta: delta.Delta[string]{
-														Status: delta.AddedStatus,
-														Value:  "ManageTask",
-													},
+												Value: Operation{
+													ResourceType: "Team",
+													Operation:    "ManageTask",
 												},
 											},
 										},
