@@ -481,7 +481,7 @@ func (a Authorization) configFromCurrentData(ct context.Context) (authorization.
 		return authorization.Config{}, nil
 	}
 
-	operationRelationsMap := getOperationRelations(operationRelations)
+	operationRelationsMap := getOperationRelationsMap(operationRelations)
 	return authorization.NewConfig(resourceTypeOperationsMap, operationRelationsMap), nil
 }
 
@@ -537,13 +537,11 @@ func (a Authorization) applyResourceTypeOperationsMapDelta(
 			}
 
 			resourceTypeOperations := keyValueDelta.Value
-			resourceType := entity.ResourceType{
+			err := a.resourceTypeDao.CreateResourceType(ct, entity.ResourceType{
 				ResourceTypeName: resourceTypeName,
 				CreatedAt:        time.Now().UTC(),
 				CreatorUserID:    creatorUserID,
-			}
-
-			err := a.resourceTypeDao.CreateResourceType(ct, resourceType)
+			})
 			if err != nil {
 				return err
 			}
@@ -568,7 +566,7 @@ func (a Authorization) applyResourceTypeOperationsMapDelta(
 		case delta.UpdatedStatus:
 			return errs.NewError(
 				errs.InvalidArgument,
-				fmt.Sprintf("resource type key cannot be updated: %v", resourceTypeName))
+				fmt.Sprintf("resource type name cannot be updated: %v", resourceTypeName))
 		}
 	}
 
@@ -598,7 +596,7 @@ func (a *Authorization) applyResourceTypeOperationsDelta(
 		case delta.UpdatedStatus:
 			return errs.NewError(
 				errs.InvalidArgument,
-				fmt.Sprintf("operation key cannot be updated: %v", operation))
+				fmt.Sprintf("operation cannot be updated: %v", operation))
 		}
 	}
 
@@ -691,7 +689,7 @@ func (a Authorization) applyOperationRelationDelta(
 	return nil
 }
 
-func getOperationRelations(
+func getOperationRelationsMap(
 	operationRelations []entity.OperationRelation,
 ) map[string]authorization.OperationRelations {
 	operationRelationsMap := make(map[string]authorization.OperationRelations)
