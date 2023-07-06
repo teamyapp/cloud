@@ -16,26 +16,36 @@ type ResourceTypeOperations struct {
 	Operations   map[string]bool
 }
 
-type ParentOperation struct {
-	ParentResourceType string `yaml:"resourceType"`
-	ParentOperation    string `yaml:"operation"`
+type Operation struct {
+	ResourceType string `yaml:"resourceType"`
+	Operation    string `yaml:"operation"`
 }
 
 type OperationRelationsRow struct {
-	ResourceType     string            `yaml:"resourceType"`
-	Operation        string            `yaml:"operation"`
-	ParentOperations []ParentOperation `yaml:"parents"`
+	ResourceType     string      `yaml:"resourceType"`
+	Operation        string      `yaml:"operation"`
+	ParentOperations []Operation `yaml:"parents"`
 }
 
 type OperationRelations struct {
 	ResourceType     string
 	Operation        string
-	ParentOperations map[string]ParentOperation
+	ParentOperations map[string]Operation
 }
 
 type Config struct {
 	ResourceTypeOperations map[string]ResourceTypeOperations
 	OperationRelations     map[string]OperationRelations
+}
+
+func NewConfig(
+	resourceTypeOperations map[string]ResourceTypeOperations,
+	operationRelations map[string]OperationRelations,
+) Config {
+	return Config{
+		ResourceTypeOperations: resourceTypeOperations,
+		OperationRelations:     operationRelations,
+	}
 }
 
 type RawConfig struct {
@@ -86,11 +96,14 @@ func (r RawConfig) ToConfig() (Config, *errs.Error) {
 	}, nil
 }
 
-func toParentOperations(input []ParentOperation) (map[string]ParentOperation, *errs.Error) {
-	output := make(map[string]ParentOperation)
-	for _, parentOperation := range input {
-		key := path.Join(parentOperation.ParentResourceType, parentOperation.ParentOperation)
+func GetOperationKey(resourceType string, operation string) string {
+	return path.Join(resourceType, operation)
+}
 
+func toParentOperations(input []Operation) (map[string]Operation, *errs.Error) {
+	output := make(map[string]Operation)
+	for _, parentOperation := range input {
+		key := path.Join(parentOperation.ResourceType, parentOperation.Operation)
 		if _, ok := output[key]; ok {
 			return nil, errs.NewError(errs.InvalidArgument, "duplicate parent operation")
 		}

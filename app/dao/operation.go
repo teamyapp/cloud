@@ -9,6 +9,7 @@ import (
 
 type Operation interface {
 	FindOperation(ct context.Context, resourceTypeName string, operationName string) (entity.Operation, *errs.Error)
+	FindOperationsByResourceType(ct context.Context, resourceTypeName string) ([]entity.Operation, *errs.Error)
 	FindAllOperations(ct context.Context) ([]entity.Operation, *errs.Error)
 	CreateOperation(ct context.Context, operation entity.Operation) *errs.Error
 	DeleteOperation(ct context.Context, resourceTypeName string, operationName string) *errs.Error
