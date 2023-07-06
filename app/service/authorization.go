@@ -585,14 +585,20 @@ func (a *Authorization) applyResourceTypeOperationsDelta(
 				return errs.NewError(errs.Unauthenticated, "user ID not found")
 			}
 
-			return a.operationDao.CreateOperation(ct, entity.Operation{
+			err := a.operationDao.CreateOperation(ct, entity.Operation{
 				ResourceTypeName: dt.ResourceType,
 				OperationName:    operation,
 				CreatedAt:        time.Now().UTC(),
 				CreatorUserID:    creatorUserID,
 			})
+			if err != nil {
+				return err
+			}
 		case delta.RemovedStatus:
-			return a.operationDao.DeleteOperation(ct, dt.ResourceType, operation)
+			err := a.operationDao.DeleteOperation(ct, dt.ResourceType, operation)
+			if err != nil {
+				return err
+			}
 		case delta.UpdatedStatus:
 			return errs.NewError(
 				errs.InvalidArgument,
