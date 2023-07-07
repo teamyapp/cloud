@@ -66,20 +66,20 @@ func (pq *PriorityQueue[Value]) shiftUp(index int) {
 
 func (pq *PriorityQueue[Value]) shiftDown(index int) {
 	for leftChildIndex(index) < pq.Size() {
-		leftChildIndex := leftChildIndex(index)
-		rightChildIndex := rightChildIndex(index)
+		leftChildIdx := leftChildIndex(index)
+		rightChildIdx := rightChildIndex(index)
 
-		largerChildIndex := leftChildIndex
-		if rightChildIndex < pq.Size() && pq.hasHigherPriority(pq.items[rightChildIndex], pq.items[leftChildIndex]) {
-			largerChildIndex = rightChildIndex
+		largerChildIdx := leftChildIdx
+		if rightChildIdx < pq.Size() && pq.hasHigherPriority(pq.items[rightChildIdx], pq.items[leftChildIndex]) {
+			largerChildIdx = rightChildIdx
 		}
 
-		if pq.hasHigherPriority(pq.items[index], pq.items[largerChildIndex]) {
+		if pq.hasHigherPriority(pq.items[index], pq.items[largerChildIdx]) {
 			break
 		}
 
-		pq.items[index], pq.items[largerChildIndex] = pq.items[largerChildIndex], pq.items[index]
-		index = largerChildIndex
+		pq.items[index], pq.items[largerChildIdx] = pq.items[largerChildIdx], pq.items[index]
+		index = largerChildIdx
 	}
 }
 
