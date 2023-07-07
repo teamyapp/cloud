@@ -70,7 +70,7 @@ func (pq *PriorityQueue[Value]) shiftDown(index int) {
 		rightChildIdx := rightChildIndex(index)
 
 		largerChildIdx := leftChildIdx
-		if rightChildIdx < pq.Size() && pq.hasHigherPriority(pq.items[rightChildIdx], pq.items[leftChildIndex]) {
+		if rightChildIdx < pq.Size() && pq.hasHigherPriority(pq.items[rightChildIdx], pq.items[leftChildIdx]) {
 			largerChildIdx = rightChildIdx
 		}
 
