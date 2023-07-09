@@ -92,7 +92,7 @@ func TestTimeout(t *testing.T) {
 			var currDuration time.Duration
 			runtime := runtime_test.NewTestRuntime(func(d time.Duration) {
 				currDuration = d
-				testClock.SetTime(testClock.Now().Add(d))
+				testClock.SetNow(testClock.Now().Add(d))
 				beforeThreadSleepChan <- true
 			})
 
@@ -119,14 +119,14 @@ func TestTimeout(t *testing.T) {
 			}
 			beforeRetryDelay := func() {
 				duration := testClock.Now().Add(testCase.executeDuration[count-1])
-				testClock.SetTime(duration)
+				testClock.SetNow(duration)
 			}
 			timeoutExecutor := NewTimeout(
 				logger,
 				runtime,
 				shortBackOff,
 				longBackOff,
-				&testClock,
+				testClock,
 				testCase.timeout,
 				&beforeRetryDelay,
 				&beforeSkipRetry,
