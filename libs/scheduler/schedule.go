@@ -7,21 +7,35 @@ import (
 )
 
 type Schedule interface {
-	nextTimeToRun() time.Time
+	getNextTimeToRun() time.Time
+	updateNextTimeToRun()
+	// HasFutureRun
+	hasNextRun() bool
 }
 
-type DelaySchedule struct {
-	delay time.Duration
-	clock runtime.Clock
+type OneTimeDelaySchedule struct {
+	clock              runtime.Clock
+	delay              time.Duration
+	nextTimeToRun      time.Time
+	scheduleHasNextRun bool
 }
 
-func (f DelaySchedule) nextTimeToRun() time.Time {
-	return f.clock.Now().Add(f.delay)
+func (f *OneTimeDelaySchedule) getNextTimeToRun() time.Time {
+	return f.nextTimeToRun
 }
 
-func NewDelaySchedule(delay time.Duration, clock runtime.Clock) DelaySchedule {
-	return DelaySchedule{
-		delay: delay,
+func (f *OneTimeDelaySchedule) updateNextTimeToRun() {
+	f.nextTimeToRun = f.clock.Now().Add(f.delay)
+	f.scheduleHasNextRun = true
+}
+
+func (f *OneTimeDelaySchedule) hasNextRun() bool {
+	return f.scheduleHasNextRun
+}
+
+func NewOneTimeDelaySchedule(delay time.Duration, clock runtime.Clock) *OneTimeDelaySchedule {
+	return &OneTimeDelaySchedule{
 		clock: clock,
+		delay: delay,
 	}
 }

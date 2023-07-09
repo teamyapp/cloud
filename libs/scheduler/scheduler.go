@@ -18,6 +18,8 @@ type Scheduler struct {
 	runningTasks             map[uint64]*ScheduledTask
 	clock                    runtime.Clock
 	scheduleTaskMu           sync.RWMutex
+	onTaskStartCh            chan uint64
+	onTaskFinishCh           chan uint64
 	scheduledTaskIDGenerator *gen.UniqueNumber
 }
 
@@ -35,6 +37,7 @@ func (s *Scheduler) ScheduleTask(
 	s.scheduleTaskMu.Lock()
 	s.scheduledTasks.Insert(scheduledTask)
 	s.scheduleTaskMu.Unlock()
+	schedule.updateNextTimeToRun()
 	s.scheduleTaskCh <- true
 	return &scheduledTask, nil
 }
@@ -69,11 +72,12 @@ func (s *Scheduler) Start() {
 				return
 			}
 
-			fmt.Printf("next time to run %v, pq size = %d\n", scheduledTask.Schedule().nextTimeToRun(), s.scheduledTasks.Size())
-			nextTimeToRun := scheduledTask.Schedule().nextTimeToRun()
+			fmt.Printf("next time to run %v, pq size = %d\n", scheduledTask.Schedule().getNextTimeToRun(), s.scheduledTasks.Size())
+			nextTimeToRun := scheduledTask.Schedule().getNextTimeToRun()
 			now := s.clock.Now()
 
 			if nextTimeToRun.After(now) {
+				fmt.Printf("task will run later: task id=%v, time=%v\n", scheduledTask.id, now)
 				waitTime := nextTimeToRun.Sub(now)
 				s.scheduleTaskMu.Unlock()
 				select {
@@ -98,12 +102,19 @@ func (s *Scheduler) Start() {
 					s.scheduleTaskMu.Unlock()
 					continue
 				}
+			} else {
+				fmt.Printf("task will run now\n")
 			}
 
 			scheduledTask, err = s.scheduledTasks.Pop()
 			if err != nil {
 				s.scheduleTaskMu.Unlock()
 				return
+			}
+
+			if scheduledTask.schedule.hasNextRun() {
+				scheduledTask.schedule.updateNextTimeToRun()
+				s.scheduledTasks.Insert(scheduledTask)
 			}
 
 			s.runningTasks[scheduledTask.id] = &scheduledTask
@@ -118,7 +129,6 @@ func (s *Scheduler) Start() {
 			}()
 		}
 	}()
-
 }
 
 func (s *Scheduler) GetRunningTasks() map[uint64]*ScheduledTask {
@@ -158,11 +168,11 @@ func NewScheduler(uniqueNumberFactory gen.UniqueNumberFactory, clock runtime.Clo
 	}
 
 	compare := func(a ScheduledTask, b ScheduledTask) algo.Comparison {
-		if a.Schedule().nextTimeToRun().Before(b.Schedule().nextTimeToRun()) {
+		if a.Schedule().getNextTimeToRun().Before(b.Schedule().getNextTimeToRun()) {
 			return algo.SmallerThan
 		}
 
-		if a.Schedule().nextTimeToRun().After(b.Schedule().nextTimeToRun()) {
+		if a.Schedule().getNextTimeToRun().After(b.Schedule().getNextTimeToRun()) {
 			return algo.GreaterThan
 		}
 

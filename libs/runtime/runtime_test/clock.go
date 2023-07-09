@@ -1,6 +1,7 @@
 package runtime_test
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -50,8 +51,13 @@ func (t *TestClock) SetNow(now time.Time) {
 	t.nowMu.Unlock()
 
 	for _, after := range afters {
-		after.afterCh <- t.now
+		select {
+		case after.afterCh <- t.now:
+		default:
+		}
 	}
+
+	fmt.Printf("111111: %v\n", now)
 }
 
 func (t *TestClock) After(d time.Duration) <-chan time.Time {

@@ -40,10 +40,10 @@ func NewScheduledTask(
 	schedule Schedule,
 	task Task,
 ) ScheduledTask {
-	context, cancelFunc := context.WithCancel(ct)
+	ct, cancelFunc := context.WithCancel(ct)
 	return ScheduledTask{
 		id:         id,
-		ct:         context,
+		ct:         ct,
 		scheduler:  scheduler,
 		schedule:   schedule,
 		task:       task,

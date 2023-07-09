@@ -96,18 +96,15 @@ func TestScheduler(t *testing.T) {
 			assert.Nil(t, err)
 
 			scheduler.Start()
-			<-time.After(1 * time.Second)
 			for _, st := range testCase.scheduledTasks {
-
 				ct := context.Background()
-
-				schedule := NewDelaySchedule(st.delay, testClock)
-
+				schedule := NewOneTimeDelaySchedule(st.delay, testClock)
 				scheduler.ScheduleTask(ct, schedule, st.task)
-				// <-time.After(500 * time.Millisecond)
 			}
 
 			testClock.SetNow(currentTime.Add(1 * time.Second))
+
+			// Use callbacks instead
 			<-time.After(1 * time.Second)
 
 			assert.Equal(t, 1, testCase.scheduledTasks[2].task.counter)
