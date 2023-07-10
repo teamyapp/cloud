@@ -38,9 +38,9 @@ func NewUniqueStringGen(
 	name string,
 	stringLen int,
 	alphabet string,
-	uniqueNumGenFactory UniqueNumberGenFactory,
+	uniqueNumGenRegistry *UniqueNumberGenRegistry,
 ) (UniqueStringGen, *errs.Error) {
-	numNum, err := uniqueNumGenFactory.MakeUniqueNumberGen(name)
+	numNum, err := uniqueNumGenRegistry.GetUniqueNumberGen(name)
 	if err != nil {
 		return UniqueStringGen{}, err
 	}

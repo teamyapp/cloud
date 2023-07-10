@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"math"
+	"sync"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
@@ -17,9 +18,12 @@ type UniqueNumberGen struct {
 	name              string
 	rangeSize         uint64
 	allocatedRange    entity.AllocatedRange
+	mu                sync.Mutex
 }
 
 func (u *UniqueNumberGen) GenerateUniqueNumber(ct context.Context) (uint64, *errs.Error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
 	if u.allocatedRange.NextNumber > u.allocatedRange.RangeEnd {
 		err := u.allocateNewRange(ct)
 		if err != nil {
@@ -103,24 +107,39 @@ func newUniqueNumberGen(
 	return uniqueNumberGen, err
 }
 
-type UniqueNumberGenFactory struct {
+type UniqueNumberGenRegistry struct {
 	logger            telemetry.Logger
 	allocatedRangeDao dao.AllocatedRange
 	rangeSize         uint64
+	uniqueNumberGens  map[string]*UniqueNumberGen
+	mu                sync.Mutex
 }
 
-func (u UniqueNumberGenFactory) MakeUniqueNumberGen(name string) (*UniqueNumberGen, *errs.Error) {
-	return newUniqueNumberGen(u.logger, u.allocatedRangeDao, name, u.rangeSize)
+func (u *UniqueNumberGenRegistry) GetUniqueNumberGen(name string) (*UniqueNumberGen, *errs.Error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if uniqueNumberGen, ok := u.uniqueNumberGens[name]; ok {
+		return uniqueNumberGen, nil
+	}
+
+	gen, err := newUniqueNumberGen(u.logger, u.allocatedRangeDao, name, u.rangeSize)
+	if err != nil {
+		return nil, err
+	}
+
+	u.uniqueNumberGens[name] = gen
+	return gen, nil
 }
 
-func NewUniqueNumberGenFactory(
+func NewUniqueNumberGenRegistry(
 	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,
 	rangeSize uint64,
-) UniqueNumberGenFactory {
-	return UniqueNumberGenFactory{
+) *UniqueNumberGenRegistry {
+	return &UniqueNumberGenRegistry{
 		logger:            logger,
 		allocatedRangeDao: allocatedRangeDao,
 		rangeSize:         rangeSize,
+		uniqueNumberGens:  make(map[string]*UniqueNumberGen),
 	}
 }

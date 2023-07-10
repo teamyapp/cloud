@@ -35,9 +35,9 @@ func InitIdentityAPI(logger telemetry.Logger, sqlDB *sql.DB, oauthProviders OAut
 	userLink := sqldb.NewUserLink(sqlDB)
 	serviceAccount := sqldb.NewServiceAccount(sqlDB)
 	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
-	uniqueNumberGenFactory := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
+	uniqueNumberGenRegistry := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
 	jwtAuthority := newJWTAuthority(logger, jwtSigningKey)
-	identity, err := newIdentityService(logger, signInSession, userLink, serviceAccount, uniqueNumberGenFactory, jwtAuthority, oauthProviders, accessTokenTTL)
+	identity, err := newIdentityService(logger, signInSession, userLink, serviceAccount, uniqueNumberGenRegistry, jwtAuthority, oauthProviders, accessTokenTTL)
 	if err != nil {
 		return api.Identity{}, err
 	}
@@ -45,10 +45,10 @@ func InitIdentityAPI(logger telemetry.Logger, sqlDB *sql.DB, oauthProviders OAut
 	return apiIdentity, nil
 }
 
-func InitGeneratorAPI(logger telemetry.Logger, sqlDB *sql.DB, genRangeSize GenRangeSize) (api.Generator, error) {
+func InitGeneratorAPI(logger telemetry.Logger, sqlDB *sql.DB, genRangeSize GenRangeSize) (*api.Generator, error) {
 	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
-	uniqueNumberGenFactory := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
-	generator := api.NewGenerator(logger, uniqueNumberGenFactory)
+	uniqueNumberGenRegistry := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
+	generator := api.NewGenerator(logger, uniqueNumberGenRegistry)
 	return generator, nil
 }
 
@@ -62,8 +62,8 @@ func InitAuthorizationAPI(logger telemetry.Logger, sqlDB *sql.DB, genRangeSize G
 	resource := sqldb.NewResource(sqlDB)
 	userGroup := sqldb.NewUserGroup(sqlDB)
 	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
-	uniqueNumberGenFactory := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
-	authorization, err := service.NewAuthorization(logger, resourceRelation, userGroupMember, permission, operationRelation, operation, resourceType, resource, userGroup, uniqueNumberGenFactory)
+	uniqueNumberGenRegistry := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
+	authorization, err := service.NewAuthorization(logger, resourceRelation, userGroupMember, permission, operationRelation, operation, resourceType, resource, userGroup, uniqueNumberGenRegistry)
 	if err != nil {
 		return api.Authorization{}, err
 	}
@@ -77,11 +77,11 @@ func InitFileAPI(logger telemetry.Logger, env2 env.Environment, sqlDB *sql.DB, g
 		return api.File{}, err
 	}
 	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
-	uniqueNumberGenFactory := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
+	uniqueNumberGenRegistry := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
 	uploadSession := sqldb.NewUploadSession(sqlDB)
 	fileMetadata := sqldb.NewFileMetadata(sqlDB)
 	chunkMetadata := sqldb.NewChunkMetadata(sqlDB)
-	file, err := service.NewFile(logger, s3Bucket, uniqueNumberGenFactory, uploadSession, fileMetadata, chunkMetadata)
+	file, err := service.NewFile(logger, s3Bucket, uniqueNumberGenRegistry, uploadSession, fileMetadata, chunkMetadata)
 	if err != nil {
 		return api.File{}, err
 	}
@@ -191,8 +191,9 @@ func newJWTAuthority(logger telemetry.Logger, signingKey JWTSigningKey) security
 func newUniqueNumberGenFactory(
 	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,
-	genRangeSize GenRangeSize) service.UniqueNumberGenFactory {
-	return service.NewUniqueNumberGenFactory(logger, allocatedRangeDao, uint64(genRangeSize))
+	genRangeSize GenRangeSize,
+) *service.UniqueNumberGenRegistry {
+	return service.NewUniqueNumberGenRegistry(logger, allocatedRangeDao, uint64(genRangeSize))
 }
 
 func newIdentityService(
@@ -200,7 +201,7 @@ func newIdentityService(
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
-	uniqueNumberFactory service.UniqueNumberGenFactory,
+	uniqueNumberRegistry *service.UniqueNumberGenRegistry,
 	jwtAuthority security.JWTAuthority,
 	oauthProviders OAuthProviders,
 	accessTokenTLL AccessTokenTTL,
@@ -210,7 +211,7 @@ func newIdentityService(
 		signInSessionDao,
 		userLinkDao,
 		serviceAccountDao,
-		uniqueNumberFactory,
+		uniqueNumberRegistry,
 		jwtAuthority,
 		oauthProviders, time.Duration(accessTokenTLL))
 }

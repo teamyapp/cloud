@@ -489,7 +489,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 				daotest.NewResourceType(inMemoryDB),
 				daotest.NewResource(inMemoryDB),
 				daotest.NewUserGroup(inMemoryDB),
-				NewUniqueNumberGenFactory(logger, mockAllocatedRange, 0),
+				NewUniqueNumberGenRegistry(logger, mockAllocatedRange, 0),
 			)
 			assert.Nil(t, err)
 

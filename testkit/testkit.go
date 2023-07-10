@@ -30,12 +30,12 @@ var serviceLabels = []string{appName, serviceName}
 var fullServiceName = strings.Join(serviceLabels, "-")
 
 type TestKit struct {
-	ServiceInstanceRunner        runner.ServiceRunner
-	InMemoryDB                   *dbtest.InMemoryDB
-	UniqueNumberGeneratorFactory service.UniqueNumberGenFactory
-	IdentityService              service.Identity
-	AuthorizationService         service.Authorization
-	FileService                  service.File
+	ServiceInstanceRunner         runner.ServiceRunner
+	InMemoryDB                    *dbtest.InMemoryDB
+	UniqueNumberGeneratorRegistry *service.UniqueNumberGenRegistry
+	IdentityService               service.Identity
+	AuthorizationService          service.Authorization
+	FileService                   service.File
 }
 
 func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
@@ -90,7 +90,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 	inMemoryDB.CreateTable(daotest.UserLinkTableName)
 
 	allocatedRangeDao := daotest.NewAllocatedRange(inMemoryDB)
-	uniqueNumberGeneratorFactory := service.NewUniqueNumberGenFactory(
+	uniqueNumberGeneratorRegistry := service.NewUniqueNumberGenRegistry(
 		logger,
 		allocatedRangeDao,
 		cfg.GenUniqueNumberRangeSize)
@@ -107,7 +107,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		signInSessionDao,
 		userLinkDao,
 		serviceAccountDao,
-		uniqueNumberGeneratorFactory,
+		uniqueNumberGeneratorRegistry,
 		jwtAuthority,
 		oauthProviders,
 		cfg.AccessTokenTTL)
@@ -116,7 +116,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 	}
 
 	identityAPI := api.NewIdentity(logger, identityService)
-	generatorAPI := api.NewGenerator(logger, uniqueNumberGeneratorFactory)
+	generatorAPI := api.NewGenerator(logger, uniqueNumberGeneratorRegistry)
 
 	resourceRelationDao := daotest.NewResourceRelation(inMemoryDB)
 	userGroupMemberDao := daotest.NewUserGroupMember(inMemoryDB)
@@ -136,7 +136,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		resourceTypeDao,
 		resourceDao,
 		userGroupDao,
-		uniqueNumberGeneratorFactory,
+		uniqueNumberGeneratorRegistry,
 	)
 	if err != nil {
 		return TestKit{}, errs.NewError(errs.Unknown, err.Error())
@@ -151,7 +151,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 	fileService, err := service.NewFile(
 		logger,
 		inMemoryMapBackend,
-		uniqueNumberGeneratorFactory,
+		uniqueNumberGeneratorRegistry,
 		uploadSessionDao,
 		fileMetadataDao,
 		chunkMetadataDao)
@@ -178,12 +178,12 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 		IncludeIdentityWebFunc(api.IncludeIdentityWebFunc).
 		Build()
 	return TestKit{
-		ServiceInstanceRunner:        serviceRunner,
-		InMemoryDB:                   inMemoryDB,
-		UniqueNumberGeneratorFactory: uniqueNumberGeneratorFactory,
-		IdentityService:              identityService,
-		AuthorizationService:         authorizationService,
-		FileService:                  fileService,
+		ServiceInstanceRunner:         serviceRunner,
+		InMemoryDB:                    inMemoryDB,
+		UniqueNumberGeneratorRegistry: uniqueNumberGeneratorRegistry,
+		IdentityService:               identityService,
+		AuthorizationService:          authorizationService,
+		FileService:                   fileService,
 	}, nil
 }
 

@@ -255,22 +255,22 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 func NewFile(
 	logger telemetry.Logger,
 	mapBackend storage.MapBackend,
-	uniqueNumberFactory UniqueNumberGenFactory,
+	uniqueNumberRegistry *UniqueNumberGenRegistry,
 	uploadSessionDao dao.UploadSession,
 	fileMetadataDao dao.FileMetadata,
 	chunkMetadataDao dao.ChunkMetadata,
 ) (File, error) {
-	uploadSessionIDGen, err := uniqueNumberFactory.MakeUniqueNumberGen("uploadSessionID")
+	uploadSessionIDGen, err := uniqueNumberRegistry.GetUniqueNumberGen("uploadSessionID")
 	if err != nil {
 		return File{}, err.ToError()
 	}
 
-	chunkIDGen, err := uniqueNumberFactory.MakeUniqueNumberGen("chunkID")
+	chunkIDGen, err := uniqueNumberRegistry.GetUniqueNumberGen("chunkID")
 	if err != nil {
 		return File{}, err.ToError()
 	}
 
-	fileIDGen, err := uniqueNumberFactory.MakeUniqueNumberGen("fileID")
+	fileIDGen, err := uniqueNumberRegistry.GetUniqueNumberGen("fileID")
 	if err != nil {
 		return File{}, err.ToError()
 	}
