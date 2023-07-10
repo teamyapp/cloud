@@ -1,8 +1,9 @@
-package gen
+package service
 
 import (
 	"context"
 	"math"
+	"sync"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
@@ -10,15 +11,18 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-type UniqueNumber struct {
+type UniqueNumberGen struct {
 	logger            telemetry.Logger
 	allocatedRangeDao dao.AllocatedRange
 	name              string
 	rangeSize         uint64
 	allocatedRange    entity.AllocatedRange
+	mu                sync.Mutex
 }
 
-func (u *UniqueNumber) GenerateUniqueNumber(ct context.Context) (uint64, *errs.Error) {
+func (u *UniqueNumberGen) GenerateUniqueNumber(ct context.Context) (uint64, *errs.Error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
 	if u.allocatedRange.NextNumber > u.allocatedRange.RangeEnd {
 		err := u.allocateNewRange(ct)
 		if err != nil {
@@ -31,7 +35,7 @@ func (u *UniqueNumber) GenerateUniqueNumber(ct context.Context) (uint64, *errs.E
 	return num, nil
 }
 
-func (u *UniqueNumber) allocateNewRange(ct context.Context) *errs.Error {
+func (u *UniqueNumberGen) allocateNewRange(ct context.Context) *errs.Error {
 	if u.allocatedRange.RangeEnd == math.MaxInt64 {
 		return errs.NewError(errs.ResourceExhausted, "out of number to allocate")
 	}
@@ -61,12 +65,12 @@ func min[Number int | uint64](num1 Number, num2 Number) Number {
 	}
 }
 
-func newUniqueNumber(
+func newUniqueNumberGen(
 	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,
 	name string,
 	rangeSize uint64,
-) (*UniqueNumber, *errs.Error) {
+) (*UniqueNumberGen, *errs.Error) {
 	ct := context.Background()
 	allocatedRange, err := allocatedRangeDao.FindAllocatedRangeByKey(ct, name)
 	if err != nil {
@@ -87,37 +91,37 @@ func newUniqueNumber(
 		}
 	}
 
-	uniqueNumber := &UniqueNumber{
+	uniqueNumberGen := &UniqueNumberGen{
 		logger:            logger,
 		name:              name,
 		rangeSize:         rangeSize,
 		allocatedRange:    allocatedRange,
 		allocatedRangeDao: allocatedRangeDao,
 	}
-	err = uniqueNumber.allocateNewRange(ct)
+	err = uniqueNumberGen.allocateNewRange(ct)
 	if err != nil {
 		logger.ErrorWithContext(ct, err)
 	}
 
-	return uniqueNumber, err
+	return uniqueNumberGen, err
 }
 
-type UniqueNumberFactory struct {
+type UniqueNumberGenFactory struct {
 	logger            telemetry.Logger
 	allocatedRangeDao dao.AllocatedRange
 	rangeSize         uint64
 }
 
-func (u UniqueNumberFactory) MakeUniqueNumber(name string) (*UniqueNumber, *errs.Error) {
-	return newUniqueNumber(u.logger, u.allocatedRangeDao, name, u.rangeSize)
+func (u UniqueNumberGenFactory) MakeUniqueNumberGen(name string) (*UniqueNumberGen, *errs.Error) {
+	return newUniqueNumberGen(u.logger, u.allocatedRangeDao, name, u.rangeSize)
 }
 
 func NewUniqueNumberFactory(
 	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,
 	rangeSize uint64,
-) UniqueNumberFactory {
-	return UniqueNumberFactory{
+) UniqueNumberGenFactory {
+	return UniqueNumberGenFactory{
 		logger:            logger,
 		allocatedRangeDao: allocatedRangeDao,
 		rangeSize:         rangeSize,

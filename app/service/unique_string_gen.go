@@ -1,4 +1,4 @@
-package gen
+package service
 
 import (
 	"context"
@@ -6,13 +6,13 @@ import (
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
-type UniqueString struct {
-	uniqueNumGen *UniqueNumber
+type UniqueStringGen struct {
+	uniqueNumGen *UniqueNumberGen
 	stringLen    int
 	alphabet     []rune
 }
 
-func (u UniqueString) GenerateUniqueString(ct context.Context) (string, *errs.Error) {
+func (u UniqueStringGen) GenerateUniqueString(ct context.Context) (string, *errs.Error) {
 	currNum, err := u.uniqueNumGen.GenerateUniqueNumber(ct)
 	if err != nil {
 		return "", err
@@ -21,7 +21,7 @@ func (u UniqueString) GenerateUniqueString(ct context.Context) (string, *errs.Er
 	return u.toString(currNum), nil
 }
 
-func (u UniqueString) toString(num uint64) string {
+func (u UniqueStringGen) toString(num uint64) string {
 	base := uint64(len(u.alphabet))
 	resultRunes := make([]rune, u.stringLen)
 	for strRuneIndex := 0; strRuneIndex < u.stringLen; strRuneIndex++ {
@@ -34,18 +34,18 @@ func (u UniqueString) toString(num uint64) string {
 	return string(resultRunes)
 }
 
-func NewUniqueString(
+func NewUniqueStringGen(
 	name string,
 	stringLen int,
 	alphabet string,
-	uniqueNumFactory UniqueNumberFactory,
-) (UniqueString, *errs.Error) {
-	numNum, err := uniqueNumFactory.MakeUniqueNumber(name)
+	uniqueNumGenFactory UniqueNumberGenFactory,
+) (UniqueStringGen, *errs.Error) {
+	numNum, err := uniqueNumGenFactory.MakeUniqueNumberGen(name)
 	if err != nil {
-		return UniqueString{}, err
+		return UniqueStringGen{}, err
 	}
 
-	return UniqueString{
+	return UniqueStringGen{
 		uniqueNumGen: numNum,
 		stringLen:    stringLen,
 		alphabet:     []rune(alphabet),
