@@ -14,29 +14,29 @@ import (
 type Generator struct {
 	logger telemetry.Logger
 	proto.UnimplementedGeneratorServer
-	uniqueNumberGeneratorFactory service.UniqueNumberGenFactory
-	uniqueNumberGenerators       map[string]*service.UniqueNumberGen
-	uniqueStringGenerators       map[string]*service.UniqueStringGen
+	uniqueNumberGeneratorRegistry *service.UniqueNumberGenRegistry
+	uniqueNumberGenerators        map[string]*service.UniqueNumberGen
+	uniqueStringGenerators        map[string]*service.UniqueStringGen
 }
 
 var _ proto.GeneratorServer = (*Generator)(nil)
 var _ runner.Service = (*Generator)(nil)
 
-func (g Generator) Start(runner *runner.ServiceRunner) *errs.Error {
+func (g *Generator) Start(runner *runner.ServiceRunner) *errs.Error {
 	runner.WithGRPCServer(func(server *grpc.Server) {
 		proto.RegisterGeneratorServer(server, g)
 	})
 	return nil
 }
 
-func (g Generator) GenerateUniqueNumber(
+func (g *Generator) GenerateUniqueNumber(
 	ct context.Context,
 	request *proto.GenerateUniqueNumberRequest,
 ) (*proto.GenerateUniqueNumberResponse, error) {
 	uniqueNumGen, ok := g.uniqueNumberGenerators[request.SequenceName]
 	if !ok {
 		var err *errs.Error
-		uniqueNumGen, err = g.uniqueNumberGeneratorFactory.MakeUniqueNumberGen(request.SequenceName)
+		uniqueNumGen, err = g.uniqueNumberGeneratorRegistry.GetUniqueNumberGen(request.SequenceName)
 		if err != nil {
 			g.logger.ErrorWithContext(ct, err)
 			return nil, errs.ToGRPCErr(err)
@@ -54,7 +54,7 @@ func (g Generator) GenerateUniqueNumber(
 	return &proto.GenerateUniqueNumberResponse{UniqueNumber: uniqueNum}, nil
 }
 
-func (g Generator) GenerateUniqueString(
+func (g *Generator) GenerateUniqueString(
 	ct context.Context,
 	request *proto.GenerateUniqueStringRequest,
 ) (*proto.GenerateUniqueStringResponse, error) {
@@ -64,7 +64,7 @@ func (g Generator) GenerateUniqueString(
 			request.SequenceName,
 			int(request.StringLength),
 			request.Alphabet,
-			g.uniqueNumberGeneratorFactory)
+			g.uniqueNumberGeneratorRegistry)
 		if err != nil {
 			g.logger.ErrorWithContext(ct, err)
 			return nil, errs.ToGRPCErr(err)
@@ -84,12 +84,12 @@ func (g Generator) GenerateUniqueString(
 
 func NewGenerator(
 	logger telemetry.Logger,
-	uniqueNumberGeneratorFactory service.UniqueNumberGenFactory,
-) Generator {
-	return Generator{
-		logger:                       logger,
-		uniqueNumberGeneratorFactory: uniqueNumberGeneratorFactory,
-		uniqueNumberGenerators:       make(map[string]*service.UniqueNumberGen),
-		uniqueStringGenerators:       make(map[string]*service.UniqueStringGen),
+	uniqueNumberGeneratorRegistry *service.UniqueNumberGenRegistry,
+) *Generator {
+	return &Generator{
+		logger:                        logger,
+		uniqueNumberGeneratorRegistry: uniqueNumberGeneratorRegistry,
+		uniqueNumberGenerators:        make(map[string]*service.UniqueNumberGen),
+		uniqueStringGenerators:        make(map[string]*service.UniqueStringGen),
 	}
 }

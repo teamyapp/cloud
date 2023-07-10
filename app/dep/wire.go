@@ -102,13 +102,13 @@ func InitGeneratorAPI(
 	logger telemetry.Logger,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
-) (api.Generator, error) {
+) (*api.Generator, error) {
 	wire.Build(
 		daoSet,
 		newUniqueNumberGenFactory,
 		api.NewGenerator,
 	)
-	return api.Generator{}, nil
+	return nil, nil
 }
 
 func InitAuthorizationAPI(
@@ -253,8 +253,9 @@ func newJWTAuthority(logger telemetry.Logger, signingKey JWTSigningKey) security
 func newUniqueNumberGenFactory(
 	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,
-	genRangeSize GenRangeSize) service.UniqueNumberGenFactory {
-	return service.NewUniqueNumberGenFactory(logger, allocatedRangeDao, uint64(genRangeSize))
+	genRangeSize GenRangeSize,
+) *service.UniqueNumberGenRegistry {
+	return service.NewUniqueNumberGenRegistry(logger, allocatedRangeDao, uint64(genRangeSize))
 }
 
 func newIdentityService(
@@ -262,7 +263,7 @@ func newIdentityService(
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
-	uniqueNumberFactory service.UniqueNumberGenFactory,
+	uniqueNumberRegistry *service.UniqueNumberGenRegistry,
 	jwtAuthority security.JWTAuthority,
 	oauthProviders OAuthProviders,
 	accessTokenTLL AccessTokenTTL,
@@ -272,7 +273,7 @@ func newIdentityService(
 		signInSessionDao,
 		userLinkDao,
 		serviceAccountDao,
-		uniqueNumberFactory,
+		uniqueNumberRegistry,
 		jwtAuthority,
 		oauthProviders,
 		time.Duration(accessTokenTLL))

@@ -349,17 +349,17 @@ func NewIdentity(
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
-	uniqueNumberFactory UniqueNumberGenFactory,
+	uniqueNumberRegistry *UniqueNumberGenRegistry,
 	jwtAuthority security.JWTAuthority,
 	oauthProviders []oauth.Provider,
 	accessTokenTLL time.Duration,
 ) (Identity, error) {
-	userIDGenerator, err := uniqueNumberFactory.MakeUniqueNumberGen("userID")
+	userIDGenerator, err := uniqueNumberRegistry.GetUniqueNumberGen("userID")
 	if err != nil {
 		return Identity{}, err.ToError()
 	}
 
-	stateIDGenerator, err := uniqueNumberFactory.MakeUniqueNumberGen("stateID")
+	stateIDGenerator, err := uniqueNumberRegistry.GetUniqueNumberGen("stateID")
 	if err != nil {
 		return Identity{}, err.ToError()
 	}

@@ -746,9 +746,9 @@ func NewAuthorization(
 	resourceTypeDao dao.ResourceType,
 	resourceDao dao.Resource,
 	userGroupDao dao.UserGroup,
-	uniqueNumberFactory UniqueNumberGenFactory,
+	uniqueNumberRegistry *UniqueNumberGenRegistry,
 ) (Authorization, error) {
-	userGroupIDGenerator, err := uniqueNumberFactory.MakeUniqueNumberGen("userGroupID")
+	userGroupIDGenerator, err := uniqueNumberRegistry.GetUniqueNumberGen("userGroupID")
 	if err != nil {
 		return Authorization{}, err.ToError()
 	}
