@@ -113,7 +113,7 @@ func (u UniqueNumberGenFactory) MakeUniqueNumberGen(name string) (*UniqueNumberG
 	return newUniqueNumberGen(u.logger, u.allocatedRangeDao, name, u.rangeSize)
 }
 
-func NewUniqueNumberFactory(
+func NewUniqueNumberGenFactory(
 	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,
 	rangeSize uint64,

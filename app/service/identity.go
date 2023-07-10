@@ -8,7 +8,6 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/libs/collect"
 	"github.com/teamyapp/cloud/libs/errs"
@@ -29,8 +28,8 @@ type Identity struct {
 	signInSessionDao  dao.SignInSession
 	userLinkDao       dao.UserLink
 	serviceAccountDao dao.ServiceAccount
-	userIDGenerator   *gen.UniqueNumber
-	stateIDGenerator  *gen.UniqueNumber
+	userIDGenerator   *UniqueNumberGen
+	stateIDGenerator  *UniqueNumberGen
 	jwtAuthority      security.JWTAuthority
 	oauthProviders    map[string]oauth.Provider
 	accessTokenTLL    time.Duration
@@ -350,17 +349,17 @@ func NewIdentity(
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
-	uniqueNumberFactory gen.UniqueNumberFactory,
+	uniqueNumberFactory UniqueNumberGenFactory,
 	jwtAuthority security.JWTAuthority,
 	oauthProviders []oauth.Provider,
 	accessTokenTLL time.Duration,
 ) (Identity, error) {
-	userIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("userID")
+	userIDGenerator, err := uniqueNumberFactory.MakeUniqueNumberGen("userID")
 	if err != nil {
 		return Identity{}, err.ToError()
 	}
 
-	stateIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("stateID")
+	stateIDGenerator, err := uniqueNumberFactory.MakeUniqueNumberGen("stateID")
 	if err != nil {
 		return Identity{}, err.ToError()
 	}

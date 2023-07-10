@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/libs/authorization"
 	"github.com/teamyapp/cloud/libs/delta"
 	"github.com/teamyapp/cloud/libs/errs"
@@ -26,7 +25,7 @@ type Authorization struct {
 	resourceTypeDao      dao.ResourceType
 	resourceDao          dao.Resource
 	userGroupDao         dao.UserGroup
-	userGroupIDGenerator *gen.UniqueNumber
+	userGroupIDGenerator *UniqueNumberGen
 }
 
 func (a Authorization) HasPermission(ct context.Context, resourceType string, resourceID uint64, operation string, userID uint64) (bool, *errs.Error) {
@@ -747,9 +746,9 @@ func NewAuthorization(
 	resourceTypeDao dao.ResourceType,
 	resourceDao dao.Resource,
 	userGroupDao dao.UserGroup,
-	uniqueNumberFactory gen.UniqueNumberFactory,
+	uniqueNumberFactory UniqueNumberGenFactory,
 ) (Authorization, error) {
-	userGroupIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("userGroupID")
+	userGroupIDGenerator, err := uniqueNumberFactory.MakeUniqueNumberGen("userGroupID")
 	if err != nil {
 		return Authorization{}, err.ToError()
 	}

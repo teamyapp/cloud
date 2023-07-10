@@ -11,7 +11,6 @@ import (
 	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
-	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/app/storage"
@@ -254,8 +253,8 @@ func newJWTAuthority(logger telemetry.Logger, signingKey JWTSigningKey) security
 func newUniqueNumberGenFactory(
 	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,
-	genRangeSize GenRangeSize) gen.UniqueNumberFactory {
-	return gen.NewUniqueNumberFactory(logger, allocatedRangeDao, uint64(genRangeSize))
+	genRangeSize GenRangeSize) service.UniqueNumberGenFactory {
+	return service.NewUniqueNumberGenFactory(logger, allocatedRangeDao, uint64(genRangeSize))
 }
 
 func newIdentityService(
@@ -263,7 +262,7 @@ func newIdentityService(
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
-	uniqueNumberFactory gen.UniqueNumberFactory,
+	uniqueNumberFactory service.UniqueNumberGenFactory,
 	jwtAuthority security.JWTAuthority,
 	oauthProviders OAuthProviders,
 	accessTokenTLL AccessTokenTTL,

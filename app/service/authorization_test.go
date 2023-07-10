@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/teamyapp/cloud/app/dao/daotest"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/libs/collect"
 	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/telemetry"
@@ -490,7 +489,7 @@ func TestAuthorization_HasPermission(t *testing.T) {
 				daotest.NewResourceType(inMemoryDB),
 				daotest.NewResource(inMemoryDB),
 				daotest.NewUserGroup(inMemoryDB),
-				gen.NewUniqueNumberFactory(logger, mockAllocatedRange, 0),
+				NewUniqueNumberGenFactory(logger, mockAllocatedRange, 0),
 			)
 			assert.Nil(t, err)
 
