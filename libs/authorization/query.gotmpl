@@ -7,13 +7,13 @@ import (
 
 {{- range .ResourceTypeOperations }}
 {{$resourceTypeString := .ResourceType}}
-    {{- range $operation := .Operations }}
-func New{{$operation}}In{{$resourceTypeString}}Query(userID uint64, {{$resourceTypeString | pascalToCamel}}ID uint64) authorization.Query {
+    {{- range $operation,$_ := .Operations }}
+func New{{$operation}}In{{$resourceTypeString}}Query(currUserID uint64, {{$resourceTypeString | pascalToCamel}}ID uint64) authorization.Query {
     return authorization.Query {
         ResourceType: {{$resourceTypeString}}ResourceType,
         ResourceID: {{$resourceTypeString | pascalToCamel}}ID,
         Operation: "{{$operation}}",
-        UserID: userID,
+        UserID: currUserID,
     }
 }
     {{- end }}
