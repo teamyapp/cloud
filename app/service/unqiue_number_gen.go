@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"math"
-	"sync"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
@@ -11,18 +10,16 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
+// TODO: make unique number generator singleton for each sequence
 type UniqueNumberGen struct {
 	logger            telemetry.Logger
 	allocatedRangeDao dao.AllocatedRange
 	name              string
 	rangeSize         uint64
 	allocatedRange    entity.AllocatedRange
-	mu                sync.Mutex
 }
 
 func (u *UniqueNumberGen) GenerateUniqueNumber(ct context.Context) (uint64, *errs.Error) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
 	if u.allocatedRange.NextNumber > u.allocatedRange.RangeEnd {
 		err := u.allocateNewRange(ct)
 		if err != nil {
