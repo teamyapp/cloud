@@ -8,13 +8,10 @@ package dep
 
 import (
 	"database/sql"
-	"time"
-
 	"github.com/google/wire"
 	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
-	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/app/storage"
@@ -23,6 +20,7 @@ import (
 	"github.com/teamyapp/cloud/libs/security"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
+	"time"
 )
 
 // Injectors from wire.go:
@@ -37,9 +35,9 @@ func InitIdentityAPI(logger telemetry.Logger, sqlDB *sql.DB, oauthProviders OAut
 	userLink := sqldb.NewUserLink(sqlDB)
 	serviceAccount := sqldb.NewServiceAccount(sqlDB)
 	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
-	uniqueNumberFactory := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
+	uniqueNumberGenFactory := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
 	jwtAuthority := newJWTAuthority(logger, jwtSigningKey)
-	identity, err := newIdentityService(logger, signInSession, userLink, serviceAccount, uniqueNumberFactory, jwtAuthority, oauthProviders, accessTokenTTL)
+	identity, err := newIdentityService(logger, signInSession, userLink, serviceAccount, uniqueNumberGenFactory, jwtAuthority, oauthProviders, accessTokenTTL)
 	if err != nil {
 		return api.Identity{}, err
 	}
@@ -49,8 +47,8 @@ func InitIdentityAPI(logger telemetry.Logger, sqlDB *sql.DB, oauthProviders OAut
 
 func InitGeneratorAPI(logger telemetry.Logger, sqlDB *sql.DB, genRangeSize GenRangeSize) (api.Generator, error) {
 	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
-	uniqueNumberFactory := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
-	generator := api.NewGenerator(logger, uniqueNumberFactory)
+	uniqueNumberGenFactory := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
+	generator := api.NewGenerator(logger, uniqueNumberGenFactory)
 	return generator, nil
 }
 
@@ -64,8 +62,8 @@ func InitAuthorizationAPI(logger telemetry.Logger, sqlDB *sql.DB, genRangeSize G
 	resource := sqldb.NewResource(sqlDB)
 	userGroup := sqldb.NewUserGroup(sqlDB)
 	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
-	uniqueNumberFactory := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
-	authorization, err := service.NewAuthorization(logger, resourceRelation, userGroupMember, permission, operationRelation, operation, resourceType, resource, userGroup, uniqueNumberFactory)
+	uniqueNumberGenFactory := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
+	authorization, err := service.NewAuthorization(logger, resourceRelation, userGroupMember, permission, operationRelation, operation, resourceType, resource, userGroup, uniqueNumberGenFactory)
 	if err != nil {
 		return api.Authorization{}, err
 	}
@@ -79,11 +77,11 @@ func InitFileAPI(logger telemetry.Logger, env2 env.Environment, sqlDB *sql.DB, g
 		return api.File{}, err
 	}
 	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
-	uniqueNumberFactory := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
+	uniqueNumberGenFactory := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
 	uploadSession := sqldb.NewUploadSession(sqlDB)
 	fileMetadata := sqldb.NewFileMetadata(sqlDB)
 	chunkMetadata := sqldb.NewChunkMetadata(sqlDB)
-	file, err := service.NewFile(logger, s3Bucket, uniqueNumberFactory, uploadSession, fileMetadata, chunkMetadata)
+	file, err := service.NewFile(logger, s3Bucket, uniqueNumberGenFactory, uploadSession, fileMetadata, chunkMetadata)
 	if err != nil {
 		return api.File{}, err
 	}
@@ -193,8 +191,8 @@ func newJWTAuthority(logger telemetry.Logger, signingKey JWTSigningKey) security
 func newUniqueNumberGenFactory(
 	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,
-	genRangeSize GenRangeSize) gen.UniqueNumberFactory {
-	return gen.NewUniqueNumberFactory(logger, allocatedRangeDao, uint64(genRangeSize))
+	genRangeSize GenRangeSize) service.UniqueNumberGenFactory {
+	return service.NewUniqueNumberGenFactory(logger, allocatedRangeDao, uint64(genRangeSize))
 }
 
 func newIdentityService(
@@ -202,7 +200,7 @@ func newIdentityService(
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
-	uniqueNumberFactory gen.UniqueNumberFactory,
+	uniqueNumberFactory service.UniqueNumberGenFactory,
 	jwtAuthority security.JWTAuthority,
 	oauthProviders OAuthProviders,
 	accessTokenTLL AccessTokenTTL,

@@ -11,7 +11,6 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/lang"
 	"github.com/teamyapp/cloud/app/storage"
 	"github.com/teamyapp/cloud/libs/errs"
@@ -26,9 +25,9 @@ type File struct {
 	uploadSessionDao   dao.UploadSession
 	fileMetadataDao    dao.FileMetadata
 	chunkMetadataDao   dao.ChunkMetadata
-	uploadSessionIDGen *gen.UniqueNumber
-	chunkIDGen         *gen.UniqueNumber
-	fileIDGen          *gen.UniqueNumber
+	uploadSessionIDGen *UniqueNumberGen
+	chunkIDGen         *UniqueNumberGen
+	fileIDGen          *UniqueNumberGen
 }
 
 func (f File) GetUploadSession(ct context.Context, uploadSessionID uint64) (entity.UploadSession, *errs.Error) {
@@ -256,22 +255,22 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 func NewFile(
 	logger telemetry.Logger,
 	mapBackend storage.MapBackend,
-	uniqueNumberFactory gen.UniqueNumberFactory,
+	uniqueNumberFactory UniqueNumberGenFactory,
 	uploadSessionDao dao.UploadSession,
 	fileMetadataDao dao.FileMetadata,
 	chunkMetadataDao dao.ChunkMetadata,
 ) (File, error) {
-	uploadSessionIDGen, err := uniqueNumberFactory.MakeUniqueNumber("uploadSessionID")
+	uploadSessionIDGen, err := uniqueNumberFactory.MakeUniqueNumberGen("uploadSessionID")
 	if err != nil {
 		return File{}, err.ToError()
 	}
 
-	chunkIDGen, err := uniqueNumberFactory.MakeUniqueNumber("chunkID")
+	chunkIDGen, err := uniqueNumberFactory.MakeUniqueNumberGen("chunkID")
 	if err != nil {
 		return File{}, err.ToError()
 	}
 
-	fileIDGen, err := uniqueNumberFactory.MakeUniqueNumber("fileID")
+	fileIDGen, err := uniqueNumberFactory.MakeUniqueNumberGen("fileID")
 	if err != nil {
 		return File{}, err.ToError()
 	}

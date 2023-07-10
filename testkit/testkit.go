@@ -9,7 +9,6 @@ import (
 
 	"github.com/teamyapp/cloud/app/api"
 	"github.com/teamyapp/cloud/app/dao/daotest"
-	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/app/storage/storagetest"
@@ -33,7 +32,7 @@ var fullServiceName = strings.Join(serviceLabels, "-")
 type TestKit struct {
 	ServiceInstanceRunner        runner.ServiceRunner
 	InMemoryDB                   *dbtest.InMemoryDB
-	UniqueNumberGeneratorFactory gen.UniqueNumberFactory
+	UniqueNumberGeneratorFactory service.UniqueNumberGenFactory
 	IdentityService              service.Identity
 	AuthorizationService         service.Authorization
 	FileService                  service.File
@@ -91,7 +90,7 @@ func New(cfg Config, network network.Network) (TestKit, *errs.Error) {
 	inMemoryDB.CreateTable(daotest.UserLinkTableName)
 
 	allocatedRangeDao := daotest.NewAllocatedRange(inMemoryDB)
-	uniqueNumberGeneratorFactory := gen.NewUniqueNumberFactory(
+	uniqueNumberGeneratorFactory := service.NewUniqueNumberGenFactory(
 		logger,
 		allocatedRangeDao,
 		cfg.GenUniqueNumberRangeSize)
