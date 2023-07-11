@@ -167,3 +167,27 @@ func NewAuthorizer(
 		registry: registry,
 	}
 }
+
+func FilterAuthorizedItems[Item any](
+	ct context.Context,
+	authorizer Authorizer,
+	items []Item,
+	getAuthorizationQuery func(item Item) authorization.Query,
+) ([]Item, *errs.Error) {
+	authorizedItems := make([]Item, 0)
+	for _, item := range items {
+		query := getAuthorizationQuery(item)
+		hasPermission, err := authorizer.HasPermission(ct, query)
+		if err != nil {
+			return nil, err
+		}
+
+		if !hasPermission {
+			continue
+		}
+
+		authorizedItems = append(authorizedItems, item)
+	}
+
+	return authorizedItems, nil
+}
