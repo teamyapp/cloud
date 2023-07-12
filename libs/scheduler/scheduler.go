@@ -5,22 +5,32 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/libs/algo"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/runtime"
+	"github.com/teamyapp/cloud/libs/stream"
 )
 
 type Scheduler struct {
-	scheduledTasks           *algo.PriorityQueue[ScheduledTask]
-	scheduleTaskCh           chan bool
-	stopCh                   chan bool
-	runningTasks             map[uint64]*ScheduledTask
-	clock                    runtime.Clock
-	scheduleTaskMu           sync.RWMutex
-	onTaskStartCh            chan uint64
-	onTaskFinishCh           chan uint64
-	scheduledTaskIDGenerator *gen.UniqueNumber
+	scheduledTasks     *algo.PriorityQueue[ScheduledTask]
+	scheduleTaskCh     chan bool
+	stopCh             chan bool
+	runningTasks       map[uint64]*ScheduledTask
+	clock              runtime.Clock
+	scheduleTaskMu     sync.RWMutex
+	onTaskStartCh      chan uint64
+	onTaskFinishCh     chan uint64
+	onTaskStartPubSub  *stream.PubSub[uint64]
+	onTaskFinishPubSub *stream.PubSub[uint64]
+	nextTaskID         uint64
+}
+
+func (s *Scheduler) SubscribeTaskStart() *stream.Subscription[uint64] {
+	return s.onTaskStartPubSub.Subscribe()
+}
+
+func (s *Scheduler) SubscribeTaskFinish() *stream.Subscription[uint64] {
+	return s.onTaskFinishPubSub.Subscribe()
 }
 
 func (s *Scheduler) ScheduleTask(
@@ -28,22 +38,18 @@ func (s *Scheduler) ScheduleTask(
 	schedule Schedule,
 	task Task,
 ) (*ScheduledTask, *errs.Error) {
-	scheduledTaskID, err := s.scheduledTaskIDGenerator.GenerateUniqueNumber(ct)
-	if err != nil {
-		return nil, err
-	}
-
-	scheduledTask := NewScheduledTask(scheduledTaskID, ct, s, schedule, task)
 	s.scheduleTaskMu.Lock()
+	scheduledTaskID := s.nextTaskID
+	s.nextTaskID++
+	scheduledTask := NewScheduledTask(scheduledTaskID, ct, s, schedule, task)
+	schedule.updateNextTimeToRun()
 	s.scheduledTasks.Insert(scheduledTask)
 	s.scheduleTaskMu.Unlock()
-	schedule.updateNextTimeToRun()
 	s.scheduleTaskCh <- true
 	return &scheduledTask, nil
 }
 
 func (s *Scheduler) Start() {
-
 	go func() {
 		for {
 			fmt.Printf("new scheduler loop\n")
@@ -112,17 +118,22 @@ func (s *Scheduler) Start() {
 				return
 			}
 
-			if scheduledTask.schedule.hasNextRun() {
-				scheduledTask.schedule.updateNextTimeToRun()
-				s.scheduledTasks.Insert(scheduledTask)
-			}
+			// if scheduledTask.schedule.HasFutureRun() {
+			// 	scheduledTask.schedule.updateNextTimeToRun()
+			// 	s.scheduledTasks.Insert(scheduledTask)
+			// 	// ?s.scheduleTaskCh <- true
+			// }
 
 			s.runningTasks[scheduledTask.id] = &scheduledTask
 			s.scheduleTaskMu.Unlock()
 			go func() {
 				fmt.Printf("running task %d\n", scheduledTask.id)
+
+				s.onTaskStartCh <- scheduledTask.id
 				scheduledTask.RunTask()
 				fmt.Printf("task %d finished\n", scheduledTask.id)
+				s.onTaskFinishCh <- scheduledTask.id
+
 				s.scheduleTaskMu.Lock()
 				defer s.scheduleTaskMu.Unlock()
 				delete(s.runningTasks, scheduledTask.id)
@@ -135,6 +146,14 @@ func (s *Scheduler) GetRunningTasks() map[uint64]*ScheduledTask {
 	s.scheduleTaskMu.RLock()
 	defer s.scheduleTaskMu.RUnlock()
 	return s.runningTasks
+}
+
+func (s *Scheduler) OnTaskStart() <-chan uint64 {
+	return s.onTaskStartCh
+}
+
+func (s *Scheduler) OnTaskFinish() <-chan uint64 {
+	return s.onTaskFinishCh
 }
 
 func (s *Scheduler) Stop() {
@@ -161,12 +180,9 @@ func (s *Scheduler) removeScheduledTask(scheduledTask *ScheduledTask) {
 	scheduledTask.Cancel()
 }
 
-func NewScheduler(uniqueNumberFactory gen.UniqueNumberFactory, clock runtime.Clock) (*Scheduler, error) {
-	scheduledTaskIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("scheduledTaskID")
-	if err != nil {
-		return nil, err.ToError()
-	}
-
+func NewScheduler(
+	clock runtime.Clock,
+) (*Scheduler, error) {
 	compare := func(a ScheduledTask, b ScheduledTask) algo.Comparison {
 		if a.Schedule().getNextTimeToRun().Before(b.Schedule().getNextTimeToRun()) {
 			return algo.SmallerThan
@@ -180,12 +196,18 @@ func NewScheduler(uniqueNumberFactory gen.UniqueNumberFactory, clock runtime.Clo
 	}
 
 	scheduledTasks := algo.NewPriorityQueue[ScheduledTask](compare, nil)
+	onTaskStartCh := make(chan uint64)
+	onTaskFinishCh := make(chan uint64)
 	return &Scheduler{
-		scheduledTasks:           scheduledTasks,
-		scheduleTaskCh:           make(chan bool),
-		stopCh:                   make(chan bool),
-		runningTasks:             make(map[uint64]*ScheduledTask),
-		scheduledTaskIDGenerator: scheduledTaskIDGenerator,
-		clock:                    clock,
+		scheduledTasks:     scheduledTasks,
+		scheduleTaskCh:     make(chan bool),
+		stopCh:             make(chan bool),
+		onTaskStartCh:      onTaskStartCh,
+		onTaskFinishCh:     onTaskFinishCh,
+		onTaskStartPubSub:  stream.NewPubSub(onTaskStartCh),
+		onTaskFinishPubSub: stream.NewPubSub(onTaskFinishCh),
+		runningTasks:       make(map[uint64]*ScheduledTask),
+		nextTaskID:         1,
+		clock:              clock,
 	}, nil
 }

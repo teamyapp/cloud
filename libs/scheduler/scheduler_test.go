@@ -7,11 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/teamyapp/cloud/app/dao/daotest"
-	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/app/gen"
-	"github.com/teamyapp/cloud/libs/collect"
-	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
@@ -68,14 +63,6 @@ func TestScheduler(t *testing.T) {
 		},
 	}
 
-	allocatedRanges := []entity.AllocatedRange{
-		{
-			Key:        "scheduledTaskID",
-			RangeEnd:   0,
-			NextNumber: 1,
-		},
-	}
-
 	currentTime := time.Now()
 	testClock := runtime_test.NewTestClock(currentTime)
 
@@ -83,30 +70,28 @@ func TestScheduler(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			inMemoryDB := dbtest.NewInMemoryDB()
-			inMemoryDB.InitTable(
-				daotest.AllocatedRangeTableName,
-				collect.Map(allocatedRanges, func(allocatedRange entity.AllocatedRange, index int) interface{} {
-					return allocatedRange
-				}))
 
-			mockAllocatedRange := daotest.NewAllocatedRange(inMemoryDB)
-
-			scheduler, err := NewScheduler(gen.NewUniqueNumberFactory(logger, mockAllocatedRange, 0), testClock)
+			scheduler, err := NewScheduler(testClock)
 			assert.Nil(t, err)
 
 			scheduler.Start()
+			subscription := scheduler.SubscribeTaskFinish()
 			for _, st := range testCase.scheduledTasks {
 				ct := context.Background()
+
 				schedule := NewOneTimeDelaySchedule(st.delay, testClock)
-				scheduler.ScheduleTask(ct, schedule, st.task)
+
+				go func(task *testTask) {
+					scheduler.ScheduleTask(ct, schedule, task)
+				}(st.task)
 			}
 
 			testClock.SetNow(currentTime.Add(1 * time.Second))
 
-			// Use callbacks instead
-			<-time.After(1 * time.Second)
-
+			// runningTaskId := <-scheduler.OnTaskStart()
+			// assert.Equal(t, uint64(1), runningTaskId)
+			runningTaskId := <-subscription.Output()
+			assert.Equal(t, uint64(3), runningTaskId)
 			assert.Equal(t, 1, testCase.scheduledTasks[2].task.counter)
 		})
 	}

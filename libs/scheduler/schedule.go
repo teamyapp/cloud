@@ -9,15 +9,14 @@ import (
 type Schedule interface {
 	getNextTimeToRun() time.Time
 	updateNextTimeToRun()
-	// HasFutureRun
-	hasNextRun() bool
+	HasFutureRun() bool
 }
 
 type OneTimeDelaySchedule struct {
-	clock              runtime.Clock
-	delay              time.Duration
-	nextTimeToRun      time.Time
-	scheduleHasNextRun bool
+	clock                runtime.Clock
+	delay                time.Duration
+	nextTimeToRun        time.Time
+	scheduleHasFutureRun bool
 }
 
 func (f *OneTimeDelaySchedule) getNextTimeToRun() time.Time {
@@ -26,11 +25,11 @@ func (f *OneTimeDelaySchedule) getNextTimeToRun() time.Time {
 
 func (f *OneTimeDelaySchedule) updateNextTimeToRun() {
 	f.nextTimeToRun = f.clock.Now().Add(f.delay)
-	f.scheduleHasNextRun = true
+	f.scheduleHasFutureRun = true
 }
 
-func (f *OneTimeDelaySchedule) hasNextRun() bool {
-	return f.scheduleHasNextRun
+func (f *OneTimeDelaySchedule) HasFutureRun() bool {
+	return f.scheduleHasFutureRun
 }
 
 func NewOneTimeDelaySchedule(delay time.Duration, clock runtime.Clock) *OneTimeDelaySchedule {

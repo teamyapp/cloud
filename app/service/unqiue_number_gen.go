@@ -38,6 +38,7 @@ func (u *UniqueNumberGen) GenerateUniqueNumber(ct context.Context) (uint64, *err
 
 func (u *UniqueNumberGen) allocateNewRange(ct context.Context) *errs.Error {
 	if u.allocatedRange.RangeEnd == math.MaxInt64 {
+
 		return errs.NewError(errs.ResourceExhausted, "out of number to allocate")
 	}
 
