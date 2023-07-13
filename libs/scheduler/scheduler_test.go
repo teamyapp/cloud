@@ -2,7 +2,9 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,6 +22,7 @@ var logger = telemetry.NewLogger(
 
 type testTask struct {
 	counter int
+	id      uint64
 }
 
 func (t *testTask) execute(ct context.Context) error {
@@ -27,9 +30,14 @@ func (t *testTask) execute(ct context.Context) error {
 	return nil
 }
 
-func newTestTask() *testTask {
+func (t *testTask) getID() uint64 {
+	return t.id
+}
+
+func newTestTask(id uint64) *testTask {
 	return &testTask{
 		counter: 0,
+		id:      id,
 	}
 }
 
@@ -49,15 +57,15 @@ func TestScheduler(t *testing.T) {
 			}{
 				{
 					delay: 5 * time.Second,
-					task:  newTestTask(),
+					task:  newTestTask(1),
 				},
 				{
 					delay: 3 * time.Second,
-					task:  newTestTask(),
+					task:  newTestTask(2),
 				},
 				{
 					delay: 1 * time.Second,
-					task:  newTestTask(),
+					task:  newTestTask(3),
 				},
 			},
 		},
@@ -65,6 +73,7 @@ func TestScheduler(t *testing.T) {
 
 	currentTime := time.Now()
 	testClock := runtime_test.NewTestClock(currentTime)
+	fmt.Printf("Start a new test suit\n\n\n\n")
 
 	for _, testCase := range testCases {
 		testCase := testCase
@@ -76,22 +85,23 @@ func TestScheduler(t *testing.T) {
 
 			scheduler.Start()
 			subscription := scheduler.SubscribeTaskFinish()
+			wg := &sync.WaitGroup{}
 			for _, st := range testCase.scheduledTasks {
 				ct := context.Background()
-
 				schedule := NewOneTimeDelaySchedule(st.delay, testClock)
-
+				wg.Add(1)
 				go func(task *testTask) {
+					defer wg.Done()
 					scheduler.ScheduleTask(ct, schedule, task)
 				}(st.task)
 			}
-
+			wg.Wait()
 			testClock.SetNow(currentTime.Add(1 * time.Second))
 
 			// runningTaskId := <-scheduler.OnTaskStart()
 			// assert.Equal(t, uint64(1), runningTaskId)
-			runningTaskId := <-subscription.Output()
-			assert.Equal(t, uint64(3), runningTaskId)
+			runningTask := <-subscription.Output()
+			assert.Equal(t, uint64(3), runningTask.getID())
 			assert.Equal(t, 1, testCase.scheduledTasks[2].task.counter)
 		})
 	}

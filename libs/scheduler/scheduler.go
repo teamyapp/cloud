@@ -18,18 +18,17 @@ type Scheduler struct {
 	runningTasks       map[uint64]*ScheduledTask
 	clock              runtime.Clock
 	scheduleTaskMu     sync.RWMutex
-	onTaskStartCh      chan uint64
-	onTaskFinishCh     chan uint64
-	onTaskStartPubSub  *stream.PubSub[uint64]
-	onTaskFinishPubSub *stream.PubSub[uint64]
-	nextTaskID         uint64
+	onTaskStartCh      chan Task
+	onTaskFinishCh     chan Task
+	onTaskStartPubSub  *stream.PubSub[Task]
+	onTaskFinishPubSub *stream.PubSub[Task]
 }
 
-func (s *Scheduler) SubscribeTaskStart() *stream.Subscription[uint64] {
+func (s *Scheduler) SubscribeTaskStart() *stream.Subscription[Task] {
 	return s.onTaskStartPubSub.Subscribe()
 }
 
-func (s *Scheduler) SubscribeTaskFinish() *stream.Subscription[uint64] {
+func (s *Scheduler) SubscribeTaskFinish() *stream.Subscription[Task] {
 	return s.onTaskFinishPubSub.Subscribe()
 }
 
@@ -38,10 +37,9 @@ func (s *Scheduler) ScheduleTask(
 	schedule Schedule,
 	task Task,
 ) (*ScheduledTask, *errs.Error) {
+	fmt.Printf("schedule a task++++\n")
 	s.scheduleTaskMu.Lock()
-	scheduledTaskID := s.nextTaskID
-	s.nextTaskID++
-	scheduledTask := NewScheduledTask(scheduledTaskID, ct, s, schedule, task)
+	scheduledTask := NewScheduledTask(ct, s, schedule, task)
 	schedule.updateNextTimeToRun()
 	s.scheduledTasks.Insert(scheduledTask)
 	s.scheduleTaskMu.Unlock()
@@ -52,7 +50,7 @@ func (s *Scheduler) ScheduleTask(
 func (s *Scheduler) Start() {
 	go func() {
 		for {
-			fmt.Printf("new scheduler loop\n")
+			fmt.Printf("new scheduler loop\n\n\n\n")
 			s.scheduleTaskMu.Lock()
 			if s.scheduledTasks.Size() == 0 {
 				fmt.Printf("no task scheduled\n")
@@ -73,6 +71,7 @@ func (s *Scheduler) Start() {
 
 			fmt.Printf("has task scheduled\n")
 			scheduledTask, err := s.scheduledTasks.Peek()
+
 			if err != nil {
 				s.scheduleTaskMu.Unlock()
 				return
@@ -83,12 +82,12 @@ func (s *Scheduler) Start() {
 			now := s.clock.Now()
 
 			if nextTimeToRun.After(now) {
-				fmt.Printf("task will run later: task id=%v, time=%v\n", scheduledTask.id, now)
+				fmt.Printf("task will run later: task id=%v, time=%v\n", scheduledTask.task.getID(), now)
 				waitTime := nextTimeToRun.Sub(now)
 				s.scheduleTaskMu.Unlock()
 				select {
 				case <-s.clock.After(waitTime):
-					fmt.Printf("waited %v for task %d\n", waitTime, scheduledTask.id)
+					fmt.Printf("waited %v for task %d\n", waitTime, scheduledTask.task.getID())
 				case <-s.scheduleTaskCh:
 					fmt.Printf("task scheduled(2)\n")
 					continue
@@ -104,7 +103,7 @@ func (s *Scheduler) Start() {
 					return
 				}
 
-				if scheduledTask.id != latestScheduledTask.id {
+				if scheduledTask.task.getID() != latestScheduledTask.task.getID() {
 					s.scheduleTaskMu.Unlock()
 					continue
 				}
@@ -123,20 +122,20 @@ func (s *Scheduler) Start() {
 			// 	s.scheduledTasks.Insert(scheduledTask)
 			// 	// ?s.scheduleTaskCh <- true
 			// }
-
-			s.runningTasks[scheduledTask.id] = &scheduledTask
+			taskID := scheduledTask.task.getID()
+			s.runningTasks[taskID] = &scheduledTask
 			s.scheduleTaskMu.Unlock()
 			go func() {
-				fmt.Printf("running task %d\n", scheduledTask.id)
+				fmt.Printf("running task %d\n", taskID)
 
-				s.onTaskStartCh <- scheduledTask.id
+				s.onTaskStartCh <- scheduledTask.task
 				scheduledTask.RunTask()
-				fmt.Printf("task %d finished\n", scheduledTask.id)
-				s.onTaskFinishCh <- scheduledTask.id
+				fmt.Printf("task %d finished\n", taskID)
+				s.onTaskFinishCh <- scheduledTask.task
 
 				s.scheduleTaskMu.Lock()
 				defer s.scheduleTaskMu.Unlock()
-				delete(s.runningTasks, scheduledTask.id)
+				delete(s.runningTasks, taskID)
 			}()
 		}
 	}()
@@ -148,11 +147,11 @@ func (s *Scheduler) GetRunningTasks() map[uint64]*ScheduledTask {
 	return s.runningTasks
 }
 
-func (s *Scheduler) OnTaskStart() <-chan uint64 {
+func (s *Scheduler) OnTaskStart() <-chan Task {
 	return s.onTaskStartCh
 }
 
-func (s *Scheduler) OnTaskFinish() <-chan uint64 {
+func (s *Scheduler) OnTaskFinish() <-chan Task {
 	return s.onTaskFinishCh
 }
 
@@ -174,7 +173,7 @@ func (s *Scheduler) Stop() {
 
 func (s *Scheduler) removeScheduledTask(scheduledTask *ScheduledTask) {
 	s.scheduleTaskMu.Lock()
-	delete(s.runningTasks, scheduledTask.id)
+	delete(s.runningTasks, scheduledTask.task.getID())
 	s.scheduledTasks.Remove(scheduledTask)
 	s.scheduleTaskMu.Unlock()
 	scheduledTask.Cancel()
@@ -196,8 +195,8 @@ func NewScheduler(
 	}
 
 	scheduledTasks := algo.NewPriorityQueue[ScheduledTask](compare, nil)
-	onTaskStartCh := make(chan uint64)
-	onTaskFinishCh := make(chan uint64)
+	onTaskStartCh := make(chan Task)
+	onTaskFinishCh := make(chan Task)
 	return &Scheduler{
 		scheduledTasks:     scheduledTasks,
 		scheduleTaskCh:     make(chan bool),
@@ -207,7 +206,6 @@ func NewScheduler(
 		onTaskStartPubSub:  stream.NewPubSub(onTaskStartCh),
 		onTaskFinishPubSub: stream.NewPubSub(onTaskFinishCh),
 		runningTasks:       make(map[uint64]*ScheduledTask),
-		nextTaskID:         1,
 		clock:              clock,
 	}, nil
 }

@@ -59,11 +59,11 @@ func (t *TestClock) SetNow(now time.Time) {
 
 func (t *TestClock) After(d time.Duration) <-chan time.Time {
 	afterCh := make(chan time.Time)
+	t.nowMu.Lock()
 	after := After{
 		deadline: t.now.Add(d),
 		afterCh:  afterCh,
 	}
-	t.nowMu.Lock()
 	defer t.nowMu.Unlock()
 	t.afters.Insert(after)
 	return afterCh

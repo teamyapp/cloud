@@ -5,11 +5,11 @@ import (
 )
 
 type Task interface {
+	getID() uint64
 	execute(ct context.Context) error
 }
 
 type ScheduledTask struct {
-	id         uint64
 	ct         context.Context // cancel context
 	scheduler  *Scheduler
 	schedule   Schedule
@@ -34,7 +34,6 @@ func (s *ScheduledTask) Schedule() Schedule {
 }
 
 func NewScheduledTask(
-	id uint64,
 	ct context.Context,
 	scheduler *Scheduler,
 	schedule Schedule,
@@ -42,7 +41,6 @@ func NewScheduledTask(
 ) ScheduledTask {
 	ct, cancelFunc := context.WithCancel(ct)
 	return ScheduledTask{
-		id:         id,
 		ct:         ct,
 		scheduler:  scheduler,
 		schedule:   schedule,
