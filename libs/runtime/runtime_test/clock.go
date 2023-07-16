@@ -1,6 +1,7 @@
 package runtime_test
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 )
 
 type After struct {
+	id       uint64
 	deadline time.Time
 	afterCh  chan time.Time
 }
@@ -26,6 +28,7 @@ func (t *TestClock) Now() time.Time {
 
 func (t *TestClock) SetNow(now time.Time) {
 	t.nowMu.Lock()
+	fmt.Printf("set now: %v\n", now)
 	t.now = now
 	afters := []After{}
 
@@ -50,6 +53,7 @@ func (t *TestClock) SetNow(now time.Time) {
 	t.nowMu.Unlock()
 
 	for _, after := range afters {
+		fmt.Printf("after: %v, id: %d\n", after.deadline, after.id)
 		select {
 		case after.afterCh <- t.now:
 		default:
@@ -57,10 +61,11 @@ func (t *TestClock) SetNow(now time.Time) {
 	}
 }
 
-func (t *TestClock) After(d time.Duration) <-chan time.Time {
+func (t *TestClock) After(d time.Duration, id uint64) <-chan time.Time {
 	afterCh := make(chan time.Time)
 	t.nowMu.Lock()
 	after := After{
+		id:       id,
 		deadline: t.now.Add(d),
 		afterCh:  afterCh,
 	}

@@ -52,11 +52,10 @@ func NewPubSub[Item any](input <-chan Item) *PubSub[Item] {
 			subscriptions := copyMap[*Subscription[Item], bool](pubSub.subscriptions)
 			pubSub.subscriptionsMu.RUnlock()
 			for subscription := range subscriptions {
-				go func(sub *Subscription[Item]) {
+				go func(sub *Subscription[Item], item Item) {
 					sub.output <- item
-				}(subscription)
+				}(subscription, item)
 			}
-
 		}
 
 		pubSub.subscriptionsMu.RLock()

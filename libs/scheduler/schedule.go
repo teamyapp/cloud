@@ -12,29 +12,30 @@ type Schedule interface {
 	HasFutureRun() bool
 }
 
-type OneTimeDelaySchedule struct {
-	clock                runtime.Clock
-	delay                time.Duration
-	nextTimeToRun        time.Time
-	scheduleHasFutureRun bool
+type FixedDelaysSchedule struct {
+	clock          runtime.Clock
+	delays         []time.Duration
+	nextTimeToRun  time.Time
+	nextDelayIndex int
 }
 
-func (f *OneTimeDelaySchedule) getNextTimeToRun() time.Time {
+func (f *FixedDelaysSchedule) getNextTimeToRun() time.Time {
 	return f.nextTimeToRun
 }
 
-func (f *OneTimeDelaySchedule) updateNextTimeToRun() {
-	f.nextTimeToRun = f.clock.Now().Add(f.delay)
-	f.scheduleHasFutureRun = true
+func (f *FixedDelaysSchedule) updateNextTimeToRun() {
+	f.nextTimeToRun = f.clock.Now().Add(f.delays[f.nextDelayIndex])
+	f.nextDelayIndex++
 }
 
-func (f *OneTimeDelaySchedule) HasFutureRun() bool {
-	return f.scheduleHasFutureRun
+func (f *FixedDelaysSchedule) HasFutureRun() bool {
+	return f.nextDelayIndex < len(f.delays)-1
 }
 
-func NewOneTimeDelaySchedule(delay time.Duration, clock runtime.Clock) *OneTimeDelaySchedule {
-	return &OneTimeDelaySchedule{
-		clock: clock,
-		delay: delay,
+func NewFixedDelaysSchedule(delays []time.Duration, clock runtime.Clock) *FixedDelaysSchedule {
+	return &FixedDelaysSchedule{
+		clock:          clock,
+		delays:         delays,
+		nextDelayIndex: 0,
 	}
 }

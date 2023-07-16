@@ -37,20 +37,26 @@ func (s *Scheduler) ScheduleTask(
 	schedule Schedule,
 	task Task,
 ) (*ScheduledTask, *errs.Error) {
-	fmt.Printf("schedule a task++++\n")
+	fmt.Printf("schedule a task[%d]++++\n", task.getID())
 	s.scheduleTaskMu.Lock()
 	scheduledTask := NewScheduledTask(ct, s, schedule, task)
 	schedule.updateNextTimeToRun()
+	fmt.Printf("task inserted[%d]++++\n", task.getID())
 	s.scheduledTasks.Insert(scheduledTask)
 	s.scheduleTaskMu.Unlock()
-	s.scheduleTaskCh <- true
+
+	select {
+	case s.scheduleTaskCh <- true:
+	default:
+	}
+
 	return &scheduledTask, nil
 }
 
 func (s *Scheduler) Start() {
 	go func() {
 		for {
-			fmt.Printf("new scheduler loop\n\n\n\n")
+			fmt.Printf("        new scheduler loop\n")
 			s.scheduleTaskMu.Lock()
 			if s.scheduledTasks.Size() == 0 {
 				fmt.Printf("no task scheduled\n")
@@ -77,7 +83,7 @@ func (s *Scheduler) Start() {
 				return
 			}
 
-			fmt.Printf("next time to run %v, pq size = %d\n", scheduledTask.Schedule().getNextTimeToRun(), s.scheduledTasks.Size())
+			fmt.Printf("next time to run %v, pq size = %d, pop task id %d\n", scheduledTask.Schedule().getNextTimeToRun(), s.scheduledTasks.Size(), scheduledTask.task.getID())
 			nextTimeToRun := scheduledTask.Schedule().getNextTimeToRun()
 			now := s.clock.Now()
 
@@ -85,8 +91,9 @@ func (s *Scheduler) Start() {
 				fmt.Printf("task will run later: task id=%v, time=%v\n", scheduledTask.task.getID(), now)
 				waitTime := nextTimeToRun.Sub(now)
 				s.scheduleTaskMu.Unlock()
+				fmt.Printf("set after: %v\n", waitTime)
 				select {
-				case <-s.clock.After(waitTime):
+				case <-s.clock.After(waitTime, scheduledTask.task.getID()):
 					fmt.Printf("waited %v for task %d\n", waitTime, scheduledTask.task.getID())
 				case <-s.scheduleTaskCh:
 					fmt.Printf("task scheduled(2)\n")
@@ -117,18 +124,19 @@ func (s *Scheduler) Start() {
 				return
 			}
 
-			// if scheduledTask.schedule.HasFutureRun() {
-			// 	scheduledTask.schedule.updateNextTimeToRun()
-			// 	s.scheduledTasks.Insert(scheduledTask)
-			// 	// ?s.scheduleTaskCh <- true
-			// }
+			if scheduledTask.schedule.HasFutureRun() {
+				scheduledTask.schedule.updateNextTimeToRun()
+				s.scheduledTasks.Insert(scheduledTask)
+			}
+
 			taskID := scheduledTask.task.getID()
 			s.runningTasks[taskID] = &scheduledTask
 			s.scheduleTaskMu.Unlock()
-			go func() {
-				fmt.Printf("running task %d\n", taskID)
 
-				s.onTaskStartCh <- scheduledTask.task
+			fmt.Printf("running task %d, started\n", taskID)
+			s.onTaskStartCh <- scheduledTask.task
+
+			go func() {
 				scheduledTask.RunTask()
 				fmt.Printf("task %d finished\n", taskID)
 				s.onTaskFinishCh <- scheduledTask.task
