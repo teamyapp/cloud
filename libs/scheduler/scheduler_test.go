@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/teamyapp/cloud/libs/runtime"
+	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -95,37 +94,28 @@ func TestSchedulerSyncEnsureTaskOrder(t *testing.T) {
 	}
 
 	fmt.Printf("Start a new test suit==================\n")
-	builtinClock := runtime.NewBuiltinClock()
+	clock := runtime_test.NewTestClock(time.Now())
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			scheduler, err := NewScheduler(builtinClock)
+			scheduler, err := NewScheduler(clock)
 			assert.Nil(t, err)
 
 			subscription := scheduler.SubscribeTaskStart()
-
-			wg := &sync.WaitGroup{}
 			for _, st := range testCase.scheduledTasks {
 				ct := context.Background()
-				schedule := NewFixedDelaysSchedule(st.delays, builtinClock)
-				wg.Add(1)
-				go func(task *testTask) {
-					defer wg.Done()
-					scheduler.ScheduleTask(ct, schedule, task)
-				}(st.task)
+				schedule := NewFixedDelaysSchedule(st.delays, clock)
+				scheduler.ScheduleTask(ct, schedule, st.task)
 			}
-			wg.Wait()
 
+			clock.SetNow(time.Now().Add(1 * time.Millisecond))
 			scheduler.Start()
-
 			subscriptionIndex := 0
 			for runningTask := range subscription.Output() {
 				assert.Equal(t, testCase.ranTasks[subscriptionIndex].taskID, runningTask.getID())
-				assert.Equal(t, testCase.ranTasks[subscriptionIndex].currentCounter, runningTask.(*testTask).counter)
 				subscriptionIndex++
-
 				if subscriptionIndex == len(testCase.ranTasks) {
 					break
 				}

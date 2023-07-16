@@ -1,9 +1,13 @@
 package runtime
 
-import "time"
+import (
+	"time"
+)
 
 type BuiltInClock struct {
 }
+
+var _ Clock = (*BuiltInClock)(nil)
 
 func (b *BuiltInClock) Now() time.Time {
 	return time.Now()

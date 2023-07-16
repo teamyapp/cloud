@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/teamyapp/cloud/libs/algo"
@@ -54,6 +55,12 @@ func (s *Scheduler) ScheduleTask(
 }
 
 func (s *Scheduler) Start() {
+	var items []string
+	for _, item := range s.scheduledTasks.Items() {
+		items = append(items, fmt.Sprintf("%v", item.task.getID()))
+	}
+
+	fmt.Printf("=============%v\n", strings.Join(items, ","))
 	go func() {
 		for {
 			fmt.Printf("        new scheduler loop\n")
