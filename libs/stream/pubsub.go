@@ -1,7 +1,11 @@
 package stream
 
+import (
+	"sync"
+)
+
 type Subscription[Item any] struct {
-	pubSub PubSub[Item]
+	pubSub *PubSub[Item]
 	output chan Item
 }
 
@@ -14,7 +18,7 @@ func (s *Subscription[Item]) Output() <-chan Item {
 	return s.output
 }
 
-func newSubscription[Item any](pubSub PubSub[Item]) *Subscription[Item] {
+func newSubscription[Item any](pubSub *PubSub[Item]) *Subscription[Item] {
 	return &Subscription[Item]{
 		pubSub: pubSub,
 		output: make(chan Item),
@@ -22,15 +26,20 @@ func newSubscription[Item any](pubSub PubSub[Item]) *Subscription[Item] {
 }
 
 type PubSub[Item any] struct {
-	subscriptions map[*Subscription[Item]]bool
+	subscriptions   map[*Subscription[Item]]bool
+	subscriptionsMu sync.RWMutex
 }
 
-func (p PubSub[Item]) unsubscribe(subscription *Subscription[Item]) {
+func (p *PubSub[Item]) unsubscribe(subscription *Subscription[Item]) {
+	p.subscriptionsMu.Lock()
+	defer p.subscriptionsMu.Unlock()
 	delete(p.subscriptions, subscription)
 }
 
-func (p PubSub[Item]) Subscribe() *Subscription[Item] {
+func (p *PubSub[Item]) Subscribe() *Subscription[Item] {
 	subscription := newSubscription[Item](p)
+	p.subscriptionsMu.Lock()
+	defer p.subscriptionsMu.Unlock()
 	p.subscriptions[subscription] = true
 	return subscription
 }
@@ -41,15 +50,29 @@ func NewPubSub[Item any](input <-chan Item) *PubSub[Item] {
 	}
 	go func() {
 		for item := range input {
-			for subscription := range pubSub.subscriptions {
-				go func(sub *Subscription[Item]) {
-					sub.output <- item
-				}(subscription)
+			pubSub.subscriptionsMu.RLock()
+			subscriptions := copyMap[*Subscription[Item], bool](pubSub.subscriptions)
+			pubSub.subscriptionsMu.RUnlock()
+			for subscription := range subscriptions {
+				subscription.output <- item
 			}
 		}
-		for subscription := range pubSub.subscriptions {
+
+		pubSub.subscriptionsMu.RLock()
+		subscriptions := copyMap[*Subscription[Item], bool](pubSub.subscriptions)
+		pubSub.subscriptionsMu.RUnlock()
+		for subscription := range subscriptions {
 			subscription.Unsubscribe()
 		}
 	}()
 	return pubSub
+}
+
+func copyMap[Key comparable, Value any](m map[Key]Value) map[Key]Value {
+	copiedMap := make(map[Key]Value)
+	for k, v := range m {
+		copiedMap[k] = v
+	}
+	
+	return copiedMap
 }

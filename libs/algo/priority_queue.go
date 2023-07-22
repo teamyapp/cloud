@@ -38,6 +38,23 @@ func (pq *PriorityQueue[Value]) Peek() (Value, *errs.Error) {
 	return pq.items[0], nil
 }
 
+func (pq *PriorityQueue[Value]) Remove(value *Value) (Value, *errs.Error) {
+	if pq.Size() == 0 {
+		return *new(Value), errs.NewError(errs.InvalidOperation, "priority queue is empty")
+	}
+
+	for index, item := range pq.items {
+		if &item == value {
+			pq.items[index] = pq.items[pq.Size()-1]
+			pq.items = pq.items[:pq.Size()-1]
+			pq.shiftDown(index)
+			return item, nil
+		}
+	}
+
+	return *new(Value), errs.NewError(errs.InvalidOperation, "value not found")
+}
+
 func (pq *PriorityQueue[Value]) heapify() {
 	for index := pq.Size()/2 - 1; index >= 0; index-- {
 		pq.shiftDown(index)
