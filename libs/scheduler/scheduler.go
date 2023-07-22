@@ -3,16 +3,17 @@ package scheduler
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/teamyapp/cloud/libs/algo"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/runtime"
 	"github.com/teamyapp/cloud/libs/stream"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type Scheduler struct {
+	logger             telemetry.Logger
 	scheduledTasks     *algo.PriorityQueue[ScheduledTask]
 	scheduleTaskCh     chan bool
 	stopCh             chan bool
@@ -38,11 +39,10 @@ func (s *Scheduler) ScheduleTask(
 	schedule Schedule,
 	task Task,
 ) (*ScheduledTask, *errs.Error) {
-	fmt.Printf("schedule a task[%d]++++\n", task.getID())
+	s.logger.InfoWithContext(ct, fmt.Sprintf("schedule a task: id=%d", task.getID()))
 	s.scheduleTaskMu.Lock()
 	scheduledTask := NewScheduledTask(ct, s, schedule, task)
 	schedule.updateNextTimeToRun()
-	fmt.Printf("task inserted[%d]++++\n", task.getID())
 	s.scheduledTasks.Insert(scheduledTask)
 	s.scheduleTaskMu.Unlock()
 
@@ -55,24 +55,16 @@ func (s *Scheduler) ScheduleTask(
 }
 
 func (s *Scheduler) Start() {
-	var items []string
-	for _, item := range s.scheduledTasks.Items() {
-		items = append(items, fmt.Sprintf("%v", item.task.getID()))
-	}
+	ct := context.Background()
 
-	fmt.Printf("=============%v\n", strings.Join(items, ","))
 	go func() {
 		for {
-			fmt.Printf("        new scheduler loop\n")
 			s.scheduleTaskMu.Lock()
 			if s.scheduledTasks.Size() == 0 {
-				fmt.Printf("no task scheduled\n")
 				s.scheduleTaskMu.Unlock()
 				select {
 				case <-s.scheduleTaskCh:
-					fmt.Printf("task scheduled(1)\n")
 				case <-s.stopCh:
-					fmt.Printf("stopped(1)\n")
 					return
 				}
 				s.scheduleTaskMu.Lock()
@@ -82,7 +74,6 @@ func (s *Scheduler) Start() {
 				}
 			}
 
-			fmt.Printf("has task scheduled\n")
 			scheduledTask, err := s.scheduledTasks.Peek()
 
 			if err != nil {
@@ -90,23 +81,17 @@ func (s *Scheduler) Start() {
 				return
 			}
 
-			fmt.Printf("next time to run %v, pq size = %d, pop task id %d\n", scheduledTask.Schedule().getNextTimeToRun(), s.scheduledTasks.Size(), scheduledTask.task.getID())
 			nextTimeToRun := scheduledTask.Schedule().getNextTimeToRun()
 			now := s.clock.Now()
 
 			if nextTimeToRun.After(now) {
-				fmt.Printf("task will run later: task id=%v, time=%v\n", scheduledTask.task.getID(), now)
 				waitTime := nextTimeToRun.Sub(now)
 				s.scheduleTaskMu.Unlock()
-				fmt.Printf("set after: %v\n", waitTime)
 				select {
 				case <-s.clock.After(waitTime, scheduledTask.task.getID()):
-					fmt.Printf("waited %v for task %d\n", waitTime, scheduledTask.task.getID())
 				case <-s.scheduleTaskCh:
-					fmt.Printf("task scheduled(2)\n")
 					continue
 				case <-s.stopCh:
-					fmt.Printf("stopped(2)\n")
 					return
 				}
 
@@ -118,11 +103,10 @@ func (s *Scheduler) Start() {
 				}
 
 				if scheduledTask.task.getID() != latestScheduledTask.task.getID() {
+					s.logger.InfoWithContext(ct, fmt.Sprintf("task %d is not the latest task, will run later", scheduledTask.task.getID()))
 					s.scheduleTaskMu.Unlock()
 					continue
 				}
-			} else {
-				fmt.Printf("task will run now\n")
 			}
 
 			scheduledTask, err = s.scheduledTasks.Pop()
@@ -140,12 +124,12 @@ func (s *Scheduler) Start() {
 			s.runningTasks[taskID] = &scheduledTask
 			s.scheduleTaskMu.Unlock()
 
-			fmt.Printf("running task %d, started\n", taskID)
+			s.logger.InfoWithContext(ct, fmt.Sprintf("task %d is starting to run", taskID))
 			s.onTaskStartCh <- scheduledTask.task
 
 			go func() {
 				scheduledTask.RunTask()
-				fmt.Printf("task %d finished\n", taskID)
+				s.logger.InfoWithContext(ct, fmt.Sprintf("task %d is finished", taskID))
 				s.onTaskFinishCh <- scheduledTask.task
 
 				s.scheduleTaskMu.Lock()
@@ -195,6 +179,7 @@ func (s *Scheduler) removeScheduledTask(scheduledTask *ScheduledTask) {
 }
 
 func NewScheduler(
+	logger telemetry.Logger,
 	clock runtime.Clock,
 ) (*Scheduler, error) {
 	compare := func(a ScheduledTask, b ScheduledTask) algo.Comparison {
@@ -213,6 +198,7 @@ func NewScheduler(
 	onTaskStartCh := make(chan Task)
 	onTaskFinishCh := make(chan Task)
 	return &Scheduler{
+		logger:             logger,
 		scheduledTasks:     scheduledTasks,
 		scheduleTaskCh:     make(chan bool),
 		stopCh:             make(chan bool),

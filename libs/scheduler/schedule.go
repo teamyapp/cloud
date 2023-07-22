@@ -29,7 +29,7 @@ func (f *FixedDelaysSchedule) updateNextTimeToRun() {
 }
 
 func (f *FixedDelaysSchedule) HasFutureRun() bool {
-	return f.nextDelayIndex < len(f.delays)-1
+	return f.nextDelayIndex <= len(f.delays)-1
 }
 
 func NewFixedDelaysSchedule(delays []time.Duration, clock runtime.Clock) *FixedDelaysSchedule {
