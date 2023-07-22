@@ -16,14 +16,14 @@ import (
 var logger = telemetry.NewLogger(
 	telemetry.NewOrderedColumnLineFormatter([]string{}),
 	os.Stdout,
-	telemetry.Info,
+	telemetry.Off,
 	[]telemetry.LogInterceptor{},
 )
 
 type testTask struct {
+	id        uint64
 	counter   int
 	counterMu sync.Mutex
-	id        uint64
 }
 
 func (t *testTask) execute(ct context.Context) error {
@@ -50,7 +50,7 @@ func newTestTask(id uint64) *testTask {
 	}
 }
 
-func TestSchedulerSyncEnsureTaskOrder(t *testing.T) {
+func TestSchedulerSync(t *testing.T) {
 	testCases := []struct {
 		name           string
 		scheduledTasks []struct {
@@ -60,7 +60,7 @@ func TestSchedulerSyncEnsureTaskOrder(t *testing.T) {
 		ranTaskIDs []uint64
 	}{
 		{
-			name: "test schedulers sync ensure task order",
+			name: "sync ensure task order",
 			scheduledTasks: []struct {
 				delays []time.Duration
 				task   *testTask
@@ -91,8 +91,6 @@ func TestSchedulerSyncEnsureTaskOrder(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{})
-			logger := telemetry.NewLogger(lineFormatter, os.Stdout, telemetry.Off, []telemetry.LogInterceptor{})
 			scheduler, err := NewScheduler(logger, clock)
 			assert.Nil(t, err)
 
@@ -116,7 +114,7 @@ func TestSchedulerSyncEnsureTaskOrder(t *testing.T) {
 	}
 }
 
-func TestSchedulerConcurrentEnsureTaskOrder(t *testing.T) {
+func TestSchedulerConcurrent(t *testing.T) {
 	// wait for a bit longer, start scheduler before scheduling tasks, try to schedule tasks concurrently
 	testCases := []struct {
 		name           string
@@ -127,7 +125,7 @@ func TestSchedulerConcurrentEnsureTaskOrder(t *testing.T) {
 		ranTaskIDs []uint64
 	}{
 		{
-			name: "test schedulers concurrent ensure task order",
+			name: "ensure task order",
 			scheduledTasks: []struct {
 				delays []time.Duration
 				task   *testTask
@@ -156,9 +154,6 @@ func TestSchedulerConcurrentEnsureTaskOrder(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-
-			lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{})
-			logger := telemetry.NewLogger(lineFormatter, os.Stdout, telemetry.Off, []telemetry.LogInterceptor{})
 			scheduler, err := NewScheduler(logger, clock)
 			assert.Nil(t, err)
 
@@ -167,7 +162,6 @@ func TestSchedulerConcurrentEnsureTaskOrder(t *testing.T) {
 			for _, st := range testCase.scheduledTasks {
 				ct := context.Background()
 				schedule := NewFixedDelaysSchedule(st.delays, clock)
-
 				go func(task *testTask) {
 					scheduler.ScheduleTask(ct, schedule, task)
 				}(st.task)
@@ -177,7 +171,6 @@ func TestSchedulerConcurrentEnsureTaskOrder(t *testing.T) {
 			for output := range endSubscription.Output() {
 				assert.Equal(t, testCase.ranTaskIDs[subscriptionIndex], output.getID())
 				subscriptionIndex++
-
 				if subscriptionIndex == len(testCase.ranTaskIDs) {
 					break
 				}

@@ -121,12 +121,12 @@ func (s *Scheduler) Start() {
 			s.runningTasks[taskID] = &scheduledTask
 			s.scheduleTaskMu.Unlock()
 
-			s.logger.InfoWithContext(ct, fmt.Sprintf("task %d is starting to run", taskID))
+			s.logger.Info(fmt.Sprintf("task %d is starting to run", taskID))
 			s.onTaskStartCh <- scheduledTask.task
 
 			go func() {
 				scheduledTask.RunTask()
-				s.logger.InfoWithContext(ct, fmt.Sprintf("task %d is finished", taskID))
+				s.logger.Info(fmt.Sprintf("task %d is finished", taskID))
 				s.onTaskFinishCh <- scheduledTask.task
 
 				s.scheduleTaskMu.Lock()
@@ -179,7 +179,7 @@ func NewScheduler(
 	logger telemetry.Logger,
 	clock runtime.Clock,
 ) (*Scheduler, error) {
-	compare := func(a ScheduledTask, b ScheduledTask) algo.Comparison {
+	compare := func(first ScheduledTask, second ScheduledTask) algo.Comparison {
 		if a.Schedule().getNextTimeToRun().Before(b.Schedule().getNextTimeToRun()) {
 			return algo.SmallerThan
 		}
@@ -190,7 +190,6 @@ func NewScheduler(
 
 		return algo.Equal
 	}
-
 	scheduledTasks := algo.NewPriorityQueue[ScheduledTask](compare, nil)
 	onTaskStartCh := make(chan Task)
 	onTaskFinishCh := make(chan Task)
