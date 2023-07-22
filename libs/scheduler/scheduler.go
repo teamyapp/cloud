@@ -80,7 +80,6 @@ func (s *Scheduler) Start() {
 
 			nextTimeToRun := scheduledTask.Schedule().GetNextTimeToRun()
 			now := s.clock.Now()
-
 			if nextTimeToRun.After(now) {
 				waitTime := nextTimeToRun.Sub(now)
 				s.scheduleTaskMu.Unlock()

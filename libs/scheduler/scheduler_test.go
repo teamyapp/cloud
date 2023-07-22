@@ -84,7 +84,6 @@ func TestSchedulerSync(t *testing.T) {
 	}
 
 	clock := runtime.NewBuiltinClock()
-
 	t.Run(testCase.name, func(t *testing.T) {
 		t.Parallel()
 
