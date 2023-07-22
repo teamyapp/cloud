@@ -22,7 +22,7 @@ func (s *ScheduledTask) Remove() {
 }
 
 func (s *ScheduledTask) RunTask() error {
-	return s.task.execute(s.ct)
+	return s.task.Execute(s.ct)
 }
 
 func (s *ScheduledTask) Cancel() {

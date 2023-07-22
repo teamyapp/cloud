@@ -13,7 +13,7 @@ func (b *BuiltInClock) Now() time.Time {
 	return time.Now()
 }
 
-func (b *BuiltInClock) After(d time.Duration, id uint64) <-chan time.Time {
+func (b *BuiltInClock) After(d time.Duration) <-chan time.Time {
 	return time.After(d)
 }
 

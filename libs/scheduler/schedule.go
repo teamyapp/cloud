@@ -19,11 +19,11 @@ type FixedDelaysSchedule struct {
 	nextDelayIndex int
 }
 
-func (f *FixedDelaysSchedule) getNextTimeToRun() time.Time {
+func (f *FixedDelaysSchedule) GetNextTimeToRun() time.Time {
 	return f.nextTimeToRun
 }
 
-func (f *FixedDelaysSchedule) updateNextTimeToRun() {
+func (f *FixedDelaysSchedule) UpdateNextTimeToRun() {
 	f.nextTimeToRun = f.clock.Now().Add(f.delays[f.nextDelayIndex])
 	f.nextDelayIndex++
 }
