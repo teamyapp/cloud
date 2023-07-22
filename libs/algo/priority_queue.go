@@ -55,9 +55,6 @@ func (pq *PriorityQueue[Value]) Remove(value *Value) (Value, *errs.Error) {
 	return *new(Value), errs.NewError(errs.InvalidOperation, "value not found")
 }
 
-func (pq *PriorityQueue[Value]) Items() []Value {
-	return pq.items
-}
 
 func (pq *PriorityQueue[Value]) heapify() {
 	for index := pq.Size()/2 - 1; index >= 0; index-- {

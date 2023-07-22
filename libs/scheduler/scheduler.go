@@ -39,7 +39,7 @@ func (s *Scheduler) ScheduleTask(
 	schedule Schedule,
 	task Task,
 ) (*ScheduledTask, *errs.Error) {
-	s.logger.InfoWithContext(ct, fmt.Sprintf("schedule a task: id=%d", task.getID()))
+	s.logger.InfoWithContext(ct, fmt.Sprintf("enter schedule task: taskID=%d", task.getID()))
 	s.scheduleTaskMu.Lock()
 	scheduledTask := NewScheduledTask(ct, s, schedule, task)
 	schedule.updateNextTimeToRun()
@@ -55,8 +55,6 @@ func (s *Scheduler) ScheduleTask(
 }
 
 func (s *Scheduler) Start() {
-	ct := context.Background()
-
 	go func() {
 		for {
 			s.scheduleTaskMu.Lock()
@@ -75,7 +73,6 @@ func (s *Scheduler) Start() {
 			}
 
 			scheduledTask, err := s.scheduledTasks.Peek()
-
 			if err != nil {
 				s.scheduleTaskMu.Unlock()
 				return
@@ -88,7 +85,7 @@ func (s *Scheduler) Start() {
 				waitTime := nextTimeToRun.Sub(now)
 				s.scheduleTaskMu.Unlock()
 				select {
-				case <-s.clock.After(waitTime, scheduledTask.task.getID()):
+				case <-s.clock.After(waitTime):
 				case <-s.scheduleTaskCh:
 					continue
 				case <-s.stopCh:
@@ -103,7 +100,7 @@ func (s *Scheduler) Start() {
 				}
 
 				if scheduledTask.task.getID() != latestScheduledTask.task.getID() {
-					s.logger.InfoWithContext(ct, fmt.Sprintf("task %d is not the latest task, will run later", scheduledTask.task.getID()))
+					s.logger.Info(fmt.Sprintf("task %d is not the latest task, will run later", scheduledTask.task.getID()))
 					s.scheduleTaskMu.Unlock()
 					continue
 				}

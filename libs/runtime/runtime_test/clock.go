@@ -26,7 +26,7 @@ func (t *TestClock) SetNow(now time.Time) {
 	t.now = now
 }
 
-func (t *TestClock) After(d time.Duration, id uint64) <-chan time.Time {
+func (t *TestClock) After(d time.Duration) <-chan time.Time {
 	return time.After(d)
 }
 

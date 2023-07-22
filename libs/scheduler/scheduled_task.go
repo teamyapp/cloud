@@ -5,8 +5,8 @@ import (
 )
 
 type Task interface {
-	getID() uint64
-	execute(ct context.Context) error
+	GetID() uint64
+	Execute(ct context.Context) error
 }
 
 type ScheduledTask struct {

@@ -7,8 +7,8 @@ import (
 )
 
 type Schedule interface {
-	getNextTimeToRun() time.Time
-	updateNextTimeToRun()
+	GetNextTimeToRun() time.Time
+	UpdateNextTimeToRun()
 	HasFutureRun() bool
 }
 
