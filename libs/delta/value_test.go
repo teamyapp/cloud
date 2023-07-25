@@ -3,7 +3,7 @@ package delta
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDetectValueDelta(t *testing.T) {
@@ -15,11 +15,11 @@ func TestDetectValueDelta(t *testing.T) {
 	}
 
 	delta := DetectValueDelta(oldValue, newValue)
-	assert.Equal(t, expectedDelta, delta)
+	require.Equal(t, expectedDelta, delta)
 }
 
 func TestToValueDelta(t *testing.T) {
 	value := "value"
 	valueDelta := ToValueDelta(UpdatedStatus, value)
-	assert.Equal(t, value, valueDelta)
+	require.Equal(t, value, valueDelta)
 }

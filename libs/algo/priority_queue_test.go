@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
@@ -92,37 +92,37 @@ func TestPriorityQuery_Int(t *testing.T) {
 				testCase.initialValues,
 			)
 
-			assert.Equal(t, len(testCase.initialValues), pq.Size())
+			require.Equal(t, len(testCase.initialValues), pq.Size())
 			initialSize := pq.Size()
 
 			for index, insert := range testCase.inserts {
 				pq.Insert(insert)
-				assert.Equal(t, index+1+initialSize, pq.Size())
+				require.Equal(t, index+1+initialSize, pq.Size())
 
 				value, err := pq.Peek()
-				assert.Nil(t, err)
-				assert.Equal(t, testCase.peeks[index], value)
+				require.Nil(t, err)
+				require.Equal(t, testCase.peeks[index], value)
 			}
 
 			for _, top := range testCase.pops {
 				cur_size := pq.Size()
 				value, err := pq.Peek()
-				assert.Nil(t, err)
-				assert.Equal(t, top, value)
+				require.Nil(t, err)
+				require.Equal(t, top, value)
 
 				value, err = pq.Pop()
-				assert.Nil(t, err)
-				assert.Equal(t, top, value)
-				assert.Equal(t, cur_size-1, pq.Size())
+				require.Nil(t, err)
+				require.Equal(t, top, value)
+				require.Equal(t, cur_size-1, pq.Size())
 			}
 
-			assert.Equal(t, 0, pq.Size())
+			require.Equal(t, 0, pq.Size())
 
 			_, err := pq.Peek()
-			assert.Equal(t, err.Code, errs.InvalidOperation)
+			require.Equal(t, err.Code, errs.InvalidOperation)
 
 			_, err = pq.Pop()
-			assert.Equal(t, err.Code, errs.InvalidOperation)
+			require.Equal(t, err.Code, errs.InvalidOperation)
 		})
 	}
 
@@ -178,34 +178,34 @@ func TestPriorityQuery_String(t *testing.T) {
 				testCase.initialValues,
 			)
 
-			assert.Equal(t, len(testCase.initialValues), pq.Size())
+			require.Equal(t, len(testCase.initialValues), pq.Size())
 
 			for index, insert := range testCase.inserts {
 				pq.Insert(insert)
-				assert.Equal(t, index+1, pq.Size())
+				require.Equal(t, index+1, pq.Size())
 
 				value, _ := pq.Peek()
-				assert.Equal(t, testCase.peeks[index], value)
+				require.Equal(t, testCase.peeks[index], value)
 			}
 
 			for index, top := range testCase.pops {
 				value, err := pq.Peek()
-				assert.Nil(t, err)
-				assert.Equal(t, top, value)
+				require.Nil(t, err)
+				require.Equal(t, top, value)
 
 				value, err = pq.Pop()
-				assert.Nil(t, err)
-				assert.Equal(t, top, value)
-				assert.Equal(t, len(testCase.pops)-index-1, pq.Size())
+				require.Nil(t, err)
+				require.Equal(t, top, value)
+				require.Equal(t, len(testCase.pops)-index-1, pq.Size())
 			}
 
-			assert.Equal(t, 0, pq.Size())
+			require.Equal(t, 0, pq.Size())
 
 			_, err := pq.Peek()
-			assert.Equal(t, err.Code, errs.InvalidOperation)
+			require.Equal(t, err.Code, errs.InvalidOperation)
 
 			_, err = pq.Pop()
-			assert.Equal(t, err.Code, errs.InvalidOperation)
+			require.Equal(t, err.Code, errs.InvalidOperation)
 		})
 	}
 
@@ -310,35 +310,35 @@ func TestPriorityQuery_Date(t *testing.T) {
 				testCase.initialValues,
 			)
 
-			assert.Equal(t, len(testCase.initialValues), pq.Size())
+			require.Equal(t, len(testCase.initialValues), pq.Size())
 
 			for index, insert := range testCase.inserts {
 				pq.Insert(insert)
-				assert.Equal(t, index+1, pq.Size())
+				require.Equal(t, index+1, pq.Size())
 
 				value, err := pq.Peek()
-				assert.Nil(t, err)
-				assert.Equal(t, testCase.peeks[index], value)
+				require.Nil(t, err)
+				require.Equal(t, testCase.peeks[index], value)
 			}
 
 			for index, top := range testCase.pops {
 				value, err := pq.Peek()
-				assert.Nil(t, err)
-				assert.Equal(t, top, value)
+				require.Nil(t, err)
+				require.Equal(t, top, value)
 
 				value, err = pq.Pop()
-				assert.Nil(t, err)
-				assert.Equal(t, top, value)
-				assert.Equal(t, len(testCase.pops)-index-1, pq.Size())
+				require.Nil(t, err)
+				require.Equal(t, top, value)
+				require.Equal(t, len(testCase.pops)-index-1, pq.Size())
 			}
 
-			assert.Equal(t, 0, pq.Size())
+			require.Equal(t, 0, pq.Size())
 
 			_, err := pq.Peek()
-			assert.Equal(t, err.Code, errs.InvalidOperation)
+			require.Equal(t, err.Code, errs.InvalidOperation)
 
 			_, err = pq.Pop()
-			assert.Equal(t, err.Code, errs.InvalidOperation)
+			require.Equal(t, err.Code, errs.InvalidOperation)
 		})
 	}
 }

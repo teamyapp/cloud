@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
@@ -163,16 +163,13 @@ func TestParse(t *testing.T) {
 			t.Parallel()
 			duration, err := Parse(ct, testCase.input)
 			if testCase.expectedHasErr {
-				assert.NotNil(t, err)
-				assert.Equal(t, testCase.expectedErrCode, err.Code)
+				require.NotNil(t, err)
+				require.Equal(t, testCase.expectedErrCode, err.Code)
 				return
 			}
 
-			if !assert.Nil(t, err) {
-				return
-			}
-
-			assert.Equal(t, testCase.expectedDuration, duration)
+			require.Nil(t, err)
+			require.Equal(t, testCase.expectedDuration, duration)
 		})
 	}
 }
@@ -326,12 +323,10 @@ func TestFormat(t *testing.T) {
 		t.Run(testCase.input, func(t *testing.T) {
 			t.Parallel()
 			duration, err := Parse(ct, testCase.input)
-			if !assert.Nil(t, err) {
-				return
-			}
+			require.Nil(t, err)
 
 			actualFormattedDuration := Format(duration)
-			assert.Equal(t, testCase.expectedFormattedDuration, actualFormattedDuration)
+			require.Equal(t, testCase.expectedFormattedDuration, actualFormattedDuration)
 		})
 	}
 }

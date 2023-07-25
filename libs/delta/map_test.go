@@ -3,7 +3,7 @@ package delta_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/teamyapp/cloud/libs/delta"
 	"github.com/teamyapp/cloud/libs/delta/deltatest"
 )
@@ -124,7 +124,7 @@ func TestDetectMapDeltaSimpleValue(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			dt := delta.DetectMapDelta(tc.old, tc.new, delta.DetectValueDelta[string], delta.ToValueDelta[string])
-			assert.Equal(t, tc.expectedDelta, dt)
+			require.Equal(t, tc.expectedDelta, dt)
 		})
 	}
 }
@@ -356,7 +356,7 @@ func TestDetectMapDeltaNestedDelta(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			dt := delta.DetectMapDelta(tc.old, tc.new, deltatest.DetectNestedValueDelta, deltatest.ToNestValueDelta)
-			assert.Equal(t, tc.expectedDelta, dt)
+			require.Equal(t, tc.expectedDelta, dt)
 		})
 	}
 }
@@ -380,7 +380,7 @@ func TestToMapDeltaSimpleValue(t *testing.T) {
 		},
 	}
 	dt := delta.ToMapDelta(status, inputMap, delta.ToValueDelta[int])
-	assert.Equal(t, expectedDelta, dt)
+	require.Equal(t, expectedDelta, dt)
 }
 
 func TestToMapDeltaNestDelta(t *testing.T) {
@@ -422,5 +422,5 @@ func TestToMapDeltaNestDelta(t *testing.T) {
 		},
 	}
 	dt := delta.ToMapDelta(status, inputMap, deltatest.ToNestValueDelta)
-	assert.Equal(t, expectedDelta, dt)
+	require.Equal(t, expectedDelta, dt)
 }

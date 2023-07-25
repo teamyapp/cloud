@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/randgen/randgen_test"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
@@ -134,19 +134,19 @@ func TestTimeout(t *testing.T) {
 
 			go func() {
 				retries, err := timeoutExecutor.WithRetry(ct, execute)
-				assert.Equal(t, testCase.expectRetries, retries)
+				require.Equal(t, testCase.expectRetries, retries)
 				if testCase.expectErr == nil {
-					assert.Nil(t, err)
+					require.Nil(t, err)
 				} else {
-					assert.Equal(t, testCase.expectErr.Code, err.Code)
+					require.Equal(t, testCase.expectErr.Code, err.Code)
 				}
 			}()
 
 			retry := 1
 			for retry <= testCase.sleepAwakeCount {
 				<-beforeThreadSleepChan
-				assert.Equal(t, count, retry)
-				assert.Equal(t, currDuration, testCase.durations[retry-1])
+				require.Equal(t, count, retry)
+				require.Equal(t, currDuration, testCase.durations[retry-1])
 				runtime.Awake()
 				retry++
 			}

@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/teamyapp/cloud/app/dao/daotest"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/collect"
@@ -491,11 +491,11 @@ func TestAuthorization_HasPermission(t *testing.T) {
 				daotest.NewUserGroup(inMemoryDB),
 				NewUniqueNumberGenRegistry(logger, mockAllocatedRange, 0),
 			)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			hasPermission, internalErr := mockAuthorization.HasPermission(ct, testCase.resourceType, testCase.resourceID, testCase.operation, testCase.userID)
-			assert.Nil(t, internalErr)
-			assert.Equal(t, hasPermission, testCase.expectedHasPermission)
+			require.Nil(t, internalErr)
+			require.Equal(t, hasPermission, testCase.expectedHasPermission)
 		})
 	}
 }
