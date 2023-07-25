@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/libs/fakeapi"
 	"github.com/teamyapp/cloud/libs/network/networktest"
@@ -45,27 +45,27 @@ func TestGithub_GetUser(t *testing.T) {
 
 	ct := context.Background()
 	signInURL, internalErr := githubOAuth.GetSignInURL(ct, 1)
-	assert.Nil(t, internalErr)
+	require.Nil(t, internalErr)
 	if internalErr != nil {
 		return
 	}
 
 	// Simulate browser to navigate to the signInURL
 	req, err := http.NewRequest(http.MethodGet, signInURL, nil)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	if err != nil {
 		return
 	}
 
 	response, err := httpClient.Do(req)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	if err != nil {
 		return
 	}
 
-	assert.Equal(t, http.StatusOK, response.StatusCode)
+	require.Equal(t, http.StatusOK, response.StatusCode)
 	buf, err := io.ReadAll(response.Body)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	if err != nil {
 		return
 	}
@@ -73,7 +73,7 @@ func TestGithub_GetUser(t *testing.T) {
 	// Simulate user select and sign in an account
 	selectUserURI := string(buf)
 	req, err = http.NewRequest(http.MethodPost, selectUserURI, nil)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	if err != nil {
 		return
 	}
@@ -85,7 +85,7 @@ func TestGithub_GetUser(t *testing.T) {
 	}
 	web.WriteJSONToRequest(req, selectUserBody)
 	response, err = httpClient.Do(req)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	if err != nil {
 		return
 	}
@@ -94,14 +94,14 @@ func TestGithub_GetUser(t *testing.T) {
 	// OAuth account
 	rawRedirectURI := response.Header.Get("Location")
 	redirectURI, err := url.Parse(rawRedirectURI)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	if err != nil {
 		return
 	}
 
 	authorizationCode := githubOAuth.GetAuthorizationCode(ct, redirectURI)
 	externalUser, internalErr := githubOAuth.GetUser(ct, authorizationCode)
-	assert.Nil(t, internalErr)
+	require.Nil(t, internalErr)
 	if err != nil {
 		return
 	}
@@ -110,5 +110,5 @@ func TestGithub_GetUser(t *testing.T) {
 		ID:    githubUser1.NodeID,
 		Label: githubUser1.Login,
 	}
-	assert.Equal(t, expectedExternalUser, externalUser)
+	require.Equal(t, expectedExternalUser, externalUser)
 }

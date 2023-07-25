@@ -4,7 +4,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/teamyapp/cloud/libs/delta"
 )
 
@@ -593,7 +593,7 @@ operationRelations:
 			}
 
 			actualDelta := DetectConfigDelta(oldConfig, newConfig)
-			assert.Equal(t, testCase.expectedDelta, actualDelta)
+			require.Equal(t, testCase.expectedDelta, actualDelta)
 		})
 	}
 }

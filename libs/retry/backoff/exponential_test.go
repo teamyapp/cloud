@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/teamyapp/cloud/libs/randgen/randgen_test"
 )
 
@@ -88,7 +88,7 @@ func TestExponential(t *testing.T) {
 					exponential.OnFailure()
 				}
 
-				assert.Equal(t, exponential.Delay(), testCase.expectedDelays[index])
+				require.Equal(t, exponential.Delay(), testCase.expectedDelays[index])
 			}
 		})
 	}
