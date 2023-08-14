@@ -58,14 +58,6 @@ func (u *UniqueNumberGen) allocateNewRange(ct context.Context) *errs.Error {
 	return nil
 }
 
-func min[Number int | uint64](num1 Number, num2 Number) Number {
-	if num1 <= num2 {
-		return num1
-	} else {
-		return num2
-	}
-}
-
 func newUniqueNumberGen(
 	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,

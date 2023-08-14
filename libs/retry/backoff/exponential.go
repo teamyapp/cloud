@@ -3,7 +3,6 @@ package backoff
 import (
 	"time"
 
-	"github.com/teamyapp/cloud/libs/num"
 	"github.com/teamyapp/cloud/libs/randgen"
 )
 
@@ -27,12 +26,12 @@ func (e *Exponential) OnSuccess() {
 	}
 
 	scaled := e.nextDelay / time.Duration(e.scalingFactor)
-	e.nextDelay = num.Max(scaled, e.minDelay)
+	e.nextDelay = max(scaled, e.minDelay)
 }
 
 func (e *Exponential) OnFailure() {
 	scaled := e.nextDelay * time.Duration(e.scalingFactor)
-	e.nextDelay = num.Min(scaled, e.maxDelay)
+	e.nextDelay = min(scaled, e.maxDelay)
 }
 
 func (e *Exponential) Delay() time.Duration {
