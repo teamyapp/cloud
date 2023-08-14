@@ -241,9 +241,6 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 				Value: data,
 				Error: nil,
 			}
-
-			// Required to prevent Wire gen from failure
-			continue
 		}
 	}()
 	return entity.File{
