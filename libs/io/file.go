@@ -32,3 +32,7 @@ func GetFileURL(cloudWebAPIBaseURL string, fileID uint64) string {
 	fileIDParam := strconv.FormatUint(fileID, 10)
 	return fmt.Sprintf("%s/file/files/%s", cloudWebAPIBaseURL, fileIDParam)
 }
+
+func GetUploadFileURL(cloudWebAPIBaseURL string, fileName string) string {
+	return fmt.Sprintf("%s/file/files/upload?fileName=%s", cloudWebAPIBaseURL, fileName)
+}

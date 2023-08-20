@@ -13,10 +13,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao/sqldb"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
-	"github.com/teamyapp/cloud/app/storage"
 	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/security"
+	"github.com/teamyapp/cloud/libs/storage"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
 )
@@ -69,7 +69,8 @@ var daoSet = wire.NewSet(
 )
 
 var storageSet = wire.NewSet(
-	wire.Bind(new(storage.MapBackend), new(storage.S3Bucket)),
+	wire.Bind(new(storage.MapClient), new(storage.S3Bucket)),
+	wire.Bind(new(storage.MapRequestHandlers), new(storage.S3Bucket)),
 	newS3Bucket,
 )
 

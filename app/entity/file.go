@@ -1,10 +1,10 @@
 package entity
 
 import (
-	"github.com/teamyapp/cloud/app/lang"
+	"io"
 )
 
 type File struct {
 	Metadata     FileMetadata
-	ChunksBuffer chan lang.Result[[]byte]
+	ChunksBuffer io.Reader
 }

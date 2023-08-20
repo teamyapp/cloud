@@ -23,6 +23,8 @@ import (
 
 const uploadSessionIDParam = "uploadSessionId"
 const fileIDParam = "fileId"
+const fileKeyParam = "fileKey"
+const fileNameParam = "fileName"
 
 type File struct {
 	logger      telemetry.Logger
@@ -64,6 +66,11 @@ func (f File) Start(rn *runner.ServiceRunner) *errs.Error {
 			Method:      http.MethodGet,
 			Pattern:     path.Join(filePathPrefix, "files", runner.Param(fileIDParam)),
 			HandlerFunc: f.webGetFile,
+		},
+		{
+			Method:      http.MethodPost,
+			Pattern:     path.Join(filePathPrefix, "files", "upload"),
+			HandlerFunc: f.webUploadFile,
 		},
 	})
 	rn.WithGRPCServer(func(server *grpc.Server) {
@@ -186,6 +193,26 @@ func (f File) webDeleteUploadSession(writer http.ResponseWriter, request *http.R
 	panic("not implemented")
 }
 
+func (f File) webUploadFile(writer http.ResponseWriter, request *http.Request) {
+	ct := request.Context()
+	fileName := request.URL.Query().Get(fileNameParam)
+	if fileName == "" {
+		internalErr := errs.NewError(errs.InvalidArgument, "fileName is required")
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
+	}
+
+	internalErr := f.fileService.AddFile(ct, fileName, request.Body)
+	if internalErr != nil {
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
+	}
+
+	web.WriteJSONToResponse(writer, nil)
+}
+
 func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 	ct := request.Context()
 	uploadSessionIDRaw := chi.URLParam(request, uploadSessionIDParam)
@@ -197,15 +224,7 @@ func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	data, err := io.ReadAll(request.Body)
-	if err != nil {
-		internalErr := errs.NewError(errs.Deserialization, err.Error())
-		f.logger.ErrorWithContext(ct, internalErr)
-		errs.SetHTTPErr(internalErr, writer)
-		return
-	}
-
-	uploadSession, internalErr := f.fileService.AddChunk(request.Context(), uploadSessionID, data)
+	uploadSession, internalErr := f.fileService.AddChunk(ct, uploadSessionID, request.Body, request.ContentLength)
 	if internalErr != nil {
 		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
@@ -268,23 +287,15 @@ func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	for chunkResult := range file.ChunksBuffer {
-		if chunkResult.Error != nil {
-			f.logger.ErrorWithContext(ct, chunkResult.Error)
-			errs.SetHTTPErr(chunkResult.Error, writer)
-			return
-		}
-
-		_, err = writer.Write(chunkResult.Value)
-		if err != nil {
-			internalErr = errs.NewError(errs.Unknown, err.Error())
-			f.logger.ErrorWithContext(ct, internalErr)
-			errs.SetHTTPErr(internalErr, writer)
-			return
-		}
-
-		flusher.Flush()
+	_, err = io.Copy(writer, file.ChunksBuffer)
+	if err != nil {
+		internalErr = errs.NewError(errs.Unknown, err.Error())
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
 	}
+
+	flusher.Flush()
 }
 
 func NewFile(logger telemetry.Logger, fileService service.File) File {

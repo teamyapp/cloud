@@ -7,21 +7,21 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash"
+	"io"
+	"sync"
 	"time"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/app/lang"
-	"github.com/teamyapp/cloud/app/storage"
 	"github.com/teamyapp/cloud/libs/errs"
+	tmio "github.com/teamyapp/cloud/libs/io"
+	"github.com/teamyapp/cloud/libs/storage"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-const chunksBufferSize = 10
-
 type File struct {
 	logger             telemetry.Logger
-	mapBackend         storage.MapBackend
+	mapClient          storage.MapClient
 	uploadSessionDao   dao.UploadSession
 	fileMetadataDao    dao.FileMetadata
 	chunkMetadataDao   dao.ChunkMetadata
@@ -87,7 +87,7 @@ func (f File) InitUploadSession(
 	uploadSession.TotalSizeInBytes = totalSizeInBytes
 	uploadSession.TotalNumOfChunks = totalNumOfChunks
 	uploadSession.Status = entity.InitializedUploadSessionStatus
-	now := time.Now()
+	now := time.Now().UTC()
 	uploadSession.HashState = hashState
 	uploadSession.UpdatedAt = &now
 	internalErr = f.uploadSessionDao.UpdateUploadSession(ct, uploadSession)
@@ -99,7 +99,11 @@ func (f File) InitUploadSession(
 	return uploadSession, nil
 }
 
-func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []byte) (entity.UploadSession, *errs.Error) {
+func (f File) AddFile(ct context.Context, fileName string, fileData io.Reader) *errs.Error {
+	return f.mapClient.Put(fileName, fileData)
+}
+
+func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.Reader, contentLength int64) (entity.UploadSession, *errs.Error) {
 	uploadSession, internalErr := f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
 	if internalErr != nil {
 		return entity.UploadSession{}, internalErr
@@ -117,15 +121,10 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 		return entity.UploadSession{}, internalErr
 	}
 
-	internalErr = saveChunk(f.mapBackend, chunkID, chunkData)
-	if internalErr != nil {
-		return entity.UploadSession{}, internalErr
-	}
-
-	now := time.Now()
+	now := time.Now().UTC()
 	chunkMetadata := entity.ChunkMetadata{
 		ID:          chunkID,
-		SizeInBytes: uint64(len(chunkData)),
+		SizeInBytes: uint64(contentLength),
 		CreatedAt:   now,
 	}
 	internalErr = f.chunkMetadataDao.CreateChunkMetadata(ct, chunkMetadata)
@@ -139,9 +138,37 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData []b
 		return entity.UploadSession{}, errs.NewError(errs.Deserialization, err.Error())
 	}
 
-	_, err = hashBuffer.Write(chunkData)
-	if err != nil {
-		return entity.UploadSession{}, errs.NewError(errs.IO, err.Error())
+	multiReader := tmio.NewMultiReaders( /*f.logger*/ )
+	readers := multiReader.GenerateMultiReaders(chunkData, 2)
+	hashReader, chunkReader := readers[0], readers[1]
+
+	wg := sync.WaitGroup{}
+	var wgErr *errs.Error
+	once := sync.Once{}
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		internalErr = saveChunk(f.mapClient, chunkID, chunkReader)
+		if internalErr != nil {
+			once.Do(func() {
+				wgErr = internalErr
+			})
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		_, err = io.Copy(hashBuffer, hashReader)
+		if err != nil {
+			once.Do(func() {
+				wgErr = errs.NewError(errs.IO, err.Error())
+			})
+		}
+	}()
+
+	wg.Wait()
+	if wgErr != nil {
+		return entity.UploadSession{}, wgErr
 	}
 
 	hashState, err := hashBuffer.(encoding.BinaryMarshaler).MarshalBinary()
@@ -212,46 +239,48 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 		return entity.File{}, err
 	}
 
-	chunksIterator := newChunksIterator(f.logger, f.mapBackend, metadata.ChunkIDs)
-	chunksBuffer := make(chan lang.Result[[]byte], chunksBufferSize)
+	chunksIterator := newChunksIterator(f.logger, f.mapClient, metadata.ChunkIDs)
+	chunksBufferReader, chunksBufferWriter := io.Pipe()
+
 	go func() {
-		defer close(chunksBuffer)
 		for {
 			hasNext, err := chunksIterator.HasNext()
 			if err != nil {
-				chunksBuffer <- lang.Result[[]byte]{
-					Error: err,
-				}
+				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, "failed to read has next"))
+				chunksBufferWriter.CloseWithError(err.ToError())
 				return
 			}
 
 			if !hasNext {
+				chunksBufferWriter.Close()
 				return
 			}
 
 			data, err := chunksIterator.Next(ct)
 			if err != nil {
-				chunksBuffer <- lang.Result[[]byte]{
-					Error: err,
-				}
+				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, "failed to read chunk data"))
+				chunksBufferWriter.CloseWithError(err.ToError())
 				return
 			}
 
-			chunksBuffer <- lang.Result[[]byte]{
-				Value: data,
-				Error: nil,
+			_, error := io.Copy(chunksBufferWriter, data)
+			if error != nil {
+				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, "failed to write chunk data"))
+				chunksBufferWriter.CloseWithError(error)
+				return
 			}
 		}
+
 	}()
 	return entity.File{
 		Metadata:     metadata,
-		ChunksBuffer: chunksBuffer,
+		ChunksBuffer: chunksBufferReader,
 	}, nil
 }
 
 func NewFile(
 	logger telemetry.Logger,
-	mapBackend storage.MapBackend,
+	mapClient storage.MapClient,
 	uniqueNumberRegistry *UniqueNumberGenRegistry,
 	uploadSessionDao dao.UploadSession,
 	fileMetadataDao dao.FileMetadata,
@@ -274,7 +303,7 @@ func NewFile(
 
 	return File{
 		logger:             logger,
-		mapBackend:         mapBackend,
+		mapClient:          mapClient,
 		uploadSessionDao:   uploadSessionDao,
 		fileMetadataDao:    fileMetadataDao,
 		chunkMetadataDao:   chunkMetadataDao,

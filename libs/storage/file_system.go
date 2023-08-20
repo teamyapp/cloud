@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,18 +14,18 @@ type FileSystem struct {
 	rootDir string
 }
 
-var _ MapBackend = (*FileSystem)(nil)
+var _ MapClient = (*FileSystem)(nil)
 
-func (f FileSystem) Get(key string) ([]byte, *errs.Error) {
+func (f FileSystem) Get(key string) (io.Reader, *errs.Error) {
 	buf, err := os.ReadFile(path.Join(f.rootDir, key))
 	if err != nil {
 		return nil, errs.NewError(errs.OS, err.Error())
 	}
 
-	return buf, nil
+	return bytes.NewReader(buf), nil
 }
 
-func (f FileSystem) Put(key string, data []byte) *errs.Error {
+func (f FileSystem) Put(key string, data io.Reader) *errs.Error {
 	filePath := path.Join(f.rootDir, key)
 	dir := filepath.Dir(filePath)
 	err := os.MkdirAll(dir, os.ModePerm)
@@ -31,7 +33,9 @@ func (f FileSystem) Put(key string, data []byte) *errs.Error {
 		return errs.NewError(errs.OS, err.Error())
 	}
 
-	err = os.WriteFile(filePath, data, os.ModePerm)
+	dataBytes, err := io.ReadAll(data)
+
+	err = os.WriteFile(filePath, dataBytes, os.ModePerm)
 	if err != nil {
 		return errs.NewError(errs.OS, err.Error())
 	}
