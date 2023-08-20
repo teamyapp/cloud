@@ -242,7 +242,7 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 		for {
 			hasNext, err := chunksIterator.HasNext()
 			if err != nil {
-				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, "failed to read has next"))
+				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, "fail to invoke hasNext"))
 				chunksBufferWriter.CloseWithError(err.ToError())
 				return
 			}

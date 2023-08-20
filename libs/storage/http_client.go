@@ -10,7 +10,7 @@ import (
 )
 
 type HTTPClient struct {
-	cloudWebAPIExternalBaseURL string
+	mapServerURL string
 }
 
 var _ MapClient = (*HTTPClient)(nil)

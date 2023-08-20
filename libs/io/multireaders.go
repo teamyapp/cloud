@@ -12,12 +12,12 @@ func (m *MultiReaders) GenerateMultiReaders(reader io.Reader, count int) []io.Re
 	readers := make([]io.Reader, count)
 	writers := make([]io.Writer, count)
 
-	i := 0
-	for i < count {
+	index := 0
+	for index < count {
 		r, w := io.Pipe()
 		readers[i] = r
 		writers[i] = w
-		i++
+		index++
 	}
 
 	writer := io.MultiWriter(writers...)

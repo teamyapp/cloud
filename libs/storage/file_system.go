@@ -34,7 +34,6 @@ func (f FileSystem) Put(key string, data io.Reader) *errs.Error {
 	}
 
 	dataBytes, err := io.ReadAll(data)
-
 	err = os.WriteFile(filePath, dataBytes, os.ModePerm)
 	if err != nil {
 		return errs.NewError(errs.OS, err.Error())
