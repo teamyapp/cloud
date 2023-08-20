@@ -146,6 +146,24 @@ func InitFileAPI(
 	return api.File{}, nil
 }
 
+func InitStreamAPI(
+	logger telemetry.Logger,
+	env env.Environment,
+	sqlDB *sql.DB,
+	s3Endpoint S3Endpoint,
+	s3AccessKeyID S3AccessKeyID,
+	s3AccessKey S3AccessKey,
+	s3BucketName S3BucketName,
+) (api.Stream, error) {
+	wire.Build(
+		daoSet,
+		storageSet,
+		service.NewStream,
+		api.NewStream,
+	)
+	return api.Stream{}, nil
+}
+
 func newS3Bucket(
 	logger telemetry.Logger,
 	s3Endpoint S3Endpoint,

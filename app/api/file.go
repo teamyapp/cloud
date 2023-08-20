@@ -24,7 +24,6 @@ import (
 const uploadSessionIDParam = "uploadSessionId"
 const fileIDParam = "fileId"
 const fileKeyParam = "fileKey"
-const fileNameParam = "fileName"
 
 type File struct {
 	logger      telemetry.Logger
@@ -66,11 +65,6 @@ func (f File) Start(rn *runner.ServiceRunner) *errs.Error {
 			Method:      http.MethodGet,
 			Pattern:     path.Join(filePathPrefix, "files", runner.Param(fileIDParam)),
 			HandlerFunc: f.webGetFile,
-		},
-		{
-			Method:      http.MethodPost,
-			Pattern:     path.Join(filePathPrefix, "files", "upload"),
-			HandlerFunc: f.webUploadFile,
 		},
 	})
 	rn.WithGRPCServer(func(server *grpc.Server) {
@@ -191,26 +185,6 @@ func (f File) webInitUploadSession(writer http.ResponseWriter, request *http.Req
 
 func (f File) webDeleteUploadSession(writer http.ResponseWriter, request *http.Request) {
 	panic("not implemented")
-}
-
-func (f File) webUploadFile(writer http.ResponseWriter, request *http.Request) {
-	ct := request.Context()
-	fileName := request.URL.Query().Get(fileNameParam)
-	if fileName == "" {
-		internalErr := errs.NewError(errs.InvalidArgument, "fileName is required")
-		f.logger.ErrorWithContext(ct, internalErr)
-		errs.SetHTTPErr(internalErr, writer)
-		return
-	}
-
-	internalErr := f.fileService.AddFile(ct, fileName, request.Body)
-	if internalErr != nil {
-		f.logger.ErrorWithContext(ct, internalErr)
-		errs.SetHTTPErr(internalErr, writer)
-		return
-	}
-
-	web.WriteJSONToResponse(writer, nil)
 }
 
 func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {

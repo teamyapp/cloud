@@ -89,6 +89,17 @@ func InitFileAPI(logger telemetry.Logger, env2 env.Environment, sqlDB *sql.DB, g
 	return apiFile, nil
 }
 
+func InitStreamAPI(logger telemetry.Logger, env2 env.Environment, sqlDB *sql.DB, s3Endpoint S3Endpoint, s3AccessKeyID S3AccessKeyID, s3AccessKey S3AccessKey, s3BucketName S3BucketName) (api.Stream, error) {
+	s3Bucket, err := newS3Bucket(logger, s3Endpoint, s3AccessKeyID, s3AccessKey, s3BucketName, env2)
+	if err != nil {
+		return api.Stream{}, err
+	}
+	fileMetadata := sqldb.NewFileMetadata(sqlDB)
+	stream := service.NewStream(logger, s3Bucket, fileMetadata)
+	apiStream := api.NewStream(logger, stream)
+	return apiStream, nil
+}
+
 func InitGitHubOAuthProvider(logger telemetry.Logger, webAPIBaseURL WebAPIBaseURL, clientID ClientID, clientSecret ClientSecret) oauth.GitHub {
 	socket := network.NewSocket()
 	client := web.NewHTTPClient(socket)

@@ -99,10 +99,6 @@ func (f File) InitUploadSession(
 	return uploadSession, nil
 }
 
-func (f File) AddFile(ct context.Context, fileName string, fileData io.Reader) *errs.Error {
-	return f.mapClient.Put(fileName, fileData)
-}
-
 func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.Reader, contentLength int64) (entity.UploadSession, *errs.Error) {
 	uploadSession, internalErr := f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
 	if internalErr != nil {
