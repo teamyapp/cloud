@@ -23,7 +23,6 @@ import (
 
 const uploadSessionIDParam = "uploadSessionId"
 const fileIDParam = "fileId"
-const fileKeyParam = "fileKey"
 
 type File struct {
 	logger      telemetry.Logger
