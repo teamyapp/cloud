@@ -15,8 +15,8 @@ func (m *MultiReaders) GenerateMultiReaders(reader io.Reader, count int) []io.Re
 	index := 0
 	for index < count {
 		r, w := io.Pipe()
-		readers[i] = r
-		writers[i] = w
+		readers[index] = r
+		writers[index] = w
 		index++
 	}
 

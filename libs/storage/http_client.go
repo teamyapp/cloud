@@ -21,7 +21,7 @@ func (c *HTTPClient) Get(key string) (io.Reader, *errs.Error) {
 		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	url := tmio.GetFileURL(c.cloudWebAPIExternalBaseURL, fileID)
+	url := tmio.GetFileURL(c.mapServerURL, fileID)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, errs.NewError(errs.Unknown, err.Error())
@@ -36,7 +36,7 @@ func (c *HTTPClient) Get(key string) (io.Reader, *errs.Error) {
 }
 
 func (c *HTTPClient) Put(key string, value io.Reader) *errs.Error {
-	url := tmio.GetUploadFileURL(c.cloudWebAPIExternalBaseURL, key)
+	url := tmio.GetUploadFileURL(c.mapServerURL, key)
 	req, err := http.NewRequest(http.MethodPost, url, value)
 	if err != nil {
 		return errs.NewError(errs.Unknown, err.Error())
@@ -54,8 +54,8 @@ func (c *HTTPClient) Delete(key string) *errs.Error {
 	panic("implement me")
 }
 
-func NewHTTPClient(cloudWebAPIExternalBaseURL string) *HTTPClient {
+func NewHTTPClient(mapServerURL string) *HTTPClient {
 	return &HTTPClient{
-		cloudWebAPIExternalBaseURL: cloudWebAPIExternalBaseURL,
+		mapServerURL: mapServerURL,
 	}
 }
