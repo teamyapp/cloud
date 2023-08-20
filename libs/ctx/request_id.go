@@ -11,8 +11,8 @@ func GetRequestIDGRPC(ctx context.Context) string {
 	return getValueGRPC(ctx, requestIDKey)
 }
 
-func GetRequestIDHttp(ctx context.Context, request *http.Request) string {
-	return getValueHttp(ctx, request, requestIDKey)
+func GetRequestIDHttp(request *http.Request) string {
+	return getValueHttp(request, requestIDKey)
 }
 
 func GetRequestID(ctx context.Context) (string, bool) {
@@ -25,7 +25,9 @@ func NewContextWithRequestID(ctx context.Context, requestID string) context.Cont
 }
 
 func MetadataWithRequestID(ctx context.Context, requestID string) context.Context {
-	ctx = metadata.AppendToOutgoingContext(ctx, string(requestIDKey), requestID)
+	return metadata.AppendToOutgoingContext(ctx, string(requestIDKey), requestID)
+}
 
-	return ctx
+func SetRequestIDHttp(request *http.Request, requestID string) {
+	setValueHttp(request, requestIDKey, requestID)
 }

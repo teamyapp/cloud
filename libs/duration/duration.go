@@ -4,13 +4,12 @@ package duration
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
 	"unicode"
 
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 // format: P[n]Y[n]M[n]W[n]DT[n]H[n]M[n]S
@@ -76,7 +75,7 @@ var timeSymbolInNanos = map[rune]int64{
 	secondSymbol: secondInNanos,
 }
 
-func Parse(ct context.Context, dataCollector obs.DataCollector, input string) (time.Duration, error) {
+func Parse(ct context.Context, input string) (time.Duration, *errs.Error) {
 	var sign int64 = 1
 	if len(input) > 0 && input[0] == '-' {
 		sign = -1
@@ -84,12 +83,10 @@ func Parse(ct context.Context, dataCollector obs.DataCollector, input string) (t
 	}
 
 	if len(input) == 0 || input[0] != uint8(periodSymbol) {
-		err := fmt.Errorf("duration must start with 'P'")
-		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-			obs.CauseProp: err,
-			"Duration":    input,
-		})
-		return 0, err
+		return 0, errs.NewError(
+			errs.InvalidArgument,
+			fmt.Sprintf("duration must start with 'P': duration=%v", input),
+		)
 	}
 
 	input = input[1:]
@@ -114,18 +111,16 @@ func Parse(ct context.Context, dataCollector obs.DataCollector, input string) (t
 		}
 
 		if visitTimeSection {
-			err := validateSymbol(ct, dataCollector, timeSymbolOrder, timeSymbolIndices, seenSymbols, currRune, index)
+			err := validateSymbol(ct, timeSymbolOrder, timeSymbolIndices, seenSymbols, currRune, index)
 			if err != nil {
-				dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 				return 0, err
 			}
 
 			totalNanoSeconds += timeSymbolInNanos[currRune] * int64(num)
 			hasTime = true
 		} else {
-			err := validateSymbol(ct, dataCollector, periodSymbolOrder, periodSymbolIndices, seenSymbols, currRune, index)
+			err := validateSymbol(ct, periodSymbolOrder, periodSymbolIndices, seenSymbols, currRune, index)
 			if err != nil {
-				dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 				return 0, err
 			}
 
@@ -138,15 +133,17 @@ func Parse(ct context.Context, dataCollector obs.DataCollector, input string) (t
 	}
 
 	if !hasPeriod && !hasTime {
-		err := errors.New("must has either period or time")
-		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return 0, err
+		return 0, errs.NewError(
+			errs.InvalidArgument,
+			fmt.Sprintf("must has either period or time: duration=%v", input),
+		)
 	}
 
 	if visitTimeSection && !hasTime {
-		err := errors.New("must remove ending T or have non empty time section")
-		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return 0, err
+		return 0, errs.NewError(
+			errs.InvalidArgument,
+			fmt.Sprintf("must remove ending T or have non empty time section: duration=%v", input),
+		)
 	}
 
 	return time.Duration(sign * totalNanoSeconds), nil
@@ -210,36 +207,28 @@ func tryWriteNumWithUnit(buffer *bytes.Buffer, num int64, symbol rune) {
 
 func validateSymbol(
 	ct context.Context,
-	dataCollector obs.DataCollector,
 	symbolOrder []rune,
 	symbolIndices map[rune]int,
 	seenSymbols map[rune]int,
 	currSymbol rune,
 	currIndex int,
-) error {
+) *errs.Error {
 	symbolIndex, ok := symbolIndices[currSymbol]
 	if !ok {
-		err := errors.New("unsupported symbol")
-		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-			obs.CauseProp: err,
-			"Index":       currIndex,
-			"Symbol":      currSymbol,
-		})
-		return err
+		return errs.NewError(
+			errs.InvalidArgument,
+			fmt.Sprintf("unsupported symbol: index=%v, symbol=%v", currIndex, currSymbol),
+		)
 	}
 
 	for index := symbolIndex; index < len(symbolOrder); index++ {
 		symbol := symbolOrder[index]
 		seenSymbolIndex, ok := seenSymbols[symbol]
 		if ok {
-			err := errors.New("%c(%v) already showed up before %c(%v)")
-			dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-				obs.CauseProp:     err,
-				"SeenSymbolIndex": seenSymbolIndex,
-				"CurrSymbol":      currSymbol,
-				"CurrIndex":       currIndex,
-			})
-			return err
+			return errs.NewError(
+				errs.InvalidArgument,
+				fmt.Sprintf("%c already showed up before %c(%v)", seenSymbolIndex, currSymbol, currIndex),
+			)
 		}
 	}
 

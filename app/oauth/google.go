@@ -1,7 +1,6 @@
 package oauth
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,22 +10,23 @@ import (
 	"strconv"
 
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/security"
+	"github.com/teamyapp/cloud/libs/web"
 )
 
 const GoogleName = "google"
 
 // https://developers.google.com/identity/protocols/oauth2/web-server#httprest_1
-var googleAuthURLString = "https://accounts.google.com/o/oauth2/v2/auth"
-var googleTokenURLString = "https://oauth2.googleapis.com/token"
+var googleAuthURL = "https://accounts.google.com/o/oauth2/v2/auth"
+var googleTokenURL = "https://oauth2.googleapis.com/token"
 
 type Google struct {
-	dataCollector obs.DataCollector
-	jwtAuthority  security.JWTAuthority
-	clientID      string
-	clientSecret  string
-	redirectURI   string
+	httpClient   web.HTTPClient
+	jwtAuthority security.JWTAuthority
+	clientID     string
+	clientSecret string
+	redirectURI  string
 }
 
 var _ Provider = (*Google)(nil)
@@ -35,11 +35,10 @@ func (g Google) GetName() string {
 	return GoogleName
 }
 
-func (g Google) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, error) {
+func (g Google) GetUser(ct context.Context, authorizationCode string) (entity.ExternalUser, *errs.Error) {
 	// https://developers.google.com/identity/protocols/oauth2/openid-connect#exchangecode
 	idToken, err := g.getIDToken(ct, authorizationCode)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return entity.ExternalUser{}, err
 	}
 
@@ -55,28 +54,32 @@ func (g Google) GetUser(ct context.Context, authorizationCode string) (entity.Ex
 
 	err = g.jwtAuthority.DecodeUnverifiedToken(ct, idToken, &tokenPayload)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return entity.ExternalUser{}, err
 	}
 
 	return entity.ExternalUser{
 		ID:    tokenPayload.UserID,
 		Label: tokenPayload.Email,
-	}, err
+	}, nil
 }
 
-func (g Google) GetStateID(request *http.Request) (uint64, error) {
-	return strconv.ParseUint(request.URL.Query().Get("state"), 10, 64)
-}
-
-func (g Google) GetAuthorizationCode(request *http.Request) string {
-	return request.URL.Query().Get("code")
-}
-
-func (g Google) GetSignInURL(ct context.Context, stateID uint64) (string, error) {
-	baseURL, err := url.Parse(googleAuthURLString)
+func (g Google) GetStateID(ct context.Context, fullURL *url.URL) (uint64, *errs.Error) {
+	num, err := strconv.ParseUint(fullURL.Query().Get("state"), 10, 64)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return "", err
+		return 0, errs.NewError(errs.InvalidFormat, err.Error())
+	}
+
+	return num, nil
+}
+
+func (g Google) GetAuthorizationCode(ct context.Context, fullURL *url.URL) string {
+	return fullURL.Query().Get("code")
+}
+
+func (g Google) GetSignInURL(ct context.Context, stateID uint64) (string, *errs.Error) {
+	baseURL, err := url.Parse(googleAuthURL)
+	if err != nil {
+		return "", errs.NewError(errs.Unknown, err.Error())
 	}
 
 	query := baseURL.Query()
@@ -89,7 +92,7 @@ func (g Google) GetSignInURL(ct context.Context, stateID uint64) (string, error)
 	return baseURL.String(), nil
 }
 
-func (g Google) getIDToken(ct context.Context, authorizationCode string) (string, error) {
+func (g Google) getIDToken(ct context.Context, authorizationCode string) (string, *errs.Error) {
 	tokenBody := struct {
 		ClientID     string `json:"client_id"`
 		ClientSecret string `json:"client_secret"`
@@ -104,34 +107,27 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 		RedirectURI:  g.redirectURI,
 	}
 
-	buf, err := json.Marshal(tokenBody)
+	req, err := http.NewRequest(http.MethodPost, googleTokenURL, nil)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return "", err
+		return "", errs.NewError(errs.Unknown, err.Error())
 	}
 
-	res, err := http.Post(googleTokenURLString, "application/json", bytes.NewReader(buf))
+	web.WriteJSONToRequest(req, tokenBody)
+	res, err := g.httpClient.Do(req)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return "", err
+		return "", errs.NewError(errs.Unknown, err.Error())
 	}
 
-	if res.StatusCode > 300 || res.StatusCode < 200 {
-		err = fmt.Errorf("fail to obtain %s access token", g.GetName())
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-			obs.CauseProp: err,
-			obs.MessageProp: obs.Props{
-				"OauthProviderName": g.GetName(),
-				"HttpStatusCode":    res.StatusCode,
-			},
-		})
-		return "", err
+	defer res.Body.Close()
+
+	internalErr := errs.GetFromHTTPErr(res)
+	if internalErr != nil {
+		return "", internalErr
 	}
 
-	buf, err = io.ReadAll(res.Body)
+	buf, err := io.ReadAll(res.Body)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return "", err
+		return "", errs.NewError(errs.IO, err.Error())
 	}
 
 	body := struct {
@@ -144,24 +140,24 @@ func (g Google) getIDToken(ct context.Context, authorizationCode string) (string
 	}{}
 	err = json.Unmarshal(buf, &body)
 	if err != nil {
-		g.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return "", errs.NewError(errs.Deserialization, err.Error())
 	}
 
-	return body.IDToken, err
+	return body.IDToken, nil
 }
 
 func NewGoogle(
-	dataCollector obs.DataCollector,
+	httpClient web.HTTPClient,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL string,
 	clientID string,
 	clientSecret string,
 ) Google {
 	return Google{
-		dataCollector: dataCollector,
-		jwtAuthority:  jwtAuthority,
-		clientID:      clientID,
-		clientSecret:  clientSecret,
-		redirectURI:   fmt.Sprintf("%s/identity/sign-in/oauth/%s/finish", webAPIBaseURL, GoogleName),
+		httpClient:   httpClient,
+		jwtAuthority: jwtAuthority,
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		redirectURI:  fmt.Sprintf("%s/identity/sign-in/oauth/%s/finish", webAPIBaseURL, GoogleName),
 	}
 }

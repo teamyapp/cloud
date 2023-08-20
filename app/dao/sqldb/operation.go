@@ -8,17 +8,16 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type Operation struct {
-	dataCollector obs.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.Operation = (*Operation)(nil)
 
-func (o Operation) FindOperation(ct context.Context, resourceTypeName string, operationName string) (entity.Operation, error) {
+func (o Operation) FindOperation(ct context.Context, resourceTypeName string, operationName string) (entity.Operation, *errs.Error) {
 	operation := entity.Operation{}
 	err := o.db.QueryRow(`
 		SELECT
@@ -37,33 +36,38 @@ func (o Operation) FindOperation(ct context.Context, resourceTypeName string, op
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.Operation{}, dao.ErrNotFound(fmt.Sprintf(
-			"resource not found: resource_type=%v, operation=%v",
-			resourceTypeName, operationName))
+		return entity.Operation{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("resource not found: resource_type=%v, operation=%v", resourceTypeName, operationName))
 	}
 
 	if err != nil {
-		o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return entity.Operation{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return operation, err
+	return operation, nil
 }
 
-func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, error) {
+func (o Operation) FindOperationsByResourceType(
+	ct context.Context,
+	resourceTypeName string,
+) ([]entity.Operation, *errs.Error) {
 	rows, err := o.db.Query(`
 		SELECT
 			resource_type,
 			operation,
 			created_at,
 			creator_user_id
-		FROM operation;
-	`)
+		FROM operation
+		WHERE resource_type = $1;
+	`,
+		resourceTypeName)
 	if err != nil {
-		o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return nil, err
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
+
 	operations := make([]entity.Operation, 0)
 	for rows.Next() {
 		operation := entity.Operation{}
@@ -74,8 +78,7 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, er
 			&operation.CreatorUserID,
 		)
 		if err != nil {
-			o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		operations = append(operations, operation)
@@ -84,7 +87,41 @@ func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, er
 	return operations, nil
 }
 
-func (o Operation) CreateOperation(ct context.Context, operation entity.Operation) error {
+func (o Operation) FindAllOperations(ct context.Context) ([]entity.Operation, *errs.Error) {
+	rows, err := o.db.Query(`
+		SELECT
+			resource_type,
+			operation,
+			created_at,
+			creator_user_id
+		FROM operation;
+	`)
+	if err != nil {
+		return nil, errs.NewError(errs.Unknown, err.Error())
+	}
+
+	defer rows.Close()
+
+	operations := make([]entity.Operation, 0)
+	for rows.Next() {
+		operation := entity.Operation{}
+		err = rows.Scan(
+			&operation.ResourceTypeName,
+			&operation.OperationName,
+			&operation.CreatedAt,
+			&operation.CreatorUserID,
+		)
+		if err != nil {
+			return nil, errs.NewError(errs.Unknown, err.Error())
+		}
+
+		operations = append(operations, operation)
+	}
+
+	return operations, nil
+}
+
+func (o Operation) CreateOperation(ct context.Context, operation entity.Operation) *errs.Error {
 	_, err := o.db.Exec(`
 		INSERT INTO operation
 		(
@@ -101,13 +138,13 @@ func (o Operation) CreateOperation(ct context.Context, operation entity.Operatio
 	)
 
 	if err != nil {
-		o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func (o Operation) DeleteOperation(ct context.Context, resourceTypeName string, operationName string) error {
+func (o Operation) DeleteOperation(ct context.Context, resourceTypeName string, operationName string) *errs.Error {
 	_, err := o.db.Exec(`
 		DELETE FROM operation
 		WHERE resource_type = $1 AND operation = $2;
@@ -115,12 +152,12 @@ func (o Operation) DeleteOperation(ct context.Context, resourceTypeName string, 
 		resourceTypeName, operationName)
 
 	if err != nil {
-		o.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func NewOperation(dataCollector obs.DataCollector, sqlDB *sql.DB) Operation {
-	return Operation{dataCollector: dataCollector, db: sqlDB}
+func NewOperation(sqlDB *sql.DB) Operation {
+	return Operation{db: sqlDB}
 }

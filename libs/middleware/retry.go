@@ -2,26 +2,19 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/retry"
+	"github.com/teamyapp/cloud/libs/telemetry"
 	"google.golang.org/grpc"
 )
-
-func ClientGRPCWithRetry(retry retry.Retry) grpc.UnaryClientInterceptor {
-	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		_, err := retry.WithRetry(func() error {
-			return invoker(ct, method, req, reply, cc, opts...)
-		})
-		return err
-	}
-}
 
 type HttpClientExecutor interface {
 	Do(req *http.Request) (*http.Response, error)
 }
+
+var _ HttpClientExecutor = (*http.Client)(nil)
 
 type HttpClientExecuteFunc func(req *http.Request) (*http.Response, error)
 
@@ -31,30 +24,38 @@ func (h HttpClientExecuteFunc) Do(req *http.Request) (*http.Response, error) {
 	return h(req)
 }
 
-func ClientHTTPWithRetry(dataCollector obs.DataCollector, retry retry.Retry) Middleware[HttpClientExecutor] {
+func ClientHTTPWithRetry(logger telemetry.Logger, retry retry.Retry) Middleware[HttpClientExecutor] {
 	return func(httpClientExecutor HttpClientExecutor) HttpClientExecutor {
 		return (HttpClientExecuteFunc)(func(request *http.Request) (*http.Response, error) {
 			var res *http.Response
-			_, err := retry.WithRetry(func() error {
-                                ct := request.Context()
+			ct := request.Context()
+			_, err := retry.WithRetry(ct, func() *errs.Error {
 				var err error
 				res, err = httpClientExecutor.Do(request)
 				if err != nil {
-					
-					dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-					return err
+					return errs.NewError(errs.Unknown, err.Error())
 				}
 
-				if res.StatusCode >= 400 {
-					err = fmt.Errorf("http response error: statusCode=%v", res.StatusCode)
-					dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+				internalErr := errs.GetFromHTTPErr(res)
+				if internalErr != nil {
+					logger.ErrorWithContext(ct, internalErr)
 				}
 
-				return err
+				return internalErr
 			})
 
-			return res, err
+			return res, err.ToError()
 		})
 	}
 
+}
+
+func ClientGRPCWithRetry(makeRetry func() retry.Retry) grpc.UnaryClientInterceptor {
+	return func(ct context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		newRetry := makeRetry()
+		_, err := newRetry.WithRetry(ct, func() *errs.Error {
+			return errs.FromGRPCErr(invoker(ct, method, req, reply, cc, opts...))
+		})
+		return errs.ToGRPCErr(err)
+	}
 }

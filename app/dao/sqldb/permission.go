@@ -8,17 +8,16 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type Permission struct {
-	dataCollector obs.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.Permission = (*Permission)(nil)
 
-func (p Permission) FindPermission(ct context.Context, query entity.PermissionQuery) (entity.Permission, error) {
+func (p Permission) FindPermission(ct context.Context, query entity.PermissionQuery) (entity.Permission, *errs.Error) {
 	permission := entity.Permission{}
 	err := p.db.QueryRow(`
 		SELECT
@@ -41,19 +40,23 @@ func (p Permission) FindPermission(ct context.Context, query entity.PermissionQu
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.Permission{}, dao.ErrNotFound(fmt.Sprintf(
-			"permission not found: resource_type=%v, resource_id=%d, operation=%v, group_id=%d",
-			query.ResourceType, query.ResourceID, query.Operation, query.GroupID))
+		return entity.Permission{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("permission not found: resource_type=%v, resource_id=%d, operation=%v, group_id=%d",
+				query.ResourceType,
+				query.ResourceID,
+				query.Operation,
+				query.GroupID))
 	}
 
 	if err != nil {
-		p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return entity.Permission{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return permission, err
+	return permission, nil
 }
 
-func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission, error) {
+func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission, *errs.Error) {
 	rows, err := p.db.Query(`
 		SELECT
 			resource_type,
@@ -65,11 +68,11 @@ func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission,
 		FROM permission;
 	`)
 	if err != nil {
-		p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return nil, err
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
+
 	permissions := make([]entity.Permission, 0)
 	for rows.Next() {
 		permission := entity.Permission{}
@@ -82,8 +85,7 @@ func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission,
 			&permission.CreatorUserID,
 		)
 		if err != nil {
-			p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		permissions = append(permissions, permission)
@@ -92,7 +94,7 @@ func (p Permission) FindAllPermissions(ct context.Context) ([]entity.Permission,
 	return permissions, nil
 }
 
-func (p Permission) CreatePermission(ct context.Context, permission entity.Permission) error {
+func (p Permission) CreatePermission(ct context.Context, permission entity.Permission) *errs.Error {
 	_, err := p.db.Exec(`
 		INSERT INTO permission
 		(
@@ -113,25 +115,25 @@ func (p Permission) CreatePermission(ct context.Context, permission entity.Permi
 	)
 
 	if err != nil {
-		p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func (p Permission) DeletePermission(ct context.Context, resourceType string, resourceID uint64, operation string, groupID uint64) error {
+func (p Permission) DeletePermission(ct context.Context, resourceType string, resourceID uint64, operation string, groupID uint64) *errs.Error {
 	_, err := p.db.Exec(`
 		DELETE FROM permission
 		WHERE resource_type = $1 AND resource_id = $2 AND operation = $3 AND group_id = $4;
 		`,
 		resourceType, resourceID, operation, groupID)
 	if err != nil {
-		p.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func NewPermission(dataCollector obs.DataCollector, sqlDB *sql.DB) Permission {
-	return Permission{dataCollector: dataCollector, db: sqlDB}
+func NewPermission(sqlDB *sql.DB) Permission {
+	return Permission{db: sqlDB}
 }

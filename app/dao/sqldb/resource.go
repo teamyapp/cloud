@@ -8,17 +8,16 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type Resource struct {
-	dataCollector obs.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.Resource = (*Resource)(nil)
 
-func (r Resource) FindResource(ct context.Context, resourceTypeName string, resourceID uint64) (entity.Resource, error) {
+func (r Resource) FindResource(ct context.Context, resourceTypeName string, resourceID uint64) (entity.Resource, *errs.Error) {
 	resource := entity.Resource{}
 	err := r.db.QueryRow(`
 		SELECT
@@ -37,19 +36,19 @@ func (r Resource) FindResource(ct context.Context, resourceTypeName string, reso
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.Resource{}, dao.ErrNotFound(fmt.Sprintf(
-			"resource not found: resource_type=%v, resource_id=%d",
-			resourceTypeName, resourceID))
+		return entity.Resource{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("resource not found: resource_type=%v, resource_id=%d", resourceTypeName, resourceID))
 	}
 
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return entity.Resource{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return resource, err
+	return resource, nil
 }
 
-func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, error) {
+func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, *errs.Error) {
 	rows, err := r.db.Query(`
 	SELECT
 		resource_type,
@@ -59,11 +58,11 @@ func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, error
 	FROM resource;
 `)
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return nil, err
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
+
 	resources := make([]entity.Resource, 0)
 	for rows.Next() {
 		resource := entity.Resource{}
@@ -74,8 +73,7 @@ func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, error
 			&resource.CreatorUserID,
 		)
 		if err != nil {
-			r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		resources = append(resources, resource)
@@ -84,7 +82,7 @@ func (r Resource) FindAllResources(ct context.Context) ([]entity.Resource, error
 	return resources, nil
 }
 
-func (r Resource) CreateResource(ct context.Context, resource entity.Resource) error {
+func (r Resource) CreateResource(ct context.Context, resource entity.Resource) *errs.Error {
 	_, err := r.db.Exec(`
 		INSERT INTO resource
 		(
@@ -101,25 +99,25 @@ func (r Resource) CreateResource(ct context.Context, resource entity.Resource) e
 	)
 
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func (r Resource) DeleteResource(ct context.Context, resourceTypeName string, resourceID uint64) error {
+func (r Resource) DeleteResource(ct context.Context, resourceTypeName string, resourceID uint64) *errs.Error {
 	_, err := r.db.Exec(`
 		DELETE FROM resource
 		WHERE resource_type = $1 AND resource_id = $2;
 		`,
 		resourceTypeName, resourceID)
 	if err != nil {
-		r.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func NewResource(dataCollector obs.DataCollector, sqlDB *sql.DB) Resource {
-	return Resource{dataCollector: dataCollector, db: sqlDB}
+func NewResource(sqlDB *sql.DB) Resource {
+	return Resource{db: sqlDB}
 }

@@ -37,6 +37,7 @@ spec:
           ports:
             - containerPort: 8080
             - containerPort: 8081
+            - containerPort: 10000
           env:
             - name: ENVIRONMENT
               value: testing
@@ -46,6 +47,12 @@ spec:
               value: "8080"
             - name: SERVICE_RUNNER_GRPC_SERVER_PORT
               value: "8081"
+            - name: SERVICE_RUNNER_MONITORING_SERVER_PORT
+              value: "10000"
+            - name: SERVICE_RUNNER_ENABLE_TRACING
+              value: "true"
+            - name: SERVICE_RUNNER_TRACE_COLLECTOR_ENDPOINT
+              value: "tempo.monitoring:4317"
             - name: SERVICE_RUNNER_IDENTITY_API_ENDPOINT
               value: "http://localhost:8080/identity"
             - name: DB_HOST
@@ -90,6 +97,16 @@ spec:
                 secretKeyRef:
                   name: cloud
                   key: github-client-secret
+            - name: SLACK_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: slack-client-id
+            - name: SLACK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cloud
+                  key: slack-client-secret
             - name: ACCESS_TOKEN_TTL
               value: 168h
             - name: GEN_RANGE_SIZE
@@ -114,6 +131,9 @@ kind: Service
 metadata:
   namespace: testing
   name: cloud
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '10000'
 spec:
   selector:
     app: cloud
@@ -124,6 +144,9 @@ spec:
     - name: grpc
       port: 81
       targetPort: 8081
+    - name: monitoring
+      port: 10000
+      targetPort: 10000
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
@@ -151,5 +174,5 @@ spec:
           port: 81
           scheme: h2c
   tls:
-    secretName: certs-teamyapp.com
+    secretName: cert-teamyapp.com
 

@@ -8,17 +8,16 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type UserLink struct {
-	dataCollector obs.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.UserLink = (*UserLink)(nil)
 
-func (u UserLink) FindUserLinkByExternalUserID(ct context.Context, authProvider string, externalUserID string) (entity.UserLink, error) {
+func (u UserLink) FindUserLinkByExternalUserID(ct context.Context, authProvider string, externalUserID string) (entity.UserLink, *errs.Error) {
 	row := u.db.QueryRow(`
 		SELECT
 		    auth_provider,
@@ -38,20 +37,22 @@ func (u UserLink) FindUserLinkByExternalUserID(ct context.Context, authProvider 
 		&userLink.ExternalUserLabel,
 		&userLink.InternalUserID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.UserLink{}, dao.ErrNotFound(fmt.Sprintf(
-			"user link not found: authProvider=%v externalUserID=%v",
-			authProvider,
-			externalUserID))
+		return entity.UserLink{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf(
+				"user link not found: authProvider=%v externalUserID=%v",
+				authProvider,
+				externalUserID))
 	}
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return entity.UserLink{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return userLink, err
+	return userLink, nil
 }
 
-func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUserID uint64) ([]entity.UserLink, error) {
+func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUserID uint64) ([]entity.UserLink, *errs.Error) {
 	rows, err := u.db.Query(
 		`
 		SELECT
@@ -64,9 +65,9 @@ func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUser
 `,
 		internalUserID)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return nil, err
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
+
 	defer rows.Close()
 
 	userLinks := make([]entity.UserLink, 0)
@@ -79,8 +80,7 @@ func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUser
 			&userLink.InternalUserID,
 		)
 		if err != nil {
-			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		userLinks = append(userLinks, userLink)
@@ -89,7 +89,7 @@ func (u UserLink) FindUserLinksByInternalUserID(ct context.Context, internalUser
 	return userLinks, nil
 }
 
-func (u UserLink) CreateUserLink(ct context.Context, userLink entity.UserLink) error {
+func (u UserLink) CreateUserLink(ct context.Context, userLink entity.UserLink) *errs.Error {
 	_, err := u.db.Exec(`
 		INSERT INTO identity_user_link 
 		(
@@ -106,13 +106,13 @@ func (u UserLink) CreateUserLink(ct context.Context, userLink entity.UserLink) e
 		userLink.InternalUserID)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func (u UserLink) DeleteUserLink(ct context.Context, authProvider string, internalUserID uint64) error {
+func (u UserLink) DeleteUserLink(ct context.Context, authProvider string, internalUserID uint64) *errs.Error {
 	_, err := u.db.Exec(`
 		DELETE 
 		FROM identity_user_link
@@ -121,15 +121,14 @@ func (u UserLink) DeleteUserLink(ct context.Context, authProvider string, intern
 		internalUserID)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func NewUserLink(dataCollector obs.DataCollector, sqlDB *sql.DB) UserLink {
+func NewUserLink(sqlDB *sql.DB) UserLink {
 	return UserLink{
-		dataCollector: dataCollector,
-		db:            sqlDB,
+		db: sqlDB,
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,8 +11,13 @@ import (
 
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/io"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/randgen"
+	"github.com/teamyapp/cloud/libs/retry"
+	"github.com/teamyapp/cloud/libs/retry/backoff"
+	"github.com/teamyapp/cloud/libs/runtime"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 const dbType = "postgres"
@@ -25,7 +29,7 @@ const MigrateAll = 0
 const lowerCaseLetters = "abcdefghijklmnopqrstuvwxyz"
 const upperCaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const digits = "0123456789"
-const specialChars = "!@#$%^&*()-+=?[]"
+const specialChars = "!@$%^&*()-+=?[]"
 const dbPasswordLen = 20
 
 type Config struct {
@@ -41,14 +45,15 @@ type Config struct {
 	DBConnectionMaxIdleTime time.Duration `envconfig:"DB_CONNECTION_MAX_IDLE_TIME" default:"2m"`
 }
 
-func Use(dataCollector obs.DataCollector, cfg Config, action func(sqlDB *sql.DB) error) error {
+func Use(logger telemetry.Logger, cfg Config, action func(sqlDB *sql.DB) *errs.Error) *errs.Error {
 	sqlDB, err := connect(cfg)
 	if err != nil {
 		return err
 	}
+
 	defer sqlDB.Close()
 
-	waitUntilReady(dataCollector, sqlDB)
+	waitUntilReady(logger, sqlDB)
 	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConnections)
 	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConnections)
 	sqlDB.SetConnMaxLifetime(cfg.DBConnectionMaxLifeTime)
@@ -56,15 +61,15 @@ func Use(dataCollector obs.DataCollector, cfg Config, action func(sqlDB *sql.DB)
 	return action(sqlDB)
 }
 
-func MigrateUp(dataCollector obs.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) error {
-	return migrateDB(dataCollector, sqlDB, migrationRoot, migrate.Up, steps)
+func MigrateUp(logger telemetry.Logger, sqlDB *sql.DB, migrationRoot string, steps int) *errs.Error {
+	return migrateDB(logger, sqlDB, migrationRoot, migrate.Up, steps)
 }
 
-func MigrateDown(dataCollector obs.DataCollector, sqlDB *sql.DB, migrationRoot string, steps int) error {
-	return migrateDB(dataCollector, sqlDB, migrationRoot, migrate.Down, steps)
+func MigrateDown(logger telemetry.Logger, sqlDB *sql.DB, migrationRoot string, steps int) *errs.Error {
+	return migrateDB(logger, sqlDB, migrationRoot, migrate.Down, steps)
 }
 
-func NewMigration(dataCollector obs.DataCollector, migrationDir string, fileName string) (string, error) {
+func NewMigration(migrationDir string, fileName string) (string, *errs.Error) {
 	now := time.Now()
 	prefix := fmt.Sprintf(
 		"%04d%02d%02d%02d%02d%02d_%s",
@@ -78,22 +83,20 @@ func NewMigration(dataCollector obs.DataCollector, migrationDir string, fileName
 
 	err := os.MkdirAll(migrationDir, os.ModePerm)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
-		return "", err
+		return "", errs.NewError(errs.OS, err.Error())
 	}
 
 	fileName = fmt.Sprintf("%s.sql", prefix)
 	fullFilePath := filepath.Join(migrationDir, fileName)
 	err = io.CreateFileWithLog(fullFilePath)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
-		return "", err
+		return "", errs.NewError(errs.OS, err.Error())
 	}
 
 	return fullFilePath, nil
 }
 
-func New(dataCollector obs.DataCollector, dbName string) {
+func New(logger telemetry.Logger, dbName string) {
 	alphabet := concatenate([]string{
 		lowerCaseLetters,
 		upperCaseLetters,
@@ -101,11 +104,10 @@ func New(dataCollector obs.DataCollector, dbName string) {
 		specialChars,
 	})
 	dbNamePostfixAlphabet := concatenate([]string{lowerCaseLetters, upperCaseLetters, digits})
-	dbNamePostfix := randString(dbNamePostfixAlphabet, 5)
+	dbNamePostfix := randgen.String(dbNamePostfixAlphabet, 5)
 	fullDBName := fmt.Sprintf("%s-%s", dbName, dbNamePostfix)
-	password := randString(alphabet, dbPasswordLen)
-	dataCollector.Logger.Log(obs.Info, obs.Props{
-		obs.MessageProp: strings.TrimSpace(fmt.Sprintf(`
+	password := randgen.String(alphabet, dbPasswordLen)
+	logger.Info(strings.TrimSpace(fmt.Sprintf(`
 user: %s
 password: %s
 dbName: %s
@@ -116,69 +118,61 @@ CREATE USER "%s" WITH PASSWORD '%s';
 GRANT ALL PRIVILEGES ON DATABASE "%s" TO "%s";
 ================================================================================
 `,
-			fullDBName,
-			password,
-			fullDBName,
-			fullDBName,
-			fullDBName,
-			password,
-			fullDBName,
-			fullDBName,
-		)),
-	})
+		fullDBName,
+		password,
+		fullDBName,
+		fullDBName,
+		fullDBName,
+		password,
+		fullDBName,
+		fullDBName,
+	)))
 }
 
-func ExecSQL(dataCollector obs.DataCollector, sqlDB *sql.DB, sqlFileName string) error {
+func ExecSQL(logger telemetry.Logger, sqlDB *sql.DB, sqlFileName string) *errs.Error {
 	buf, err := os.ReadFile(sqlFileName)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
-		return err
+		return errs.NewError(errs.OS, err.Error())
 	}
 
 	tx, err := sqlDB.BeginTx(context.Background(), nil)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
-		return err
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	_, err = tx.Exec(string(buf))
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
-		return err
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
 	err = tx.Commit()
 	if err == nil {
-		dataCollector.Logger.Log(obs.Info, obs.Props{
-			obs.MessageProp: "successfully seeded DB",
-		})
+		logger.Info("successfully seeded DB")
 	}
 
-	return err
+	return errs.NewError(errs.Unknown, err.Error())
 }
 
-func waitUntilReady(dataCollector obs.DataCollector, sqlDB *sql.DB) {
-	for {
+func waitUntilReady(logger telemetry.Logger, sqlDB *sql.DB) {
+	backOff := backoff.
+		NewUniformBuilder().
+		Delay(5 * time.Second).
+		Build()
+	runTime := runtime.NewBuiltInRuntime()
+	rt := retry.NewInfinite(logger, runTime, backOff, backOff, nil)
+	ct := context.Background()
+	rt.WithRetry(ct, func() *errs.Error {
 		err := sqlDB.Ping()
 		if err == nil {
-			dataCollector.Logger.Log(obs.Info, obs.Props{
-				obs.MessageProp: "successfully connected to the DB",
-			})
-			break
+			logger.Info("successfully connected to the DB")
+			return nil
 		}
 
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
-		dataCollector.Logger.Log(obs.Warning, obs.Props{
-			obs.MessageProp: "fail to connect to the DB",
-		})
-		dataCollector.Logger.Log(obs.Info, obs.Props{
-			obs.MessageProp: "retry after 5 seconds",
-		})
-		time.Sleep(5 * time.Second)
-	}
+		return errs.NewError(errs.Unknown, fmt.Sprintf("failed to connect to the DB: %s", err.Error()))
+	})
 }
 
-func connect(cfg Config) (*sql.DB, error) {
+func connect(cfg Config) (*sql.DB, *errs.Error) {
 	dbSource := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		cfg.DBHost,
@@ -187,45 +181,33 @@ func connect(cfg Config) (*sql.DB, error) {
 		cfg.DBPassword,
 		cfg.DBName,
 		cfg.DBSSLMode)
-	return sql.Open(dbType, dbSource)
+	db, err := sql.Open(dbType, dbSource)
+	if err != nil {
+		return nil, errs.NewError(errs.Unknown, err.Error())
+	}
+
+	return db, nil
 }
 
 func migrateDB(
-	dataCollector obs.DataCollector,
+	logger telemetry.Logger,
 	db *sql.DB,
 	migrationRoot string,
 	migrateDirection migrate.MigrationDirection,
 	steps int,
-) error {
+) *errs.Error {
 	migrations := &migrate.FileMigrationSource{
 		Dir: migrationRoot,
 	}
 	_, err := migrate.ExecMax(db, dbType, migrations, migrateDirection, steps)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
-		return err
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	dataCollector.Logger.Log(obs.Info, obs.Props{
-		obs.MessageProp: "migration finished",
-	})
+	logger.Info("migration finished")
 	return nil
 }
 
 func concatenate(src []string) []rune {
 	return []rune(strings.Join(src, ""))
-}
-
-func randString(alphabet []rune, length int) string {
-	alphabetEndIndex := len(alphabet) - 1
-	result := make([]rune, length)
-	for i := 0; i < length; i++ {
-		randomIndex := randInt(0, alphabetEndIndex)
-		result[i] = alphabet[randomIndex]
-	}
-	return string(result)
-}
-
-func randInt(min int, max int) int {
-	return min + rand.Intn(max-min+1)
 }

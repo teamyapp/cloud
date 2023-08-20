@@ -8,17 +8,16 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type ServiceAccount struct {
-	dataCollector obs.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.ServiceAccount = (*ServiceAccount)(nil)
 
-func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerID uint64) ([]entity.ServiceAccount, error) {
+func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerID uint64) ([]entity.ServiceAccount, *errs.Error) {
 	rows, err := s.db.Query(`
 	SELECT
 	    id,
@@ -30,9 +29,9 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 	WHERE owner_user_id = $1;`,
 		accountOwnerID)
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return nil, err
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
+
 	defer rows.Close()
 
 	serviceAccounts := make([]entity.ServiceAccount, 0)
@@ -46,8 +45,7 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 			&serviceAccount.CreatedAt,
 		)
 		if err != nil {
-			s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		serviceAccounts = append(serviceAccounts, serviceAccount)
@@ -56,7 +54,7 @@ func (s ServiceAccount) FindAllServiceAccounts(ct context.Context, accountOwnerI
 	return serviceAccounts, nil
 }
 
-func (s ServiceAccount) FindServiceAccountByID(ct context.Context, serviceAccountID uint64) (entity.ServiceAccount, error) {
+func (s ServiceAccount) FindServiceAccountByID(ct context.Context, serviceAccountID uint64) (entity.ServiceAccount, *errs.Error) {
 	serviceAccount := entity.ServiceAccount{}
 	err := s.db.QueryRow(`
 	SELECT
@@ -77,18 +75,19 @@ func (s ServiceAccount) FindServiceAccountByID(ct context.Context, serviceAccoun
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.ServiceAccount{}, dao.ErrNotFound(fmt.Sprintf(
-			"service account not found: id=%v", serviceAccountID))
+		return entity.ServiceAccount{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("service account not found: id=%v", serviceAccountID))
 	}
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return entity.ServiceAccount{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return serviceAccount, err
+	return serviceAccount, nil
 }
 
-func (s ServiceAccount) CreateServiceAccount(ct context.Context, serviceAccount entity.ServiceAccount) error {
+func (s ServiceAccount) CreateServiceAccount(ct context.Context, serviceAccount entity.ServiceAccount) *errs.Error {
 	_, err := s.db.Exec(`
 	INSERT INTO identity_service_account
 	(
@@ -105,14 +104,15 @@ func (s ServiceAccount) CreateServiceAccount(ct context.Context, serviceAccount 
 		serviceAccount.Secret,
 		serviceAccount.CreatedAt,
 	)
+
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func (s ServiceAccount) UpdateServiceAccount(ct context.Context, serviceAccount entity.ServiceAccount) error {
+func (s ServiceAccount) UpdateServiceAccount(ct context.Context, serviceAccount entity.ServiceAccount) *errs.Error {
 	_, err := s.db.Exec(`
 	UPDATE identity_service_account
 	SET
@@ -131,13 +131,13 @@ func (s ServiceAccount) UpdateServiceAccount(ct context.Context, serviceAccount 
 	)
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func (s ServiceAccount) DeleteServiceAccount(ct context.Context, serviceAccountID uint64) error {
+func (s ServiceAccount) DeleteServiceAccount(ct context.Context, serviceAccountID uint64) *errs.Error {
 	_, err := s.db.Exec(`
 		DELETE 
 		FROM identity_service_account
@@ -145,12 +145,12 @@ func (s ServiceAccount) DeleteServiceAccount(ct context.Context, serviceAccountI
 		serviceAccountID)
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func NewServiceAccount(dataCollector obs.DataCollector, sqlDB *sql.DB) ServiceAccount {
-	return ServiceAccount{dataCollector: dataCollector, db: sqlDB}
+func NewServiceAccount(sqlDB *sql.DB) ServiceAccount {
+	return ServiceAccount{db: sqlDB}
 }

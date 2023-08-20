@@ -1,37 +1,47 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/teamyapp/cloud/app/config"
+	"github.com/teamyapp/cloud/libs/errs"
+	"github.com/teamyapp/cloud/libs/metrics"
 	"github.com/teamyapp/cloud/libs/middleware"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/network"
+	"github.com/teamyapp/cloud/libs/telemetry"
+	"github.com/teamyapp/cloud/libs/web"
 	"google.golang.org/grpc"
 )
 
+const EnvConfigErr errs.ErrorCode = "EnvConfig"
+
 type WebRoute struct {
-	Path        string
 	Method      string
+	Pattern     string
 	HandlerFunc http.HandlerFunc
 }
 
 type ServiceRunnerConfig struct {
-	WebServerPort       int           `envconfig:"SERVICE_RUNNER_WEB_SERVER_PORT" default:"9011"`
-	GRPCServerPort      int           `envconfig:"SERVICE_RUNNER_GRPC_SERVER_PORT" default:"9012"`
-	IdentityAPIEndpoint string        `envconfig:"SERVICE_RUNNER_IDENTITY_API_ENDPOINT" default:"http://localhost:9500/identity"`
-	RequestTimeout      time.Duration `envconfig:"REQUEST_TIMEOUT" default:"10s"`
+	WebServerPort          int           `envconfig:"SERVICE_RUNNER_WEB_SERVER_PORT" default:"9011"`
+	GRPCServerPort         int           `envconfig:"SERVICE_RUNNER_GRPC_SERVER_PORT" default:"9012"`
+	MonitoringServerPort   int           `envconfig:"SERVICE_RUNNER_MONITORING_SERVER_PORT" default:"10000"`
+	IdentityAPIEndpoint    string        `envconfig:"SERVICE_RUNNER_IDENTITY_API_ENDPOINT" default:"http://localhost:9500/identity"`
+	RequestTimeout         time.Duration `envconfig:"SERVICE_RUNNER_REQUEST_TIMEOUT" default:"10s"`
+	EnableTracing          bool          `envconfig:"SERVICE_RUNNER_ENABLE_TRACING" default:"false"`
+	TraceCollectorEndpoint string        `envconfig:"SERVICE_RUNNER_TRACE_COLLECTOR_ENDPOINT" default:"localhost:4317"`
 }
 
-func ServiceRunnerConfigFromEnv(dataCollector obs.DataCollector) (ServiceRunnerConfig, error) {
+func ServiceRunnerConfigFromEnv() (ServiceRunnerConfig, *errs.Error) {
 	cfg := ServiceRunnerConfig{}
-	err := config.FromEnv(dataCollector, &cfg)
+	err := config.FromEnv(&cfg)
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return ServiceRunnerConfig{}, err
 	}
 
@@ -39,82 +49,143 @@ func ServiceRunnerConfigFromEnv(dataCollector obs.DataCollector) (ServiceRunnerC
 }
 
 type ServiceRunner struct {
-	dataCollector obs.DataCollector
-	config        ServiceRunnerConfig
-	webRouter     *mux.Router
-	gRPCServer    *grpc.Server
-	services      []Service
+	logger                 telemetry.Logger
+	network                network.Network
+	config                 ServiceRunnerConfig
+	serviceName            string
+	httpClient             web.HTTPClient
+	webRouter              chi.Router
+	gRPCServer             *grpc.Server
+	services               []Service
+	includeIdentityWebFunc middleware.IncludeIdentityWebFunc
 }
 
-func (s *ServiceRunner) Start() {
+func (s *ServiceRunner) Start(afterServicesStarted func(listeners []net.Listener) *errs.Error) *errs.Error {
+	var shutdown func(ct context.Context) error
+	if s.config.EnableTracing {
+		var internalErr *errs.Error
+		shutdown, internalErr = telemetry.InitTracerProvider(s.logger, s.config.TraceCollectorEndpoint, s.serviceName)
+		if internalErr != nil {
+			s.logger.Error(internalErr)
+		}
+	}
+
 	for _, service := range s.services {
 		err := service.Start(s)
 		if err != nil {
-			s.dataCollector.Logger.Log(obs.Fatal, obs.Props{obs.CauseProp: err})
-			panic(err)
+			s.logger.Error(err)
+			return err
 		}
 	}
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		s.startWebServer()
-	}()
+	listeners := make([]net.Listener, 0)
+	lis, err := s.startWebServer(&wg)
+	if err != nil {
+		s.logger.Error(err)
+		return err
+	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		s.startGRPCServer()
-	}()
+	listeners = append(listeners, lis)
+	lis, err = s.startGRPCServer(&wg)
+	if err != nil {
+		s.logger.Error(err)
+		return err
+	}
+
+	listeners = append(listeners, lis)
+	lis, err = s.startMonitoringServer(&wg)
+	if err != nil {
+		s.logger.Error(err)
+		return err
+	}
+
+	listeners = append(listeners, lis)
+	if afterServicesStarted != nil {
+		err = afterServicesStarted(listeners)
+		if err != nil {
+			s.logger.Error(err)
+			return err
+		}
+	}
+
 	wg.Wait()
+	if s.config.EnableTracing {
+		_ = shutdown(context.Background())
+	}
+
+	return nil
 }
 
-func (s *ServiceRunner) startWebServer() {
-	s.dataCollector.Logger.Log(obs.Info, obs.Props{
-		obs.MessageProp: obs.Props{
-			"Summary": "service runner Web server started",
-			"Port":    s.config.WebServerPort,
-		},
+func (s *ServiceRunner) startWebServer(wg *sync.WaitGroup) (net.Listener, *errs.Error) {
+	s.logger.Log(telemetry.Info, telemetry.Props{
+		telemetry.MessageProp: fmt.Sprintf("service runner Web server started at %v", s.config.WebServerPort),
 	})
-	serveMux := http.NewServeMux()
-	middlewares := []middleware.Middleware[http.HandlerFunc]{
-		middleware.ServerHTTPEnableCORS,
-		middleware.ServerHTTPWithRequestID(s.dataCollector),
-		middleware.ServerHTTPWithTimeout(s.config.RequestTimeout),
-		middleware.ServerHTTPLogRequest(s.dataCollector),
-		middleware.ServerHTTPWithIdentity(s.dataCollector, s.config.IdentityAPIEndpoint),
-		middleware.ServerWebSocketWithIdentity(s.dataCollector, s.config.IdentityAPIEndpoint),
+	addressAndPort := fmt.Sprintf(":%d", s.config.WebServerPort)
+	lis, err := s.network.Listen("tcp", addressAndPort)
+	if err != nil {
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
-	handlerFunc := middleware.WithMiddlewares[http.HandlerFunc](s.webRouter.ServeHTTP, middlewares)
-	serveMux.HandleFunc("/", handlerFunc)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.WebServerPort), serveMux); err != nil {
-		panic(err)
-	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err = http.Serve(lis, s.webRouter); err != nil {
+			s.logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
+		}
+	}()
+	return lis, nil
 }
 
-func (s *ServiceRunner) startGRPCServer() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.config.GRPCServerPort))
+func (s *ServiceRunner) startGRPCServer(wg *sync.WaitGroup) (net.Listener, *errs.Error) {
+	hostAndPort := fmt.Sprintf(":%d", s.config.GRPCServerPort)
+	lis, err := s.network.Listen("tcp", hostAndPort)
 	if err != nil {
-		panic(err)
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	s.dataCollector.Logger.Log(obs.Info, obs.Props{
-		obs.MessageProp: obs.Props{
-			"Summary": "service runner gRPC server started",
-			"Port":    s.config.GRPCServerPort,
-		},
+	s.logger.Log(telemetry.Info, telemetry.Props{
+		telemetry.MessageProp: fmt.Sprintf("service runner gRPC server started at %v", s.config.GRPCServerPort),
 	})
-	err = s.gRPCServer.Serve(lis)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = s.gRPCServer.Serve(lis)
+		if err != nil {
+			s.logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
+		}
+	}()
+	return lis, nil
+}
+
+func (s *ServiceRunner) startMonitoringServer(wg *sync.WaitGroup) (net.Listener, *errs.Error) {
+	s.logger.Log(telemetry.Info, telemetry.Props{
+		telemetry.MessageProp: fmt.Sprintf("service runner Monitoring server started at %v", s.config.MonitoringServerPort),
+	})
+	router := chi.NewRouter()
+	router.Handle("/metrics", promhttp.Handler())
+
+	hostAndPort := fmt.Sprintf(":%d", s.config.MonitoringServerPort)
+	lis, err := s.network.Listen("tcp", hostAndPort)
 	if err != nil {
-		s.dataCollector.Logger.Log(obs.Fatal, obs.Props{obs.CauseProp: err})
-		panic(err)
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = http.Serve(lis, router)
+		if err != nil {
+			s.logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
+		}
+	}()
+	return lis, nil
 }
 
 func (s *ServiceRunner) RegisterWebRoutes(routes []WebRoute) {
 	for _, route := range routes {
-		s.webRouter.HandleFunc(route.Path, route.HandlerFunc).Methods(route.Method)
+		s.webRouter.MethodFunc(route.Method, route.Pattern, route.HandlerFunc)
 	}
 }
 
@@ -122,18 +193,134 @@ func (s *ServiceRunner) WithGRPCServer(withGRPCServer func(server *grpc.Server))
 	withGRPCServer(s.gRPCServer)
 }
 
-func NewServiceRunner(dataCollector obs.DataCollector, config ServiceRunnerConfig, services []Service) ServiceRunner {
+type ServiceRunnerBuilder struct {
+	logger                          telemetry.Logger
+	network                         network.Network
+	metrics                         metrics.Metrics
+	config                          ServiceRunnerConfig
+	serviceName                     string
+	services                        []Service
+	includeIdentityWebFunc          middleware.IncludeIdentityWebFunc
+	includeIdentityGRPCFunc         middleware.IncludeIdentityGRPCFunc
+	getClientHTTPRequestPatternFunc middleware.GetPatternFunc
+}
+
+func (s *ServiceRunnerBuilder) IncludeIdentityWebFunc(
+	includeIdentityWebFunc middleware.IncludeIdentityWebFunc,
+) *ServiceRunnerBuilder {
+	s.includeIdentityWebFunc = includeIdentityWebFunc
+	return s
+}
+
+func (s *ServiceRunnerBuilder) IncludeIdentityGRPCFunc(
+	includeIdentityGRPCFunc middleware.IncludeIdentityGRPCFunc,
+) *ServiceRunnerBuilder {
+	s.includeIdentityGRPCFunc = includeIdentityGRPCFunc
+	return s
+}
+
+func (s *ServiceRunnerBuilder) GetClientHTTPRequestPatternFunc(
+	getClientHTTPRequestPatternFunc middleware.GetPatternFunc,
+) *ServiceRunnerBuilder {
+	s.getClientHTTPRequestPatternFunc = getClientHTTPRequestPatternFunc
+	return s
+}
+
+func (s *ServiceRunnerBuilder) Build() ServiceRunner {
+	rawHttpClient := web.NewHTTPClient(s.network)
+	httpClientMiddlewares := []middleware.Middleware[web.HTTPClient]{
+		middleware.ClientHTTPWithMetrics(s.metrics, s.getClientHTTPRequestPatternFunc),
+		middleware.ClientHTTPWithOpenTelemetry(s.getClientHTTPRequestPatternFunc),
+		middleware.ClientHTTPWithRequestID(s.logger),
+	}
+	httpClient := middleware.WithMiddlewares[web.HTTPClient](rawHttpClient, httpClientMiddlewares)
+	webRouter := chi.NewRouter()
+	httpServerMiddlewares := []middleware.Middleware[http.HandlerFunc]{
+		middleware.ServerHTTPWithMetrics(s.metrics, getClientHTTPRequestPatternFunc),
+		middleware.ServerHTTPWithOpenTelemetry(s.logger, getClientHTTPRequestPatternFunc),
+		middleware.ServerHTTPEnableCORS,
+		middleware.ServerHTTPWithRequestID(s.logger),
+		middleware.ServerHTTPWithTimeout(s.config.RequestTimeout),
+		middleware.ServerHTTPLogRequest(s.logger),
+		middleware.ServerHTTPWithIdentity(
+			s.logger,
+			httpClient,
+			s.config.IdentityAPIEndpoint,
+			s.includeIdentityWebFunc),
+		middleware.ServerWebSocketWithIdentity(
+			s.logger,
+			httpClient,
+			s.config.IdentityAPIEndpoint,
+			s.includeIdentityWebFunc),
+	}
+	webRouter.Use(func(handler http.Handler) http.Handler {
+		return middleware.WithMiddlewares[http.HandlerFunc](handler.ServeHTTP, httpServerMiddlewares)
+	})
 	return ServiceRunner{
-		dataCollector: dataCollector,
-		config:        config,
-		webRouter:     mux.NewRouter(),
+		logger:      s.logger,
+		network:     s.network,
+		config:      s.config,
+		serviceName: s.serviceName,
+		httpClient:  httpClient,
+		webRouter:   webRouter,
 		gRPCServer: grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
-				middleware.ServerGRPCWithTimeout(config.RequestTimeout),
-				middleware.ServerGRPCWithRequestID(dataCollector),
-				middleware.ServerGRPCLogRequest(dataCollector),
-				middleware.ServerGRPCWithIdentity(dataCollector, config.IdentityAPIEndpoint),
+				middleware.ServerGRPCWithMetrics(s.metrics),
+				middleware.ServerGRPCUnaryWithOpenTelemetry(),
+				middleware.ServerGRPCWithTimeout(s.config.RequestTimeout),
+				middleware.ServerGRPCWithRequestID(s.logger),
+				middleware.ServerGRPCLogRequest(s.logger),
+				middleware.ServerGRPCWithIdentity(
+					s.logger,
+					httpClient,
+					s.config.IdentityAPIEndpoint,
+					s.includeIdentityGRPCFunc),
 			)),
-		services: services,
+		services:               s.services,
+		includeIdentityWebFunc: s.includeIdentityWebFunc,
 	}
+}
+
+func NewServiceRunnerBuilder(
+	logger telemetry.Logger,
+	network network.Network,
+	metrics metrics.Metrics,
+	config ServiceRunnerConfig,
+	serviceName string,
+	services []Service,
+) *ServiceRunnerBuilder {
+	return &ServiceRunnerBuilder{
+		logger:      logger,
+		network:     network,
+		metrics:     metrics,
+		config:      config,
+		serviceName: serviceName,
+		services:    services,
+		includeIdentityWebFunc: func(request *http.Request) bool {
+			return true
+		},
+		includeIdentityGRPCFunc: func(info *grpc.UnaryServerInfo) bool {
+			return true
+		},
+		getClientHTTPRequestPatternFunc: func(request *http.Request) (string, bool) {
+			return request.URL.Path, true
+		}}
+}
+
+func Param(paramName string) string {
+	return fmt.Sprintf(`{%s}`, paramName)
+}
+
+func getClientHTTPRequestPatternFunc(request *http.Request) (string, bool) {
+	rctx := chi.RouteContext(request.Context())
+	if pattern := rctx.RoutePattern(); len(pattern) > 0 {
+		return pattern, true
+	}
+
+	tmpCtx := chi.NewRouteContext()
+	if !rctx.Routes.Match(tmpCtx, request.Method, request.URL.Path) {
+		return "", false
+	}
+
+	return tmpCtx.RoutePattern(), true
 }

@@ -4,7 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 var WebSocketUpgrader = websocket.Upgrader{
@@ -18,14 +19,14 @@ var WebSocketUpgrader = websocket.Upgrader{
 type WebSocket struct {
 	receiveMessageCh chan []byte
 	sendMessageChan  chan []byte
-	errorCh          chan error
+	errorCh          chan errs.Error
 	disconnectCh     chan bool
 	conn             *websocket.Conn
 }
 
 var _ Connection = (*WebSocket)(nil)
 
-func (w WebSocket) OnErrors() <-chan error {
+func (w WebSocket) OnErrors() <-chan errs.Error {
 	return w.errorCh
 }
 
@@ -41,14 +42,19 @@ func (w WebSocket) OnClientDisconnect() <-chan bool {
 	return w.disconnectCh
 }
 
-func (w WebSocket) Close() error {
-	return w.conn.Close()
+func (w WebSocket) Close() *errs.Error {
+	err := w.conn.Close()
+	if err == nil {
+		return nil
+	}
+
+	return errs.NewError(ConnErr, err.Error())
 }
 
-func NewWebSocket(dataCollector obs.DataCollector, conn *websocket.Conn) WebSocket {
+func NewWebSocket(logger telemetry.Logger, conn *websocket.Conn) WebSocket {
 	receiveMessageCh := make(chan []byte)
 	sendMessageCh := make(chan []byte, 500)
-	errorCh := make(chan error)
+	errorCh := make(chan errs.Error)
 	disconnectCh := make(chan bool)
 	conn.SetCloseHandler(func(code int, text string) error {
 		disconnectCh <- true
@@ -59,7 +65,7 @@ func NewWebSocket(dataCollector obs.DataCollector, conn *websocket.Conn) WebSock
 			mt, message, err := conn.ReadMessage()
 			if err != nil {
 				select {
-				case errorCh <- err:
+				case errorCh <- *errs.NewError(errs.IO, err.Error()):
 				default:
 				}
 				return
@@ -79,9 +85,8 @@ func NewWebSocket(dataCollector obs.DataCollector, conn *websocket.Conn) WebSock
 		for message := range sendMessageCh {
 			err := conn.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
-				dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 				select {
-				case errorCh <- err:
+				case errorCh <- *errs.NewError(errs.IO, err.Error()):
 				default:
 				}
 				return

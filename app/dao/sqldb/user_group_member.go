@@ -8,17 +8,16 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type UserGroupMember struct {
-	dataCollector obs.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.UserGroupMember = (*UserGroupMember)(nil)
 
-func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64) ([]uint64, error) {
+func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64) ([]uint64, *errs.Error) {
 	rows, err := u.db.Query(`
 		SELECT
 			group_id
@@ -26,11 +25,11 @@ func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64)
 		WHERE user_id = $1;`,
 		userID)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return nil, err
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
+
 	groupIDs := make([]uint64, 0)
 	for rows.Next() {
 		var groupID uint64
@@ -38,8 +37,7 @@ func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64)
 			&groupID,
 		)
 		if err != nil {
-			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		groupIDs = append(groupIDs, groupID)
@@ -48,7 +46,7 @@ func (u UserGroupMember) FindGroupIDsByUserID(ct context.Context, userID uint64)
 	return groupIDs, nil
 }
 
-func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID uint64) ([]entity.UserGroupMember, error) {
+func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID uint64) ([]entity.UserGroupMember, *errs.Error) {
 	rows, err := u.db.Query(`
 		SELECT
 			group_id,
@@ -59,11 +57,11 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID
 		WHERE user_id = $1;`,
 		userID)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return nil, err
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
+
 	userGroupMembers := make([]entity.UserGroupMember, 0)
 	for rows.Next() {
 		userGroupMember := entity.UserGroupMember{}
@@ -74,8 +72,7 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		userGroupMembers = append(userGroupMembers, userGroupMember)
@@ -84,7 +81,7 @@ func (u UserGroupMember) FindUserGroupMembersByUserID(ct context.Context, userID
 	return userGroupMembers, nil
 }
 
-func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, groupID uint64) ([]entity.UserGroupMember, error) {
+func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, groupID uint64) ([]entity.UserGroupMember, *errs.Error) {
 	rows, err := u.db.Query(`
 		SELECT
 			group_id,
@@ -95,11 +92,11 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, group
 		WHERE group_id = $1;`,
 		groupID)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return nil, err
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
+
 	userGroupMembers := make([]entity.UserGroupMember, 0)
 	for rows.Next() {
 		userGroupMember := entity.UserGroupMember{}
@@ -110,8 +107,7 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, group
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		userGroupMembers = append(userGroupMembers, userGroupMember)
@@ -120,7 +116,7 @@ func (u UserGroupMember) FindUserGroupMembersByGroupID(ct context.Context, group
 	return userGroupMembers, nil
 }
 
-func (u UserGroupMember) FindUserGroupMember(ct context.Context, groupID uint64, userID uint64) (entity.UserGroupMember, error) {
+func (u UserGroupMember) FindUserGroupMember(ct context.Context, groupID uint64, userID uint64) (entity.UserGroupMember, *errs.Error) {
 	userGroupMember := entity.UserGroupMember{}
 	err := u.db.QueryRow(`
 		SELECT
@@ -139,19 +135,22 @@ func (u UserGroupMember) FindUserGroupMember(ct context.Context, groupID uint64,
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.UserGroupMember{}, dao.ErrNotFound(fmt.Sprintf(
-			"user group member not found: group_id=%d, user_id=%d",
-			groupID, userID))
+		return entity.UserGroupMember{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf(
+				"user group member not found: group_id=%d, user_id=%d",
+				groupID,
+				userID))
 	}
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return entity.UserGroupMember{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return userGroupMember, err
+	return userGroupMember, nil
 }
 
-func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.UserGroupMember, error) {
+func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.UserGroupMember, *errs.Error) {
 	rows, err := u.db.Query(`
 		SELECT
 			group_id,
@@ -161,11 +160,11 @@ func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.U
 		FROM user_group_member;
 `)
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return nil, err
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
+
 	userGroupMembers := make([]entity.UserGroupMember, 0)
 	for rows.Next() {
 		userGroupMember := entity.UserGroupMember{}
@@ -176,8 +175,7 @@ func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.U
 			&userGroupMember.CreatorUserID,
 		)
 		if err != nil {
-			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		userGroupMembers = append(userGroupMembers, userGroupMember)
@@ -186,7 +184,7 @@ func (u UserGroupMember) FindAllUserGroupMembers(ct context.Context) ([]entity.U
 	return userGroupMembers, nil
 }
 
-func (u UserGroupMember) CreateUserGroupMember(ct context.Context, userGroupMember entity.UserGroupMember) error {
+func (u UserGroupMember) CreateUserGroupMember(ct context.Context, userGroupMember entity.UserGroupMember) *errs.Error {
 	_, err := u.db.Exec(`
 		INSERT INTO user_group_member
 		(
@@ -203,13 +201,13 @@ func (u UserGroupMember) CreateUserGroupMember(ct context.Context, userGroupMemb
 	)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func (u UserGroupMember) DeleteUserGroupMember(ct context.Context, groupID uint64, userID uint64) error {
+func (u UserGroupMember) DeleteUserGroupMember(ct context.Context, groupID uint64, userID uint64) *errs.Error {
 	_, err := u.db.Exec(`
 		DELETE FROM user_group_member
 		WHERE group_id = $1 AND user_id = $2;
@@ -217,12 +215,12 @@ func (u UserGroupMember) DeleteUserGroupMember(ct context.Context, groupID uint6
 		groupID, userID)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func NewUserGroupMember(dataCollector obs.DataCollector, sqlDB *sql.DB) UserGroupMember {
-	return UserGroupMember{dataCollector: dataCollector, db: sqlDB}
+func NewUserGroupMember(sqlDB *sql.DB) UserGroupMember {
+	return UserGroupMember{db: sqlDB}
 }

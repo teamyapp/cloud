@@ -10,88 +10,117 @@ import (
 	"database/sql"
 	"github.com/google/wire"
 	"github.com/teamyapp/cloud/app/api"
-	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
-	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
-	"github.com/teamyapp/cloud/app/storage"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/env"
+	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/security"
+	"github.com/teamyapp/cloud/libs/storage"
+	"github.com/teamyapp/cloud/libs/telemetry"
+	"github.com/teamyapp/cloud/libs/web"
 	"time"
 )
 
 // Injectors from wire.go:
 
-func InitGoogleOAuthProvider(dataCollector obs.DataCollector, webAPIBaseURL WebAPIBaseURL, jwtSigningKey JWTSigningKey, clientID ClientID, clientSecret ClientSecret) oauth.Google {
-	jwtAuthority := newJWTAuthority(dataCollector, jwtSigningKey)
-	google := newGoogleOAuthProvider(dataCollector, jwtAuthority, webAPIBaseURL, clientID, clientSecret)
-	return google
+func InitTelemetryAPI(logger telemetry.Logger) *api.Telemetry {
+	apiTelemetry := api.NewTelemetry(logger)
+	return apiTelemetry
 }
 
-func InitTelemetryAPI(dataCollector obs.DataCollector) *api.Telemetry {
-	telemetry := api.NewTelemetry(dataCollector)
-	return telemetry
-}
-
-func InitIdentityAPI(dataCollector obs.DataCollector, sqlDB *sql.DB, oauthProviders OAuthProviders, accessTokenTTL AccessTokenTTL, jwtSigningKey JWTSigningKey, genRangeSize GenRangeSize) (api.Identity, error) {
-	signInSession := sqldb.NewSignInSession(dataCollector, sqlDB)
-	userLink := sqldb.NewUserLink(dataCollector, sqlDB)
-	serviceAccount := sqldb.NewServiceAccount(dataCollector, sqlDB)
-	allocatedRange := sqldb.NewAllocatedRange(dataCollector, sqlDB)
-	uniqueNumberFactory := newUniqueNumberGenFactory(dataCollector, allocatedRange, genRangeSize)
-	jwtAuthority := newJWTAuthority(dataCollector, jwtSigningKey)
-	identity, err := newIdentityService(dataCollector, signInSession, userLink, serviceAccount, uniqueNumberFactory, jwtAuthority, oauthProviders, accessTokenTTL)
+func InitIdentityAPI(logger telemetry.Logger, sqlDB *sql.DB, oauthProviders OAuthProviders, accessTokenTTL AccessTokenTTL, jwtSigningKey JWTSigningKey, genRangeSize GenRangeSize) (api.Identity, error) {
+	signInSession := sqldb.NewSignInSession(sqlDB)
+	userLink := sqldb.NewUserLink(sqlDB)
+	serviceAccount := sqldb.NewServiceAccount(sqlDB)
+	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
+	uniqueNumberGenRegistry := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
+	jwtAuthority := newJWTAuthority(logger, jwtSigningKey)
+	identity, err := newIdentityService(logger, signInSession, userLink, serviceAccount, uniqueNumberGenRegistry, jwtAuthority, oauthProviders, accessTokenTTL)
 	if err != nil {
 		return api.Identity{}, err
 	}
-	apiIdentity := api.NewIdentity(dataCollector, identity)
+	apiIdentity := api.NewIdentity(logger, identity)
 	return apiIdentity, nil
 }
 
-func InitGeneratorAPI(dataCollector obs.DataCollector, sqlDB *sql.DB, genRangeSize GenRangeSize) (api.Generator, error) {
-	allocatedRange := sqldb.NewAllocatedRange(dataCollector, sqlDB)
-	uniqueNumberFactory := newUniqueNumberGenFactory(dataCollector, allocatedRange, genRangeSize)
-	generator := api.NewGenerator(dataCollector, uniqueNumberFactory)
+func InitGeneratorAPI(logger telemetry.Logger, sqlDB *sql.DB, genRangeSize GenRangeSize) (*api.Generator, error) {
+	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
+	uniqueNumberGenRegistry := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
+	generator := api.NewGenerator(logger, uniqueNumberGenRegistry)
 	return generator, nil
 }
 
-func InitAuthorizationAPI(dataCollector obs.DataCollector, sqlDB *sql.DB, genRangeSize GenRangeSize) (api.Authorization, error) {
-	resourceRelation := sqldb.NewResourceRelation(dataCollector, sqlDB)
-	userGroupMember := sqldb.NewUserGroupMember(dataCollector, sqlDB)
-	permission := sqldb.NewPermission(dataCollector, sqlDB)
-	operationRelation := sqldb.NewOperationRelation(dataCollector, sqlDB)
-	operation := sqldb.NewOperation(dataCollector, sqlDB)
-	resourceType := sqldb.NewResourceType(dataCollector, sqlDB)
-	resource := sqldb.NewResource(dataCollector, sqlDB)
-	userGroup := sqldb.NewUserGroup(dataCollector, sqlDB)
-	allocatedRange := sqldb.NewAllocatedRange(dataCollector, sqlDB)
-	uniqueNumberFactory := newUniqueNumberGenFactory(dataCollector, allocatedRange, genRangeSize)
-	authorization, err := service.NewAuthorization(dataCollector, resourceRelation, userGroupMember, permission, operationRelation, operation, resourceType, resource, userGroup, uniqueNumberFactory)
+func InitAuthorizationAPI(logger telemetry.Logger, sqlDB *sql.DB, genRangeSize GenRangeSize) (api.Authorization, error) {
+	resourceRelation := sqldb.NewResourceRelation(sqlDB)
+	userGroupMember := sqldb.NewUserGroupMember(sqlDB)
+	permission := sqldb.NewPermission(sqlDB)
+	operationRelation := sqldb.NewOperationRelation(sqlDB)
+	operation := sqldb.NewOperation(sqlDB)
+	resourceType := sqldb.NewResourceType(sqlDB)
+	resource := sqldb.NewResource(sqlDB)
+	userGroup := sqldb.NewUserGroup(sqlDB)
+	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
+	uniqueNumberGenRegistry := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
+	authorization, err := service.NewAuthorization(logger, resourceRelation, userGroupMember, permission, operationRelation, operation, resourceType, resource, userGroup, uniqueNumberGenRegistry)
 	if err != nil {
 		return api.Authorization{}, err
 	}
-	apiAuthorization := api.NewAuthorization(authorization)
+	apiAuthorization := api.NewAuthorization(logger, authorization)
 	return apiAuthorization, nil
 }
 
-func InitFileAPI(dataCollector obs.DataCollector, env config.Environment, sqlDB *sql.DB, genRangeSize GenRangeSize, s3Endpoint S3Endpoint, s3AccessKeyID S3AccessKeyID, s3AccessKey S3AccessKey, s3BucketName S3BucketName) (api.File, error) {
-	s3Bucket, err := newS3Bucket(dataCollector, s3Endpoint, s3AccessKeyID, s3AccessKey, s3BucketName, env)
+func InitFileAPI(logger telemetry.Logger, env2 env.Environment, sqlDB *sql.DB, genRangeSize GenRangeSize, s3Endpoint S3Endpoint, s3AccessKeyID S3AccessKeyID, s3AccessKey S3AccessKey, s3BucketName S3BucketName) (api.File, error) {
+	s3Bucket, err := newS3Bucket(logger, s3Endpoint, s3AccessKeyID, s3AccessKey, s3BucketName, env2)
 	if err != nil {
 		return api.File{}, err
 	}
-	allocatedRange := sqldb.NewAllocatedRange(dataCollector, sqlDB)
-	uniqueNumberFactory := newUniqueNumberGenFactory(dataCollector, allocatedRange, genRangeSize)
-	uploadSession := sqldb.NewUploadSession(dataCollector, sqlDB)
-	fileMetadata := sqldb.NewFileMetadata(dataCollector, sqlDB)
-	chunkMetadata := sqldb.NewChunkMetadata(dataCollector, sqlDB)
-	file, err := service.NewFile(dataCollector, s3Bucket, uniqueNumberFactory, uploadSession, fileMetadata, chunkMetadata)
+	allocatedRange := sqldb.NewAllocatedRange(sqlDB)
+	uniqueNumberGenRegistry := newUniqueNumberGenFactory(logger, allocatedRange, genRangeSize)
+	uploadSession := sqldb.NewUploadSession(sqlDB)
+	fileMetadata := sqldb.NewFileMetadata(sqlDB)
+	chunkMetadata := sqldb.NewChunkMetadata(sqlDB)
+	file, err := service.NewFile(logger, s3Bucket, uniqueNumberGenRegistry, uploadSession, fileMetadata, chunkMetadata)
 	if err != nil {
 		return api.File{}, err
 	}
-	apiFile := api.NewFile(dataCollector, file)
+	apiFile := api.NewFile(logger, file)
 	return apiFile, nil
+}
+
+func InitStreamAPI(logger telemetry.Logger, env2 env.Environment, sqlDB *sql.DB, s3Endpoint S3Endpoint, s3AccessKeyID S3AccessKeyID, s3AccessKey S3AccessKey, s3BucketName S3BucketName) (api.Stream, error) {
+	s3Bucket, err := newS3Bucket(logger, s3Endpoint, s3AccessKeyID, s3AccessKey, s3BucketName, env2)
+	if err != nil {
+		return api.Stream{}, err
+	}
+	fileMetadata := sqldb.NewFileMetadata(sqlDB)
+	stream := service.NewStream(logger, s3Bucket, fileMetadata)
+	apiStream := api.NewStream(logger, stream)
+	return apiStream, nil
+}
+
+func InitGitHubOAuthProvider(logger telemetry.Logger, webAPIBaseURL WebAPIBaseURL, clientID ClientID, clientSecret ClientSecret) oauth.GitHub {
+	socket := network.NewSocket()
+	client := web.NewHTTPClient(socket)
+	gitHub := newGithubOAuthProvider(client, webAPIBaseURL, clientID, clientSecret)
+	return gitHub
+}
+
+func InitGoogleOAuthProvider(logger telemetry.Logger, webAPIBaseURL WebAPIBaseURL, jwtSigningKey JWTSigningKey, clientID ClientID, clientSecret ClientSecret) oauth.Google {
+	socket := network.NewSocket()
+	client := web.NewHTTPClient(socket)
+	jwtAuthority := newJWTAuthority(logger, jwtSigningKey)
+	google := newGoogleOAuthProvider(client, jwtAuthority, webAPIBaseURL, clientID, clientSecret)
+	return google
+}
+
+func InitSlackOAuthProvider(logger telemetry.Logger, webAPIBaseURL WebAPIBaseURL, jwtSigningKey JWTSigningKey, clientID ClientID, clientSecret ClientSecret) oauth.Slack {
+	socket := network.NewSocket()
+	client := web.NewHTTPClient(socket)
+	jwtAuthority := newJWTAuthority(logger, jwtSigningKey)
+	slack := newSlackOAuthProvider(client, jwtAuthority, webAPIBaseURL, clientID, clientSecret)
+	return slack
 }
 
 // wire.go:
@@ -118,74 +147,82 @@ type S3AccessKey string
 
 type S3BucketName string
 
-
 var daoSet = wire.NewSet(wire.Bind(new(dao.UserLink), new(sqldb.UserLink)), wire.Bind(new(dao.AllocatedRange), new(sqldb.AllocatedRange)), wire.Bind(new(dao.SignInSession), new(sqldb.SignInSession)), wire.Bind(new(dao.ServiceAccount), new(sqldb.ServiceAccount)), wire.Bind(new(dao.OperationRelation), new(sqldb.OperationRelation)), wire.Bind(new(dao.Operation), new(sqldb.Operation)), wire.Bind(new(dao.UserGroup), new(sqldb.UserGroup)), wire.Bind(new(dao.UserGroupMember), new(sqldb.UserGroupMember)), wire.Bind(new(dao.Permission), new(sqldb.Permission)), wire.Bind(new(dao.ResourceType), new(sqldb.ResourceType)), wire.Bind(new(dao.Resource), new(sqldb.Resource)), wire.Bind(new(dao.ResourceRelation), new(sqldb.ResourceRelation)), wire.Bind(new(dao.UploadSession), new(sqldb.UploadSession)), wire.Bind(new(dao.FileMetadata), new(sqldb.FileMetadata)), wire.Bind(new(dao.ChunkMetadata), new(sqldb.ChunkMetadata)), sqldb.NewAllocatedRange, sqldb.NewUserLink, sqldb.NewSignInSession, sqldb.NewServiceAccount, sqldb.NewOperationRelation, sqldb.NewOperation, sqldb.NewUserGroup, sqldb.NewUserGroupMember, sqldb.NewPermission, sqldb.NewResourceType, sqldb.NewResource, sqldb.NewResourceRelation, sqldb.NewUploadSession, sqldb.NewFileMetadata, sqldb.NewChunkMetadata)
 
-var storageSet = wire.NewSet(wire.Bind(new(storage.MapBackend), new(storage.S3Bucket)), newS3Bucket)
+var storageSet = wire.NewSet(wire.Bind(new(storage.MapClient), new(storage.S3Bucket)), wire.Bind(new(storage.MapRequestHandlers), new(storage.S3Bucket)), newS3Bucket)
 
 func newS3Bucket(
-	dataCollector obs.DataCollector,
+	logger telemetry.Logger,
 	s3Endpoint S3Endpoint,
 	s3AccessKeyID S3AccessKeyID,
 	s3AccessKey S3AccessKey,
-	s3BucketName S3BucketName,
-	env config.Environment,
+	s3BucketName S3BucketName, env2 env.Environment,
+
 ) (storage.S3Bucket, error) {
 	return storage.NewS3Bucket(
-		dataCollector,
+		logger,
 		string(s3Endpoint),
 		string(s3AccessKeyID),
-		string(s3AccessKey),
-		env,
-		string(s3BucketName))
+		string(s3AccessKey), env2, string(s3BucketName))
+}
+
+func newGithubOAuthProvider(
+	httpClient web.HTTPClient,
+	webAPIBaseURL WebAPIBaseURL,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.GitHub {
+	return oauth.NewGitHub(httpClient, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
 func newGoogleOAuthProvider(
-	dataCollector obs.DataCollector,
+	httpClient web.HTTPClient,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.Google {
-	return oauth.NewGoogle(dataCollector, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewGoogle(httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
-func InitGitHubOAuthProvider(
-	dataCollector obs.DataCollector,
+func newSlackOAuthProvider(
+	httpClient web.HTTPClient,
+	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
-) oauth.GitHub {
-	return oauth.NewGitHub(dataCollector, string(webAPIBaseURL), string(clientID), string(clientSecret))
+) oauth.Slack {
+	return oauth.NewSlack(httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
-func newJWTAuthority(dataCollector obs.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {
-	return security.NewJWTAuthority(dataCollector, string(signingKey))
+func newJWTAuthority(logger telemetry.Logger, signingKey JWTSigningKey) security.JWTAuthority {
+	return security.NewJWTAuthority(logger, string(signingKey))
 }
 
 func newUniqueNumberGenFactory(
-	dataCollector obs.DataCollector,
+	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,
-	genRangeSize GenRangeSize) gen.UniqueNumberFactory {
-	return gen.NewUniqueNumberFactory(dataCollector, allocatedRangeDao, uint64(genRangeSize))
+	genRangeSize GenRangeSize,
+) *service.UniqueNumberGenRegistry {
+	return service.NewUniqueNumberGenRegistry(logger, allocatedRangeDao, uint64(genRangeSize))
 }
 
 func newIdentityService(
-	dataCollector obs.DataCollector,
+	logger telemetry.Logger,
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
-	uniqueNumberFactory gen.UniqueNumberFactory,
+	uniqueNumberRegistry *service.UniqueNumberGenRegistry,
 	jwtAuthority security.JWTAuthority,
 	oauthProviders OAuthProviders,
 	accessTokenTLL AccessTokenTTL,
 ) (service.Identity, error) {
 	return service.NewIdentity(
-		dataCollector,
+		logger,
 		signInSessionDao,
 		userLinkDao,
 		serviceAccountDao,
-		uniqueNumberFactory,
+		uniqueNumberRegistry,
 		jwtAuthority,
 		oauthProviders, time.Duration(accessTokenTLL))
 }

@@ -1,5 +1,11 @@
 package retry
 
+import (
+	"context"
+
+	"github.com/teamyapp/cloud/libs/errs"
+)
+
 type Retry interface {
-	WithRetry(execute func() error) (int, error)
+	WithRetry(ct context.Context, execute func() *errs.Error) (int, *errs.Error)
 }

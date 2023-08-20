@@ -4,11 +4,13 @@ import (
 	"context"
 
 	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type Operation interface {
-	FindOperation(ct context.Context, resourceTypeName string, operationName string) (entity.Operation, error)
-	FindAllOperations(ct context.Context) ([]entity.Operation, error)
-	CreateOperation(ct context.Context, operation entity.Operation) error
-	DeleteOperation(ct context.Context, resourceTypeName string, operationName string) error
+	FindOperation(ct context.Context, resourceTypeName string, operationName string) (entity.Operation, *errs.Error)
+	FindOperationsByResourceType(ct context.Context, resourceTypeName string) ([]entity.Operation, *errs.Error)
+	FindAllOperations(ct context.Context) ([]entity.Operation, *errs.Error)
+	CreateOperation(ct context.Context, operation entity.Operation) *errs.Error
+	DeleteOperation(ct context.Context, resourceTypeName string, operationName string) *errs.Error
 }

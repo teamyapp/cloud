@@ -5,54 +5,62 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/stretchr/testify/require"
+	"github.com/teamyapp/cloud/libs/errs"
 )
-
-var testLogger = obs.NewDataCollector(obs.NewRawLogger(obs.Info))
 
 func TestParse(t *testing.T) {
 	testCases := []struct {
 		input            string
 		expectedDuration time.Duration
 		expectedHasErr   bool
+		expectedErrCode  errs.ErrorCode
 	}{
 		{
-			input:          "",
-			expectedHasErr: true,
+			input:           "",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "P",
-			expectedHasErr: true,
+			input:           "P",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "PT",
-			expectedHasErr: true,
+			input:           "PT",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "PT2H1H",
-			expectedHasErr: true,
+			input:           "PT2H1H",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "PT2H1S3H",
-			expectedHasErr: true,
+			input:           "PT2H1S3H",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "P2HT1S",
-			expectedHasErr: true,
+			input:           "P2HT1S",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "P2D3MT1S",
-			expectedHasErr: true,
+			input:           "P2D3MT1S",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
-			input:          "PT1S2H3M",
-			expectedHasErr: true,
+			input:           "PT1S2H3M",
+			expectedHasErr:  true,
+			expectedErrCode: errs.InvalidArgument,
 		},
 		{
 			input:            "P1DT",
 			expectedDuration: dayInNanos,
 			expectedHasErr:   true,
+			expectedErrCode:  errs.InvalidArgument,
 		},
 		{
 			input:            "PT0S",
@@ -153,18 +161,15 @@ func TestParse(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			duration, err := Parse(ct, testLogger, testCase.input)
+			duration, err := Parse(ct, testCase.input)
 			if testCase.expectedHasErr {
-				assert.NotNil(t, err)
+				require.NotNil(t, err)
+				require.Equal(t, testCase.expectedErrCode, err.Code)
 				return
-			} else {
-				assert.Nil(t, err)
-				if err != nil {
-					return
-				}
 			}
 
-			assert.Equal(t, testCase.expectedDuration, duration)
+			require.Nil(t, err)
+			require.Equal(t, testCase.expectedDuration, duration)
 		})
 	}
 }
@@ -317,14 +322,11 @@ func TestFormat(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.input, func(t *testing.T) {
 			t.Parallel()
-			duration, err := Parse(ct, testLogger, testCase.input)
-			assert.Nil(t, err)
-			if err != nil {
-				return
-			}
+			duration, err := Parse(ct, testCase.input)
+			require.Nil(t, err)
 
 			actualFormattedDuration := Format(duration)
-			assert.Equal(t, testCase.expectedFormattedDuration, actualFormattedDuration)
+			require.Equal(t, testCase.expectedFormattedDuration, actualFormattedDuration)
 		})
 	}
 }

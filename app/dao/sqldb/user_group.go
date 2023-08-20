@@ -8,17 +8,16 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type UserGroup struct {
-	dataCollector obs.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.UserGroup = (*UserGroup)(nil)
 
-func (u UserGroup) FindGroupByID(ct context.Context, groupID uint64) (entity.UserGroup, error) {
+func (u UserGroup) FindGroupByID(ct context.Context, groupID uint64) (entity.UserGroup, *errs.Error) {
 	group := entity.UserGroup{}
 	err := u.db.QueryRow(`
 		SELECT
@@ -41,19 +40,19 @@ func (u UserGroup) FindGroupByID(ct context.Context, groupID uint64) (entity.Use
 		)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.UserGroup{}, dao.ErrNotFound(fmt.Sprintf(
-			"user group not found: group_id=%d",
-			groupID))
+		return entity.UserGroup{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("user group not found: group_id=%d", groupID))
 	}
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return entity.UserGroup{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return group, err
+	return group, nil
 }
 
-func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, error) {
+func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, *errs.Error) {
 	rows, err := u.db.Query(`
 		SELECT
 			id,
@@ -64,12 +63,13 @@ func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, error)
 			updated_at
 		FROM user_group;
 	`)
+
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return nil, err
+		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
 	defer rows.Close()
+
 	groups := make([]entity.UserGroup, 0)
 	for rows.Next() {
 		group := entity.UserGroup{}
@@ -82,8 +82,7 @@ func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, error)
 			&group.UpdatedAt,
 		)
 		if err != nil {
-			u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-			continue
+			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
 		groups = append(groups, group)
@@ -92,7 +91,7 @@ func (u UserGroup) FindAllGroups(ct context.Context) ([]entity.UserGroup, error)
 	return groups, nil
 }
 
-func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) (entity.UserGroup, error) {
+func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) *errs.Error {
 	_, err := u.db.Exec(`
 		INSERT INTO user_group
 		(
@@ -113,13 +112,13 @@ func (u UserGroup) CreateGroup(ct context.Context, group entity.UserGroup) (enti
 	)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return group, err
+	return nil
 }
 
-func (u UserGroup) UpdateGroup(ct context.Context, group entity.UserGroup) error {
+func (u UserGroup) UpdateGroup(ct context.Context, group entity.UserGroup) *errs.Error {
 	_, err := u.db.Exec(`
 		UPDATE user_group
 		SET
@@ -138,13 +137,13 @@ func (u UserGroup) UpdateGroup(ct context.Context, group entity.UserGroup) error
 	)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func (u UserGroup) DeleteGroup(ct context.Context, groupID uint64) error {
+func (u UserGroup) DeleteGroup(ct context.Context, groupID uint64) *errs.Error {
 	_, err := u.db.Exec(`
 		DELETE FROM user_group
 		WHERE id = $1;
@@ -152,12 +151,12 @@ func (u UserGroup) DeleteGroup(ct context.Context, groupID uint64) error {
 		groupID)
 
 	if err != nil {
-		u.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func NewUserGroup(dataCollector obs.DataCollector, sqlDB *sql.DB) UserGroup {
-	return UserGroup{dataCollector: dataCollector, db: sqlDB}
+func NewUserGroup(sqlDB *sql.DB) UserGroup {
+	return UserGroup{db: sqlDB}
 }

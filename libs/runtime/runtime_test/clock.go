@@ -1,21 +1,37 @@
 package runtime_test
 
-import "time"
+import (
+	"sync"
+	"time"
+
+	"github.com/teamyapp/cloud/libs/runtime"
+)
 
 type TestClock struct {
-	time time.Time
+	now   time.Time
+	nowMu sync.RWMutex
 }
+
+var _ runtime.Clock = (*TestClock)(nil)
 
 func (t *TestClock) Now() time.Time {
-	return t.time
+	t.nowMu.RLock()
+	defer t.nowMu.RUnlock()
+	return t.now
 }
 
-func (t *TestClock) SetTime(time time.Time) {
-	t.time = time
+func (t *TestClock) SetNow(now time.Time) {
+	t.nowMu.Lock()
+	defer t.nowMu.Unlock()
+	t.now = now
 }
 
-func NewTestClock(time time.Time) TestClock {
-	return TestClock{
-		time: time,
+func (t *TestClock) After(d time.Duration) <-chan time.Time {
+	return time.After(d)
+}
+
+func NewTestClock(now time.Time) *TestClock {
+	return &TestClock{
+		now: now,
 	}
 }

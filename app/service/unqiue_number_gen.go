@@ -1,0 +1,137 @@
+package service
+
+import (
+	"context"
+	"math"
+	"sync"
+
+	"github.com/teamyapp/cloud/app/dao"
+	"github.com/teamyapp/cloud/app/entity"
+	"github.com/teamyapp/cloud/libs/errs"
+	"github.com/teamyapp/cloud/libs/telemetry"
+)
+
+// TODO: make unique number generator singleton for each sequence
+type UniqueNumberGen struct {
+	logger            telemetry.Logger
+	allocatedRangeDao dao.AllocatedRange
+	name              string
+	rangeSize         uint64
+	allocatedRange    entity.AllocatedRange
+	mu                sync.Mutex
+}
+
+func (u *UniqueNumberGen) GenerateUniqueNumber(ct context.Context) (uint64, *errs.Error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if u.allocatedRange.NextNumber > u.allocatedRange.RangeEnd {
+		err := u.allocateNewRange(ct)
+		if err != nil {
+			return uint64(0), err
+		}
+	}
+
+	num := u.allocatedRange.NextNumber
+	u.allocatedRange.NextNumber++
+	return num, nil
+}
+
+func (u *UniqueNumberGen) allocateNewRange(ct context.Context) *errs.Error {
+	if u.allocatedRange.RangeEnd == math.MaxInt64 {
+		return errs.NewError(errs.ResourceExhausted, "out of number to allocate")
+	}
+
+	newRangeStart := u.allocatedRange.RangeEnd + 1
+	newRangeEnd := min(u.allocatedRange.RangeEnd+u.rangeSize, math.MaxUint64)
+	newRange := entity.AllocatedRange{
+		Key:        u.name,
+		RangeEnd:   newRangeEnd,
+		NextNumber: newRangeStart,
+	}
+	err := u.allocatedRangeDao.UpdateAllocatedRange(ct, newRange)
+	if err != nil {
+		return err
+	}
+
+	u.allocatedRange = newRange
+	u.logger.InfoWithContext(ct, newRange)
+	return nil
+}
+
+func newUniqueNumberGen(
+	logger telemetry.Logger,
+	allocatedRangeDao dao.AllocatedRange,
+	name string,
+	rangeSize uint64,
+) (*UniqueNumberGen, *errs.Error) {
+	ct := context.Background()
+	allocatedRange, err := allocatedRangeDao.FindAllocatedRangeByKey(ct, name)
+	if err != nil {
+		if err.Code != errs.NotFound {
+			return nil, err
+		}
+
+		allocatedRange = entity.AllocatedRange{
+			Key:        name,
+			RangeEnd:   0,
+			NextNumber: 0,
+		}
+
+		err = allocatedRangeDao.CreateAllocatedRange(ct, allocatedRange)
+		if err != nil {
+			logger.WarningWithContext(ct, err)
+			return nil, err
+		}
+	}
+
+	uniqueNumberGen := &UniqueNumberGen{
+		logger:            logger,
+		name:              name,
+		rangeSize:         rangeSize,
+		allocatedRange:    allocatedRange,
+		allocatedRangeDao: allocatedRangeDao,
+	}
+	err = uniqueNumberGen.allocateNewRange(ct)
+	if err != nil {
+		logger.ErrorWithContext(ct, err)
+	}
+
+	return uniqueNumberGen, err
+}
+
+type UniqueNumberGenRegistry struct {
+	logger            telemetry.Logger
+	allocatedRangeDao dao.AllocatedRange
+	rangeSize         uint64
+	uniqueNumberGens  map[string]*UniqueNumberGen
+	mu                sync.Mutex
+}
+
+func (u *UniqueNumberGenRegistry) GetUniqueNumberGen(name string) (*UniqueNumberGen, *errs.Error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if uniqueNumberGen, ok := u.uniqueNumberGens[name]; ok {
+		return uniqueNumberGen, nil
+	}
+
+	gen, err := newUniqueNumberGen(u.logger, u.allocatedRangeDao, name, u.rangeSize)
+	if err != nil {
+		return nil, err
+	}
+
+	u.uniqueNumberGens[name] = gen
+	return gen, nil
+}
+
+func NewUniqueNumberGenRegistry(
+	logger telemetry.Logger,
+	allocatedRangeDao dao.AllocatedRange,
+	rangeSize uint64,
+) *UniqueNumberGenRegistry {
+	return &UniqueNumberGenRegistry{
+		logger:            logger,
+		allocatedRangeDao: allocatedRangeDao,
+		rangeSize:         rangeSize,
+		uniqueNumberGens:  make(map[string]*UniqueNumberGen),
+	}
+}

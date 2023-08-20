@@ -8,17 +8,16 @@ import (
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type SignInSession struct {
-	dataCollector obs.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.SignInSession = (*SignInSession)(nil)
 
-func (s SignInSession) FindSignInSessionByID(ct context.Context, sessionID uint64) (entity.SignInSession, error) {
+func (s SignInSession) FindSignInSessionByID(ct context.Context, sessionID uint64) (entity.SignInSession, *errs.Error) {
 	row := s.db.QueryRow(`
 	SELECT 
 	    id,
@@ -37,19 +36,19 @@ func (s SignInSession) FindSignInSessionByID(ct context.Context, sessionID uint6
 		&signInSession.Type,
 		&signInSession.InternalUserID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.SignInSession{}, dao.ErrNotFound(fmt.Sprintf(
-			"sign in session not found: sessionID=%v",
-			sessionID))
+		return entity.SignInSession{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("sign in session not found: sessionID=%v", sessionID))
 	}
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return entity.SignInSession{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return signInSession, err
+	return signInSession, nil
 }
 
-func (s SignInSession) CreateSignInSession(ct context.Context, session entity.SignInSession) error {
+func (s SignInSession) CreateSignInSession(ct context.Context, session entity.SignInSession) *errs.Error {
 	_, err := s.db.Exec(`
 	INSERT INTO identity_sign_in_session 
 	(
@@ -66,13 +65,13 @@ func (s SignInSession) CreateSignInSession(ct context.Context, session entity.Si
 		session.InternalUserID)
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func (s SignInSession) UpdateSignInSession(ct context.Context, session entity.SignInSession) error {
+func (s SignInSession) UpdateSignInSession(ct context.Context, session entity.SignInSession) *errs.Error {
 	_, err := s.db.Exec(`
 	UPDATE identity_sign_in_session
 	SET 
@@ -87,13 +86,13 @@ func (s SignInSession) UpdateSignInSession(ct context.Context, session entity.Si
 		session.ID)
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func (s SignInSession) DeleteSignInSession(ct context.Context, sessionID uint64) error {
+func (s SignInSession) DeleteSignInSession(ct context.Context, sessionID uint64) *errs.Error {
 	_, err := s.db.Exec(`
 	DELETE 
 	FROM identity_sign_in_session
@@ -101,15 +100,14 @@ func (s SignInSession) DeleteSignInSession(ct context.Context, sessionID uint64)
 		sessionID)
 
 	if err != nil {
-		s.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func NewSignInSession(dataCollector obs.DataCollector, sqlDB *sql.DB) SignInSession {
+func NewSignInSession(sqlDB *sql.DB) SignInSession {
 	return SignInSession{
-		dataCollector: dataCollector,
-		db:            sqlDB,
+		db: sqlDB,
 	}
 }

@@ -1,22 +1,26 @@
 package web
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
-func WriteJSON(ct context.Context, dataCollector obs.DataCollector, writer http.ResponseWriter, body interface{}) {
-	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(http.StatusAccepted)
+type ResponseWriter interface {
+	http.ResponseWriter
+	http.Hijacker
+	http.Flusher
+}
 
+func WriteJSONToResponse(writer http.ResponseWriter, body interface{}) *errs.Error {
 	buf, err := json.MarshalIndent(body, "", "  ")
 	if err != nil {
-		dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		writer.WriteHeader(http.StatusInternalServerError)
-		return
+		return errs.NewError(errs.Serialization, err.Error())
 	}
+
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(http.StatusAccepted)
 	writer.Write(buf)
+	return nil
 }

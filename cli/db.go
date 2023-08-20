@@ -8,15 +8,38 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/io"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 var dbName string
 var migrationFileName string
 var migrationSteps int
 var seedFilePath string
-var dataCollector = obs.NewDataCollector(obs.NewRawLogger(obs.Info))
+var logger telemetry.Logger
+
+func init() {
+	lineFormatter := telemetry.NewOrderedColumnLineFormatter([]string{
+		telemetry.HappenAtProp,
+		telemetry.SeverityProp,
+		telemetry.FileNameProp,
+		telemetry.LineNumberProp,
+		telemetry.RequestIDProp,
+		telemetry.ClientIDProp,
+		telemetry.CauseProp,
+		telemetry.MessageProp,
+	})
+	logger = telemetry.NewLogger(
+		lineFormatter,
+		os.Stdout,
+		telemetry.Info,
+		[]telemetry.LogInterceptor{
+			telemetry.RequestLogInterceptor,
+			telemetry.ClientLogInterceptor,
+		},
+	)
+}
 
 const migrationTemplate = `
 -- +migrate Up
@@ -33,7 +56,7 @@ var newDBCmd = &cobra.Command{
 	Use:   "new",
 	Short: "Generate SQL to create new database",
 	Run: func(cmd *cobra.Command, args []string) {
-		sqldb.New(dataCollector, dbName)
+		sqldb.New(logger, dbName)
 	},
 }
 
@@ -44,27 +67,37 @@ var migrateCmd = &cobra.Command{
 var migrateUpCmd = &cobra.Command{
 	Use: "up",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return useSQLDB(dataCollector, func(sqlDB *sql.DB) error {
-			return sqldb.MigrateUp(dataCollector, sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
+		err := useSQLDB(logger, func(sqlDB *sql.DB) *errs.Error {
+			return sqldb.MigrateUp(logger, sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
 		})
+		if err != nil {
+			return err.ToError()
+		}
+
+		return nil
 	},
 }
 
 var migrateDownCmd = &cobra.Command{
 	Use: "down",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return useSQLDB(dataCollector, func(sqlDB *sql.DB) error {
-			return sqldb.MigrateDown(dataCollector, sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
+		err := useSQLDB(logger, func(sqlDB *sql.DB) *errs.Error {
+			return sqldb.MigrateDown(logger, sqlDB, cliConfig.DBMigrationsDir, migrationSteps)
 		})
+		if err != nil {
+			return err.ToError()
+		}
+
+		return nil
 	},
 }
 
 var newMigrationCmd = &cobra.Command{
 	Use: "new",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fullFilePath, err := sqldb.NewMigration(dataCollector, cliConfig.DBMigrationsDir, migrationFileName)
+		fullFilePath, err := sqldb.NewMigration(cliConfig.DBMigrationsDir, migrationFileName)
 		if err != nil {
-			return err
+			return err.ToError()
 		}
 
 		return os.WriteFile(fullFilePath, []byte(strings.TrimPrefix(migrationTemplate, "\n")), 0644)
@@ -74,9 +107,14 @@ var newMigrationCmd = &cobra.Command{
 var seedCmd = &cobra.Command{
 	Use: "seed",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return useSQLDB(dataCollector, func(sqlDB *sql.DB) error {
-			return sqldb.ExecSQL(dataCollector, sqlDB, seedFilePath)
+		err := useSQLDB(logger, func(sqlDB *sql.DB) *errs.Error {
+			return sqldb.ExecSQL(logger, sqlDB, seedFilePath)
 		})
+		if err != nil {
+			return err.ToError()
+		}
+
+		return nil
 	},
 }
 
@@ -127,12 +165,11 @@ func addDBCmd() {
 	rootCmd.AddCommand(dbCmd)
 }
 
-func useSQLDB(dataCollector obs.DataCollector, action func(sqlDB *sql.DB) error) error {
-	cfg, err := config.AppFromEnv(dataCollector)
+func useSQLDB(logger telemetry.Logger, action func(sqlDB *sql.DB) *errs.Error) *errs.Error {
+	cfg, err := config.AppFromEnv()
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
-	return sqldb.Use(dataCollector, cfg.Config, action)
+	return sqldb.Use(logger, cfg.Config, action)
 }

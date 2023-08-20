@@ -1,23 +1,23 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 )
 
 type AllocatedRange struct {
-	dataCollector obs.DataCollector
-	db            *sql.DB
+	db *sql.DB
 }
 
 var _ dao.AllocatedRange = (*AllocatedRange)(nil)
 
-func (a AllocatedRange) FindAllocatedRangeByKey(key string) (entity.AllocatedRange, error) {
+func (a AllocatedRange) FindAllocatedRangeByKey(ct context.Context, key string) (entity.AllocatedRange, *errs.Error) {
 	row := a.db.QueryRow(`
 	SELECT key, range_end
 	FROM allocated_range
@@ -28,19 +28,19 @@ func (a AllocatedRange) FindAllocatedRangeByKey(key string) (entity.AllocatedRan
 	allocatedRange := entity.AllocatedRange{}
 	err := row.Scan(&allocatedRange.Key, &allocatedRange.RangeEnd)
 	if errors.Is(err, sql.ErrNoRows) {
-		return entity.AllocatedRange{}, dao.ErrNotFound(fmt.Sprintf(
-			"allocated range not found: key=%v",
-			key))
+		return entity.AllocatedRange{}, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("allocated range not found: key=%v", key))
 	}
 
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		return entity.AllocatedRange{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return allocatedRange, err
+	return allocatedRange, nil
 }
 
-func (a AllocatedRange) CreateAllocatedRange(allocatedRange entity.AllocatedRange) error {
+func (a AllocatedRange) CreateAllocatedRange(ct context.Context, allocatedRange entity.AllocatedRange) *errs.Error {
 	_, err := a.db.Exec(`
 	INSERT INTO allocated_range (key, range_end)
 	VALUES ($1, $2);
@@ -48,13 +48,13 @@ func (a AllocatedRange) CreateAllocatedRange(allocatedRange entity.AllocatedRang
 		allocatedRange.Key,
 		allocatedRange.RangeEnd)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func (a AllocatedRange) UpdateAllocatedRange(allocatedRange entity.AllocatedRange) error {
+func (a AllocatedRange) UpdateAllocatedRange(ct context.Context, allocatedRange entity.AllocatedRange) *errs.Error {
 	_, err := a.db.Exec(`
 	UPDATE allocated_range
 	SET range_end = $1
@@ -63,15 +63,14 @@ func (a AllocatedRange) UpdateAllocatedRange(allocatedRange entity.AllocatedRang
 		allocatedRange.RangeEnd,
 		allocatedRange.Key)
 	if err != nil {
-		a.dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
+		return errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func NewAllocatedRange(dataCollector obs.DataCollector, sqlDB *sql.DB) AllocatedRange {
+func NewAllocatedRange(sqlDB *sql.DB) AllocatedRange {
 	return AllocatedRange{
-		dataCollector: dataCollector,
-		db:            sqlDB,
+		db: sqlDB,
 	}
 }

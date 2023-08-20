@@ -2,19 +2,18 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"time"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/libs/collect"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/randgen"
 	"github.com/teamyapp/cloud/libs/security"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 type tokenPayload struct {
@@ -25,12 +24,12 @@ type tokenPayload struct {
 }
 
 type Identity struct {
-	dataCollector     obs.DataCollector
+	logger            telemetry.Logger
 	signInSessionDao  dao.SignInSession
 	userLinkDao       dao.UserLink
 	serviceAccountDao dao.ServiceAccount
-	userIDGenerator   *gen.UniqueNumber
-	stateIDGenerator  *gen.UniqueNumber
+	userIDGenerator   *UniqueNumberGen
+	stateIDGenerator  *UniqueNumberGen
 	jwtAuthority      security.JWTAuthority
 	oauthProviders    map[string]oauth.Provider
 	accessTokenTLL    time.Duration
@@ -46,7 +45,6 @@ func (i Identity) VerifyAccessToken(ct context.Context, accessToken string) (uin
 	if payload.IsServiceAccount {
 		serviceAccount, err := i.serviceAccountDao.FindServiceAccountByID(ct, payload.UserID)
 		if err != nil {
-			i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 			return 0, false
 		}
 
@@ -65,7 +63,7 @@ func (i Identity) VerifyAccessToken(ct context.Context, accessToken string) (uin
 	return payload.UserID, true
 }
 
-func (i Identity) GenerateUnknownUserSignInURL(ct context.Context, authProviderName string, redirectURL string) (string, error) {
+func (i Identity) GenerateUnknownUserSignInURL(ct context.Context, authProviderName string, redirectURL string) (string, *errs.Error) {
 	session := entity.SignInSession{
 		Type:        entity.UnknownUserSignInSessionType,
 		RedirectURL: redirectURL,
@@ -79,7 +77,7 @@ func (i Identity) GenerateLinkUsersSignInURL(
 	authProviderName string,
 	internalUserID uint64,
 	redirectURL string,
-) (string, error) {
+) (string, *errs.Error) {
 	session := entity.SignInSession{
 		Type:           entity.LinkUsersSignInSessionType,
 		InternalUserID: &internalUserID,
@@ -89,84 +87,67 @@ func (i Identity) GenerateLinkUsersSignInURL(
 	return i.generateSignInURL(ct, authProviderName, session)
 }
 
-func (i Identity) generateSignInURL(ct context.Context, authProviderName string, session entity.SignInSession) (string, error) {
+func (i Identity) generateSignInURL(ct context.Context, authProviderName string, session entity.SignInSession) (string, *errs.Error) {
 	provider, err := i.GetOAuthProvider(ct, authProviderName)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
 	sessionID, err := i.stateIDGenerator.GenerateUniqueNumber(ct)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
 	session.ID = sessionID
 	err = i.signInSessionDao.CreateSignInSession(ct, session)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
 	signInURL, err := provider.GetSignInURL(ct, sessionID)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+		return "", err
 	}
 
-	i.dataCollector.Logger.LogWithContext(ct, obs.Info, obs.Props{
-		obs.MessageProp: obs.Props{
-			"SignInURL": signInURL,
-		},
-	})
+	i.logger.InfoWithContext(ct, fmt.Sprintf("SignInURL=%v", signInURL))
 	return signInURL, nil
 }
 
-func (i Identity) GetOAuthProvider(ct context.Context, authProviderName string) (oauth.Provider, error) {
+func (i Identity) GetOAuthProvider(ct context.Context, authProviderName string) (oauth.Provider, *errs.Error) {
 	provider, ok := i.oauthProviders[authProviderName]
 	if !ok {
-		err := fmt.Errorf("authProvider not found")
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-			obs.CauseProp: err,
-			obs.MessageProp: obs.Props{
-				"AuthProvider": provider,
-			},
-		})
-		return nil, err
+		return nil, errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("authProvider not found: AuthProvider=%v", provider))
 	}
 
 	return provider, nil
 }
 
-func (i Identity) FinishOAuthSignIn(ct context.Context, authProviderName string, authorizationCode string, sessionID uint64) (string, error) {
-	session, err := i.signInSessionDao.FindSignInSessionByID(ct, sessionID)
-	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return "", err
+func (i Identity) FinishOAuthSignIn(ct context.Context, authProviderName string, authorizationCode string, sessionID uint64) (string, *errs.Error) {
+	session, internalErr := i.signInSessionDao.FindSignInSessionByID(ct, sessionID)
+	if internalErr != nil {
+		return "", internalErr
 	}
 
-	err = i.signInSessionDao.DeleteSignInSession(ct, sessionID)
-	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return "", err
+	internalErr = i.signInSessionDao.DeleteSignInSession(ct, sessionID)
+	if internalErr != nil {
+		return "", internalErr
 	}
 
-	provider, err := i.GetOAuthProvider(ct, authProviderName)
-	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return "", err
+	provider, internalErr := i.GetOAuthProvider(ct, authProviderName)
+	if internalErr != nil {
+		return "", internalErr
 	}
 
-	externalUser, err := provider.GetUser(ct, authorizationCode)
-	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return "", err
+	externalUser, internalErr := provider.GetUser(ct, authorizationCode)
+	if internalErr != nil {
+		return "", internalErr
 	}
 
 	u, err := url.Parse(session.RedirectURL)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return "", err
+		return "", errs.NewError(errs.Unknown, err.Error())
 	}
 
 	switch session.Type {
@@ -174,71 +155,64 @@ func (i Identity) FinishOAuthSignIn(ct context.Context, authProviderName string,
 		return i.signInUnknownUser(ct, authProviderName, externalUser, u)
 	case entity.LinkUsersSignInSessionType:
 		if session.InternalUserID == nil {
-			return "", errors.New("internal user ID cannot nil")
+			return "", errs.NewError(errs.InvalidValue, "internal user ID cannot nil")
 		}
 
-		err = i.linkUsers(ct, authProviderName, externalUser, *session.InternalUserID)
-		if err != nil {
-			i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-			return "", err
+		internalErr = i.linkUsers(ct, authProviderName, externalUser, *session.InternalUserID)
+		if internalErr != nil {
+			return "", internalErr
 		}
 
 		return u.String(), nil
 	default:
-		err = errors.New("unsupported sign in session type")
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-			obs.CauseProp: err,
-			"SessionType": session.Type,
-		})
-		return "", err
+		return "", errs.NewError(
+			errs.InvalidValue,
+			fmt.Sprintf("unsupported sign in session type: sessionType=%v", session.Type))
 	}
 }
 
-func (i Identity) getOrLinkInternalUserID(ct context.Context, authProvider string, externalUser entity.ExternalUser) (uint64, error) {
+func (i Identity) getOrLinkInternalUserID(ct context.Context, authProvider string, externalUser entity.ExternalUser) (uint64, *errs.Error) {
 	internalUserID, err := i.GetInternalUserID(ct, authProvider, externalUser.ID)
-	switch err.(type) {
-	case nil:
+	if err == nil {
 		return internalUserID, nil
-	case dao.ErrNotFound:
-		internalUserID, err = i.userIDGenerator.GenerateUniqueNumber(ct)
-		if err != nil {
-			i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-			return 0, err
-		}
+	}
 
-		userLink := entity.UserLink{
-			AuthProvider:      authProvider,
-			InternalUserID:    internalUserID,
-			ExternalUserID:    externalUser.ID,
-			ExternalUserLabel: externalUser.Label,
-		}
-
-		err = i.userLinkDao.CreateUserLink(ct, userLink)
-		if err != nil {
-			i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		}
-
-		return internalUserID, err
-	default:
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
+	if err.Code != errs.NotFound {
 		return 0, err
 	}
+
+	internalUserID, err = i.userIDGenerator.GenerateUniqueNumber(ct)
+	if err != nil {
+		return 0, err
+	}
+
+	userLink := entity.UserLink{
+		AuthProvider:      authProvider,
+		InternalUserID:    internalUserID,
+		ExternalUserID:    externalUser.ID,
+		ExternalUserLabel: externalUser.Label,
+	}
+
+	err = i.userLinkDao.CreateUserLink(ct, userLink)
+	if err != nil {
+		return 0, err
+	}
+
+	return internalUserID, err
 }
 
-func (i Identity) GetInternalUserID(ct context.Context, authProvider string, externalUserID string) (uint64, error) {
+func (i Identity) GetInternalUserID(ct context.Context, authProvider string, externalUserID string) (uint64, *errs.Error) {
 	userLink, err := i.userLinkDao.FindUserLinkByExternalUserID(ct, authProvider, externalUserID)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return 0, err
 	}
 
 	return userLink.InternalUserID, nil
 }
 
-func (i Identity) ListServiceAccounts(ct context.Context, accountOwnerID uint64) ([]entity.ServiceAccount, error) {
+func (i Identity) ListServiceAccounts(ct context.Context, accountOwnerID uint64) ([]entity.ServiceAccount, *errs.Error) {
 	serviceAccounts, err := i.serviceAccountDao.FindAllServiceAccounts(ct, accountOwnerID)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return nil, err
 	}
 
@@ -248,11 +222,10 @@ func (i Identity) ListServiceAccounts(ct context.Context, accountOwnerID uint64)
 	}), nil
 }
 
-func (i Identity) CreateServiceAccount(ct context.Context, accountOwnerID uint64, serviceAccountName string) error {
+func (i Identity) CreateServiceAccount(ct context.Context, accountOwnerID uint64, serviceAccountName string) (uint64, *errs.Error) {
 	serviceAccountID, err := i.userIDGenerator.GenerateUniqueNumber(ct)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return err
+		return 0, err
 	}
 
 	account := entity.ServiceAccount{
@@ -262,13 +235,12 @@ func (i Identity) CreateServiceAccount(ct context.Context, accountOwnerID uint64
 		CreatedAt:   time.Now().UTC(),
 	}
 
-	return i.serviceAccountDao.CreateServiceAccount(ct, account)
+	return serviceAccountID, i.serviceAccountDao.CreateServiceAccount(ct, account)
 }
 
-func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64, serviceAccountID uint64) (string, error) {
+func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64, serviceAccountID uint64) (string, *errs.Error) {
 	serviceAccounts, err := i.serviceAccountDao.FindAllServiceAccounts(ct, accountOwnerID)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
@@ -276,13 +248,11 @@ func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64
 		return account.ID == serviceAccountID
 	})
 	if len(foundServiceAccounts) < 1 {
-		err = errors.New("service account not found")
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-			obs.CauseProp:      err,
-			"UserID":           accountOwnerID,
-			"ServiceAccountID": serviceAccountID,
-		})
-		return "", err
+		return "", errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("service account not found: userID=%v, serviceAccountID=%v",
+				accountOwnerID,
+				serviceAccountID))
 	}
 
 	serviceAccount := serviceAccounts[0]
@@ -290,7 +260,6 @@ func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64
 	serviceAccount.Secret = &secret
 	err = i.serviceAccountDao.UpdateServiceAccount(ct, serviceAccount)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
@@ -303,10 +272,9 @@ func (i Identity) GenerateServiceToken(ct context.Context, accountOwnerID uint64
 	return i.jwtAuthority.GenerateToken(ct, payload)
 }
 
-func (i Identity) DeleteServiceAccount(ct context.Context, accountOwnerID uint64, serviceAccountID uint64) error {
+func (i Identity) DeleteServiceAccount(ct context.Context, accountOwnerID uint64, serviceAccountID uint64) *errs.Error {
 	serviceAccounts, err := i.serviceAccountDao.FindAllServiceAccounts(ct, accountOwnerID)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return err
 	}
 
@@ -314,23 +282,21 @@ func (i Identity) DeleteServiceAccount(ct context.Context, accountOwnerID uint64
 		return account.ID == serviceAccountID
 	})
 	if len(foundServiceAccounts) < 1 {
-		err = errors.New("service account not found")
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{
-			obs.CauseProp:      err,
-			"UserID":           accountOwnerID,
-			"ServiceAccountID": serviceAccountID,
-		})
-		return err
+		return errs.NewError(
+			errs.NotFound,
+			fmt.Sprintf("service account not found: userID=%v, serviceAccountID=%v",
+				accountOwnerID,
+				serviceAccountID))
 	}
 
 	return i.serviceAccountDao.DeleteServiceAccount(ct, serviceAccountID)
 }
 
-func (i Identity) ListUserLinks(ct context.Context, internalUserID uint64) ([]entity.UserLink, error) {
+func (i Identity) ListUserLinks(ct context.Context, internalUserID uint64) ([]entity.UserLink, *errs.Error) {
 	return i.userLinkDao.FindUserLinksByInternalUserID(ct, internalUserID)
 }
 
-func (i Identity) DeleteUserLink(ct context.Context, userID uint64, authProviderName string) error {
+func (i Identity) DeleteUserLink(ct context.Context, userID uint64, authProviderName string) *errs.Error {
 	return i.userLinkDao.DeleteUserLink(ct, authProviderName, userID)
 }
 
@@ -339,23 +305,21 @@ func (i Identity) signInUnknownUser(
 	authProviderName string,
 	externalUser entity.ExternalUser,
 	redirectURL *url.URL,
-) (string, error) {
+) (string, *errs.Error) {
 	userID, err := i.getOrLinkInternalUserID(ct, authProviderName, externalUser)
 	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
 		return "", err
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	payload := tokenPayload{
 		UserID:   userID,
 		IssuedAt: &now,
 	}
 
-	accessToken, err := i.jwtAuthority.GenerateToken(ct, payload)
-	if err != nil {
-		i.dataCollector.Logger.LogWithContext(ct, obs.Error, obs.Props{obs.CauseProp: err})
-		return "", err
+	accessToken, internalErr := i.jwtAuthority.GenerateToken(ct, payload)
+	if internalErr != nil {
+		return "", internalErr
 	}
 
 	query := redirectURL.Query()
@@ -369,7 +333,7 @@ func (i Identity) linkUsers(
 	authProviderName string,
 	externalUser entity.ExternalUser,
 	internalUserID uint64,
-) error {
+) *errs.Error {
 	userLink := entity.UserLink{
 		AuthProvider:      authProviderName,
 		InternalUserID:    internalUserID,
@@ -381,25 +345,23 @@ func (i Identity) linkUsers(
 }
 
 func NewIdentity(
-	dataCollector obs.DataCollector,
+	logger telemetry.Logger,
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
-	uniqueNumberFactory gen.UniqueNumberFactory,
+	uniqueNumberRegistry *UniqueNumberGenRegistry,
 	jwtAuthority security.JWTAuthority,
 	oauthProviders []oauth.Provider,
 	accessTokenTLL time.Duration,
 ) (Identity, error) {
-	userIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("userID")
+	userIDGenerator, err := uniqueNumberRegistry.GetUniqueNumberGen("userID")
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
-		return Identity{}, err
+		return Identity{}, err.ToError()
 	}
 
-	stateIDGenerator, err := uniqueNumberFactory.MakeUniqueNumber("stateID")
+	stateIDGenerator, err := uniqueNumberRegistry.GetUniqueNumberGen("stateID")
 	if err != nil {
-		dataCollector.Logger.Log(obs.Error, obs.Props{obs.CauseProp: err})
-		return Identity{}, err
+		return Identity{}, err.ToError()
 	}
 
 	oauthProviderMap := make(map[string]oauth.Provider)
@@ -408,7 +370,7 @@ func NewIdentity(
 	}
 
 	return Identity{
-		dataCollector:     dataCollector,
+		logger:            logger,
 		signInSessionDao:  signInSessionDao,
 		userLinkDao:       userLinkDao,
 		serviceAccountDao: serviceAccountDao,

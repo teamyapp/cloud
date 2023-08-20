@@ -4,19 +4,21 @@ package dep
 
 import (
 	"database/sql"
+	"net/http"
 	"time"
 
 	"github.com/google/wire"
 	"github.com/teamyapp/cloud/app/api"
-	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/dao/sqldb"
-	"github.com/teamyapp/cloud/app/gen"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
-	"github.com/teamyapp/cloud/app/storage"
-	"github.com/teamyapp/cloud/libs/obs"
+	"github.com/teamyapp/cloud/libs/env"
+	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/security"
+	"github.com/teamyapp/cloud/libs/storage"
+	"github.com/teamyapp/cloud/libs/telemetry"
+	"github.com/teamyapp/cloud/libs/web"
 )
 
 type OAuthProviders []oauth.Provider
@@ -32,21 +34,6 @@ type S3Endpoint string
 type S3AccessKeyID string
 type S3AccessKey string
 type S3BucketName string
-
-
-func InitGoogleOAuthProvider(
-	dataCollector obs.DataCollector,
-	webAPIBaseURL WebAPIBaseURL,
-	jwtSigningKey JWTSigningKey,
-	clientID ClientID,
-	clientSecret ClientSecret,
-) oauth.Google {
-	wire.Build(
-		newJWTAuthority,
-		newGoogleOAuthProvider,
-	)
-	return oauth.Google{}
-}
 
 var daoSet = wire.NewSet(
 	wire.Bind(new(dao.UserLink), new(sqldb.UserLink)),
@@ -82,11 +69,12 @@ var daoSet = wire.NewSet(
 )
 
 var storageSet = wire.NewSet(
-	wire.Bind(new(storage.MapBackend), new(storage.S3Bucket)),
+	wire.Bind(new(storage.MapClient), new(storage.S3Bucket)),
+	wire.Bind(new(storage.MapRequestHandlers), new(storage.S3Bucket)),
 	newS3Bucket,
 )
 
-func InitTelemetryAPI(dataCollector obs.DataCollector) *api.Telemetry {
+func InitTelemetryAPI(logger telemetry.Logger) *api.Telemetry {
 	wire.Build(
 		api.NewTelemetry,
 	)
@@ -94,7 +82,7 @@ func InitTelemetryAPI(dataCollector obs.DataCollector) *api.Telemetry {
 }
 
 func InitIdentityAPI(
-	dataCollector obs.DataCollector,
+	logger telemetry.Logger,
 	sqlDB *sql.DB,
 	oauthProviders OAuthProviders,
 	accessTokenTTL AccessTokenTTL,
@@ -112,20 +100,20 @@ func InitIdentityAPI(
 }
 
 func InitGeneratorAPI(
-	dataCollector obs.DataCollector,
+	logger telemetry.Logger,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
-) (api.Generator, error) {
+) (*api.Generator, error) {
 	wire.Build(
 		daoSet,
 		newUniqueNumberGenFactory,
 		api.NewGenerator,
 	)
-	return api.Generator{}, nil
+	return nil, nil
 }
 
 func InitAuthorizationAPI(
-	dataCollector obs.DataCollector,
+	logger telemetry.Logger,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
 ) (api.Authorization, error) {
@@ -139,8 +127,8 @@ func InitAuthorizationAPI(
 }
 
 func InitFileAPI(
-	dataCollector obs.DataCollector,
-	env config.Environment,
+	logger telemetry.Logger,
+	env env.Environment,
 	sqlDB *sql.DB,
 	genRangeSize GenRangeSize,
 	s3Endpoint S3Endpoint,
@@ -158,16 +146,34 @@ func InitFileAPI(
 	return api.File{}, nil
 }
 
-func newS3Bucket(
-	dataCollector obs.DataCollector,
+func InitStreamAPI(
+	logger telemetry.Logger,
+	env env.Environment,
+	sqlDB *sql.DB,
 	s3Endpoint S3Endpoint,
 	s3AccessKeyID S3AccessKeyID,
 	s3AccessKey S3AccessKey,
 	s3BucketName S3BucketName,
-	env config.Environment,
+) (api.Stream, error) {
+	wire.Build(
+		daoSet,
+		storageSet,
+		service.NewStream,
+		api.NewStream,
+	)
+	return api.Stream{}, nil
+}
+
+func newS3Bucket(
+	logger telemetry.Logger,
+	s3Endpoint S3Endpoint,
+	s3AccessKeyID S3AccessKeyID,
+	s3AccessKey S3AccessKey,
+	s3BucketName S3BucketName,
+	env env.Environment,
 ) (storage.S3Bucket, error) {
 	return storage.NewS3Bucket(
-		dataCollector,
+		logger,
 		string(s3Endpoint),
 		string(s3AccessKeyID),
 		string(s3AccessKey),
@@ -175,52 +181,118 @@ func newS3Bucket(
 		string(s3BucketName))
 }
 
+func InitGitHubOAuthProvider(
+	logger telemetry.Logger,
+	webAPIBaseURL WebAPIBaseURL,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.GitHub {
+	wire.Build(
+		wire.Bind(new(network.Network), new(network.Socket)),
+		wire.Bind(new(web.HTTPClient), new(*http.Client)),
+
+		network.NewSocket,
+		web.NewHTTPClient,
+		newGithubOAuthProvider,
+	)
+	return oauth.GitHub{}
+}
+
+func InitGoogleOAuthProvider(
+	logger telemetry.Logger,
+	webAPIBaseURL WebAPIBaseURL,
+	jwtSigningKey JWTSigningKey,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.Google {
+	wire.Build(
+		wire.Bind(new(network.Network), new(network.Socket)),
+		wire.Bind(new(web.HTTPClient), new(*http.Client)),
+
+		network.NewSocket,
+		web.NewHTTPClient,
+		newJWTAuthority,
+		newGoogleOAuthProvider,
+	)
+	return oauth.Google{}
+}
+
+func InitSlackOAuthProvider(
+	logger telemetry.Logger,
+	webAPIBaseURL WebAPIBaseURL,
+	jwtSigningKey JWTSigningKey,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.Slack {
+	wire.Build(
+		wire.Bind(new(network.Network), new(network.Socket)),
+		wire.Bind(new(web.HTTPClient), new(*http.Client)),
+
+		network.NewSocket,
+		web.NewHTTPClient,
+		newJWTAuthority,
+		newSlackOAuthProvider,
+	)
+	return oauth.Slack{}
+}
+
+func newGithubOAuthProvider(
+	httpClient web.HTTPClient,
+	webAPIBaseURL WebAPIBaseURL,
+	clientID ClientID,
+	clientSecret ClientSecret,
+) oauth.GitHub {
+	return oauth.NewGitHub(httpClient, string(webAPIBaseURL), string(clientID), string(clientSecret))
+}
+
 func newGoogleOAuthProvider(
-	dataCollector obs.DataCollector,
+	httpClient web.HTTPClient,
 	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
 ) oauth.Google {
-	return oauth.NewGoogle(dataCollector, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
+	return oauth.NewGoogle(httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
-func InitGitHubOAuthProvider(
-	dataCollector obs.DataCollector,
+func newSlackOAuthProvider(
+	httpClient web.HTTPClient,
+	jwtAuthority security.JWTAuthority,
 	webAPIBaseURL WebAPIBaseURL,
 	clientID ClientID,
 	clientSecret ClientSecret,
-) oauth.GitHub {
-	return oauth.NewGitHub(dataCollector, string(webAPIBaseURL), string(clientID), string(clientSecret))
+) oauth.Slack {
+	return oauth.NewSlack(httpClient, jwtAuthority, string(webAPIBaseURL), string(clientID), string(clientSecret))
 }
 
-func newJWTAuthority(dataCollector obs.DataCollector, signingKey JWTSigningKey) security.JWTAuthority {
-	return security.NewJWTAuthority(dataCollector, string(signingKey))
+func newJWTAuthority(logger telemetry.Logger, signingKey JWTSigningKey) security.JWTAuthority {
+	return security.NewJWTAuthority(logger, string(signingKey))
 }
 
 func newUniqueNumberGenFactory(
-	dataCollector obs.DataCollector,
+	logger telemetry.Logger,
 	allocatedRangeDao dao.AllocatedRange,
-	genRangeSize GenRangeSize) gen.UniqueNumberFactory {
-	return gen.NewUniqueNumberFactory(dataCollector, allocatedRangeDao, uint64(genRangeSize))
+	genRangeSize GenRangeSize,
+) *service.UniqueNumberGenRegistry {
+	return service.NewUniqueNumberGenRegistry(logger, allocatedRangeDao, uint64(genRangeSize))
 }
 
 func newIdentityService(
-	dataCollector obs.DataCollector,
+	logger telemetry.Logger,
 	signInSessionDao dao.SignInSession,
 	userLinkDao dao.UserLink,
 	serviceAccountDao dao.ServiceAccount,
-	uniqueNumberFactory gen.UniqueNumberFactory,
+	uniqueNumberRegistry *service.UniqueNumberGenRegistry,
 	jwtAuthority security.JWTAuthority,
 	oauthProviders OAuthProviders,
 	accessTokenTLL AccessTokenTTL,
 ) (service.Identity, error) {
 	return service.NewIdentity(
-		dataCollector,
+		logger,
 		signInSessionDao,
 		userLinkDao,
 		serviceAccountDao,
-		uniqueNumberFactory,
+		uniqueNumberRegistry,
 		jwtAuthority,
 		oauthProviders,
 		time.Duration(accessTokenTLL))
