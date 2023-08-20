@@ -11,7 +11,6 @@ import (
 	"github.com/teamyapp/cloud/app/dao/daotest"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
-	"github.com/teamyapp/cloud/app/storage/storagetest"
 	"github.com/teamyapp/cloud/libs/dbtest"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/metrics/metricstest"
@@ -19,6 +18,7 @@ import (
 	"github.com/teamyapp/cloud/libs/network/networktest"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/security"
+	"github.com/teamyapp/cloud/libs/storage/storagetest"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web/webtest"
 )

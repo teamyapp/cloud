@@ -14,10 +14,10 @@ import (
 	"github.com/teamyapp/cloud/app/dao/sqldb"
 	"github.com/teamyapp/cloud/app/oauth"
 	"github.com/teamyapp/cloud/app/service"
-	"github.com/teamyapp/cloud/app/storage"
 	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/security"
+	"github.com/teamyapp/cloud/libs/storage"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
 	"time"
@@ -89,6 +89,17 @@ func InitFileAPI(logger telemetry.Logger, env2 env.Environment, sqlDB *sql.DB, g
 	return apiFile, nil
 }
 
+func InitStreamAPI(logger telemetry.Logger, env2 env.Environment, sqlDB *sql.DB, s3Endpoint S3Endpoint, s3AccessKeyID S3AccessKeyID, s3AccessKey S3AccessKey, s3BucketName S3BucketName) (api.Stream, error) {
+	s3Bucket, err := newS3Bucket(logger, s3Endpoint, s3AccessKeyID, s3AccessKey, s3BucketName, env2)
+	if err != nil {
+		return api.Stream{}, err
+	}
+	fileMetadata := sqldb.NewFileMetadata(sqlDB)
+	stream := service.NewStream(logger, s3Bucket, fileMetadata)
+	apiStream := api.NewStream(logger, stream)
+	return apiStream, nil
+}
+
 func InitGitHubOAuthProvider(logger telemetry.Logger, webAPIBaseURL WebAPIBaseURL, clientID ClientID, clientSecret ClientSecret) oauth.GitHub {
 	socket := network.NewSocket()
 	client := web.NewHTTPClient(socket)
@@ -138,7 +149,7 @@ type S3BucketName string
 
 var daoSet = wire.NewSet(wire.Bind(new(dao.UserLink), new(sqldb.UserLink)), wire.Bind(new(dao.AllocatedRange), new(sqldb.AllocatedRange)), wire.Bind(new(dao.SignInSession), new(sqldb.SignInSession)), wire.Bind(new(dao.ServiceAccount), new(sqldb.ServiceAccount)), wire.Bind(new(dao.OperationRelation), new(sqldb.OperationRelation)), wire.Bind(new(dao.Operation), new(sqldb.Operation)), wire.Bind(new(dao.UserGroup), new(sqldb.UserGroup)), wire.Bind(new(dao.UserGroupMember), new(sqldb.UserGroupMember)), wire.Bind(new(dao.Permission), new(sqldb.Permission)), wire.Bind(new(dao.ResourceType), new(sqldb.ResourceType)), wire.Bind(new(dao.Resource), new(sqldb.Resource)), wire.Bind(new(dao.ResourceRelation), new(sqldb.ResourceRelation)), wire.Bind(new(dao.UploadSession), new(sqldb.UploadSession)), wire.Bind(new(dao.FileMetadata), new(sqldb.FileMetadata)), wire.Bind(new(dao.ChunkMetadata), new(sqldb.ChunkMetadata)), sqldb.NewAllocatedRange, sqldb.NewUserLink, sqldb.NewSignInSession, sqldb.NewServiceAccount, sqldb.NewOperationRelation, sqldb.NewOperation, sqldb.NewUserGroup, sqldb.NewUserGroupMember, sqldb.NewPermission, sqldb.NewResourceType, sqldb.NewResource, sqldb.NewResourceRelation, sqldb.NewUploadSession, sqldb.NewFileMetadata, sqldb.NewChunkMetadata)
 
-var storageSet = wire.NewSet(wire.Bind(new(storage.MapBackend), new(storage.S3Bucket)), newS3Bucket)
+var storageSet = wire.NewSet(wire.Bind(new(storage.MapClient), new(storage.S3Bucket)), wire.Bind(new(storage.MapRequestHandlers), new(storage.S3Bucket)), newS3Bucket)
 
 func newS3Bucket(
 	logger telemetry.Logger,

@@ -197,15 +197,7 @@ func (f File) webAddChunk(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	data, err := io.ReadAll(request.Body)
-	if err != nil {
-		internalErr := errs.NewError(errs.Deserialization, err.Error())
-		f.logger.ErrorWithContext(ct, internalErr)
-		errs.SetHTTPErr(internalErr, writer)
-		return
-	}
-
-	uploadSession, internalErr := f.fileService.AddChunk(request.Context(), uploadSessionID, data)
+	uploadSession, internalErr := f.fileService.AddChunk(ct, uploadSessionID, request.Body, request.ContentLength)
 	if internalErr != nil {
 		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
@@ -268,23 +260,15 @@ func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	for chunkResult := range file.ChunksBuffer {
-		if chunkResult.Error != nil {
-			f.logger.ErrorWithContext(ct, chunkResult.Error)
-			errs.SetHTTPErr(chunkResult.Error, writer)
-			return
-		}
-
-		_, err = writer.Write(chunkResult.Value)
-		if err != nil {
-			internalErr = errs.NewError(errs.Unknown, err.Error())
-			f.logger.ErrorWithContext(ct, internalErr)
-			errs.SetHTTPErr(internalErr, writer)
-			return
-		}
-
-		flusher.Flush()
+	_, err = io.Copy(writer, file.ChunksBuffer)
+	if err != nil {
+		internalErr = errs.NewError(errs.Unknown, err.Error())
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
 	}
+
+	flusher.Flush()
 }
 
 func NewFile(logger telemetry.Logger, fileService service.File) File {

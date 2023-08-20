@@ -116,15 +116,33 @@ func main() {
 			return errs.NewError(errs.Unknown, err.Error())
 		}
 
+		genRangeSize := dep.GenRangeSize(cfg.GenRangeSize)
+		s3Endpoint := dep.S3Endpoint(cfg.S3Endpoint)
+		s3AccessKeyID := dep.S3AccessKeyID(cfg.S3AccessKeyID)
+		s3AccessKey := dep.S3AccessKey(cfg.S3AccessKey)
+		s3BucketName := dep.S3BucketName(cfg.S3BucketName)
+
 		fileAPI, err := dep.InitFileAPI(
 			logger,
 			cfg.Environment,
 			sqlDB,
-			dep.GenRangeSize(cfg.GenRangeSize),
-			dep.S3Endpoint(cfg.S3Endpoint),
-			dep.S3AccessKeyID(cfg.S3AccessKeyID),
-			dep.S3AccessKey(cfg.S3AccessKey),
-			dep.S3BucketName(cfg.S3BucketName))
+			genRangeSize,
+			s3Endpoint,
+			s3AccessKeyID,
+			s3AccessKey,
+			s3BucketName)
+		if err != nil {
+			return errs.NewError(errs.Unknown, err.Error())
+		}
+
+		streamAPI, err := dep.InitStreamAPI(
+			logger,
+			cfg.Environment,
+			sqlDB,
+			s3Endpoint,
+			s3AccessKeyID,
+			s3AccessKey,
+			s3BucketName)
 		if err != nil {
 			return errs.NewError(errs.Unknown, err.Error())
 		}
@@ -141,6 +159,7 @@ func main() {
 				generatorAPI,
 				authorizationAPI,
 				fileAPI,
+				streamAPI,
 				telemetryAPI,
 			}).
 			IncludeIdentityWebFunc(api.IncludeIdentityWebFunc).

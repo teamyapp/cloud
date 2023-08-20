@@ -3,12 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"io"
 	"path"
 	"strconv"
 
 	"github.com/teamyapp/cloud/app/entity"
-	"github.com/teamyapp/cloud/app/storage"
 	"github.com/teamyapp/cloud/libs/errs"
+	"github.com/teamyapp/cloud/libs/storage"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
@@ -16,18 +17,18 @@ const chunkKeyPrefix = "chunks"
 
 type ChunksIterator struct {
 	logger         telemetry.Logger
-	mapBackend     storage.MapBackend
+	mapClient      storage.MapClient
 	chunkIDs       []uint64
 	nextChunkIndex int
 }
 
-var _ entity.Iterator[[]byte] = (*ChunksIterator)(nil)
+var _ entity.Iterator[io.Reader] = (*ChunksIterator)(nil)
 
 func (c *ChunksIterator) HasNext() (bool, *errs.Error) {
 	return c.nextChunkIndex < len(c.chunkIDs), nil
 }
 
-func (c *ChunksIterator) Next(ct context.Context) ([]byte, *errs.Error) {
+func (c *ChunksIterator) Next(ct context.Context) (io.Reader, *errs.Error) {
 	hasNext, err := c.HasNext()
 	if err != nil {
 		return nil, err
@@ -41,7 +42,7 @@ func (c *ChunksIterator) Next(ct context.Context) ([]byte, *errs.Error) {
 
 	chunkIDPath := strconv.FormatUint(c.chunkIDs[c.nextChunkIndex], 10)
 	fullPath := path.Join(chunkKeyPrefix, chunkIDPath)
-	data, err := c.mapBackend.Get(fullPath)
+	data, err := c.mapClient.Get(fullPath)
 	if err != nil {
 		return nil, err
 	}
@@ -52,19 +53,19 @@ func (c *ChunksIterator) Next(ct context.Context) ([]byte, *errs.Error) {
 
 func newChunksIterator(
 	logger telemetry.Logger,
-	mapBackend storage.MapBackend,
+	mapClient storage.MapClient,
 	chunkIDs []uint64,
 ) *ChunksIterator {
 	return &ChunksIterator{
 		logger:         logger,
-		mapBackend:     mapBackend,
+		mapClient:      mapClient,
 		chunkIDs:       chunkIDs,
 		nextChunkIndex: 0,
 	}
 }
 
-func saveChunk(mapBackend storage.MapBackend, chunkID uint64, data []byte) *errs.Error {
+func saveChunk(mapClient storage.MapClient, chunkID uint64, data io.Reader) *errs.Error {
 	chunkIDPath := strconv.FormatUint(chunkID, 10)
 	fullPath := path.Join(chunkKeyPrefix, chunkIDPath)
-	return mapBackend.Put(fullPath, data)
+	return mapClient.Put(fullPath, data)
 }

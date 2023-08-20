@@ -1,29 +1,37 @@
 package storagetest
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 
-	"github.com/teamyapp/cloud/app/storage"
 	"github.com/teamyapp/cloud/libs/errs"
+	"github.com/teamyapp/cloud/libs/storage"
 )
 
 type InMemoryMap struct {
 	data map[string][]byte
 }
 
-var _ storage.MapBackend = (*InMemoryMap)(nil)
+var _ storage.MapClient = (*InMemoryMap)(nil)
 
-func (i InMemoryMap) Get(key string) ([]byte, *errs.Error) {
+func (i InMemoryMap) Get(key string) (io.Reader, *errs.Error) {
 	value, ok := i.data[key]
 	if !ok {
 		return nil, errs.NewError(errs.NotFound, fmt.Sprintf("key not found: key=%v", key))
 	}
 
-	return value, nil
+	return bytes.NewReader(value), nil
 }
 
-func (i InMemoryMap) Put(key string, data []byte) *errs.Error {
-	i.data[key] = data
+func (i InMemoryMap) Put(key string, data io.Reader) *errs.Error {
+	reader, err := io.ReadAll(data)
+
+	if err != nil {
+		return errs.NewError(errs.Unknown, err.Error())
+	}
+
+	i.data[key] = reader
 	return nil
 }
 
