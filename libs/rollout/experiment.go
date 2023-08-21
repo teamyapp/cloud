@@ -39,15 +39,15 @@ func (e *ExperimentRollout) GetVersionNumber(viewerID uint64) (int, *errs.Error)
 }
 
 func NewExperimentRollout(
-	id uint64,
 	store Store,
+	id uint64,
 	versionNumbers []int,
 	startAt *time.Time,
 	endAt *time.Time,
 ) ExperimentRollout {
 	return ExperimentRollout{
-		id:             id,
 		store:          store,
+		id:             id,
 		versionNumbers: versionNumbers,
 		startAt:        startAt,
 		endAt:          endAt,
