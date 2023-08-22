@@ -157,20 +157,23 @@ func (i *IncrementalActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
 		return *isActivated, nil
 	}
 
-	if i.bucketIndex >= len(i.buckets)-1 {
+	if i.bucketIndex >= len(i.buckets) {
 		return true, nil
 	}
 
 	now := time.Now().UTC()
 	timeElapsed := now.Sub(i.bucketStartAt)
 	if timeElapsed >= i.buckets[i.bucketIndex].MinimalBakeTime {
+		i.bucketIndex++
+		i.bucketStartAt = now
 		err = i.store.SetBucketIndex(i.bucketIndex + 1)
 		if err != nil {
 			return false, err
 		}
 
-		i.bucketIndex++
-		i.bucketStartAt = now
+		if i.bucketIndex >= len(i.buckets) {
+			return true, nil
+		}
 	}
 
 	isActive := i.randomGen.RandomInt(100) < i.buckets[i.bucketIndex].Percentage
