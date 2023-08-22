@@ -5,8 +5,14 @@ import (
 )
 
 type Store interface {
-	GetViewerVersionNumber(rolloutID uint64, viewerID uint64) (*int, *errs.Error)
-	SetViewerVersionNumber(rolloutID uint64, viewerID uint64, versionNumber int) *errs.Error
-	GetTotalViewers(rolloutID uint64) (int, *errs.Error)
-	SetTotalViewers(rolloutID uint64, totalViewers int) *errs.Error
+	GetViewerVersionNumber(viewerID uint64) (*int, *errs.Error)
+	SetViewerVersionNumber(viewerID uint64, versionNumber int) *errs.Error
+	GetTotalViewers(defaultViewers int) (int, *errs.Error)
+	SetTotalViewers(totalViewers int) *errs.Error
+	GetIsActivated(viewerID uint64) (*bool, *errs.Error)
+	SetIsActivated(viewerID uint64, isActivated bool) *errs.Error
+	GetIsRolloutEnabled(defaultIsRolloutEnabled bool) (bool, *errs.Error)
+	SetIsRolloutEnabled(isRolloutEnabled bool) *errs.Error
+	GetBucketIndex(defaultBucketIndex int) (int, *errs.Error)
+	SetBucketIndex(bucketIndex int) *errs.Error
 }

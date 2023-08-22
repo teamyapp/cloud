@@ -4,7 +4,48 @@ import (
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
-type Rollout interface {
-	IsActive() bool
-	GetVersionNumber(viewerID uint64) (int, *errs.Error)
+type Rollout struct {
+	store              Store
+	isEnabled          bool
+	activator          Activator
+	versionDistributor VersionDistributor
+}
+
+func (r *Rollout) IsActive(viewerID uint64) (bool, *errs.Error) {
+	if !r.isEnabled {
+		return false, nil
+	}
+
+	return r.activator.IsActive(viewerID)
+}
+
+func (r *Rollout) GetVersionNumber(viewerID uint64) (int, *errs.Error) {
+	return r.versionDistributor.GetVersionNumber(viewerID)
+}
+
+func (r *Rollout) SetIsEnabled(isEnabled bool) *errs.Error {
+	err := r.store.SetIsRolloutEnabled(isEnabled)
+	if err != nil {
+		return err
+	}
+
+	r.isEnabled = isEnabled
+	return nil
+}
+
+func NewRollout(
+	store Store,
+	activator Activator,
+	versionDistributor VersionDistributor,
+) (Rollout, *errs.Error) {
+	isEnabled, err := store.GetIsRolloutEnabled(true)
+	if err != nil {
+		return Rollout{}, err
+	}
+
+	return Rollout{
+		isEnabled:          isEnabled,
+		activator:          activator,
+		versionDistributor: versionDistributor,
+	}, nil
 }
