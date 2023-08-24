@@ -1,12 +1,13 @@
 package storage
 
 import (
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/teamyapp/cloud/libs/errs"
-	tmio "github.com/teamyapp/cloud/libs/io"
 )
 
 type HTTPClient struct {
@@ -21,7 +22,7 @@ func (c *HTTPClient) Get(key string) (io.Reader, *errs.Error) {
 		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	url := tmio.GetFileURL(c.mapServerURL, fileID)
+	url := getFileURL(c.mapServerURL, fileID)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, errs.NewError(errs.Unknown, err.Error())
@@ -36,15 +37,19 @@ func (c *HTTPClient) Get(key string) (io.Reader, *errs.Error) {
 }
 
 func (c *HTTPClient) Put(key string, value io.Reader) *errs.Error {
-	url := tmio.GetUploadFileURL(c.mapServerURL, key)
-	req, err := http.NewRequest(http.MethodPost, url, value)
+	url, err := getUploadFileURL(c.mapServerURL, key)
 	if err != nil {
-		return errs.NewError(errs.Unknown, err.Error())
+		return err
 	}
 
-	_, err = http.DefaultClient.Do(req)
-	if err != nil {
-		return errs.NewError(errs.Unknown, err.Error())
+	req, internalErr := http.NewRequest(http.MethodPost, url, value)
+	if internalErr != nil {
+		return errs.NewError(errs.Unknown, internalErr.Error())
+	}
+
+	_, internalErr = http.DefaultClient.Do(req)
+	if internalErr != nil {
+		return errs.NewError(errs.Unknown, internalErr.Error())
 	}
 
 	return nil
@@ -52,6 +57,23 @@ func (c *HTTPClient) Put(key string, value io.Reader) *errs.Error {
 
 func (c *HTTPClient) Delete(key string) *errs.Error {
 	panic("implement me")
+}
+
+func getFileURL(mapServerURL string, fileID uint64) string {
+	fileIDParam := strconv.FormatUint(fileID, 10)
+	return fmt.Sprintf("%s/files/%s", mapServerURL, fileIDParam)
+}
+
+func getUploadFileURL(mapServerURL string, fileName string) (string, *errs.Error) {
+	uploadFileURL, err := url.Parse(fmt.Sprintf("%s/files/upload", mapServerURL))
+	if err != nil {
+		return "", errs.NewError(errs.Unknown, err.Error())
+	}
+
+	query := uploadFileURL.Query()
+	query.Add("fileName", fileName)
+	uploadFileURL.RawQuery = query.Encode()
+	return uploadFileURL.String(), nil
 }
 
 func NewHTTPClient(mapServerURL string) *HTTPClient {
