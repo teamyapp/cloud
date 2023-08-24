@@ -8,7 +8,7 @@ type StubRanGen struct {
 func (s *StubRanGen) RandomInt(i int) int {
 	if s.nextRandomIntIndex == len(s.randomInts) {
 		s.nextRandomIntIndex = 0
-		return 0
+		return s.randomInts[0]
 	}
 
 	value := s.randomInts[s.nextRandomIntIndex]
