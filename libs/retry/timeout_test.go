@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/teamyapp/cloud/libs/errs"
+	"github.com/teamyapp/cloud/libs/randgen/randgentest"
 	"github.com/teamyapp/cloud/libs/retry/backoff"
 	"github.com/teamyapp/cloud/libs/runtime/runtime_test"
 	"github.com/teamyapp/cloud/libs/telemetry"
@@ -77,7 +78,7 @@ func TestTimeout(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			randGen := randgentest.NewBuiltinRanGen([]int{1})
+			randGen := randgentest.NewStubRanGen([]int{1})
 			shortBackOff := backoff.NewExponentialBuilder().
 				MinDelay(shortDelay).
 				RandGenerator(randGen).
