@@ -21,8 +21,8 @@ func (s *StaticVersionDistributor) GetVersionNumber(viewerID uint64) (int, *errs
 
 func NewStaticVersionDistributor(
 	versionNumber int,
-) StaticVersionDistributor {
-	return StaticVersionDistributor{
+) *StaticVersionDistributor {
+	return &StaticVersionDistributor{
 		versionNumber: versionNumber,
 	}
 }
@@ -56,8 +56,8 @@ func NewExperimentVersionDistributor(
 	store Store,
 	randomGen randgen.RandomNumberGenerator,
 	versionNumbers []int,
-) ExperimentVersionDistributor {
-	return ExperimentVersionDistributor{
+) *ExperimentVersionDistributor {
+	return &ExperimentVersionDistributor{
 		store:          store,
 		randomGen:      randomGen,
 		versionNumbers: versionNumbers,

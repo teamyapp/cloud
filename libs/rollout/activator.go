@@ -3,6 +3,7 @@ package rollout
 import (
 	"time"
 
+	"github.com/benbjohnson/clock"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/randgen"
 )
@@ -25,6 +26,7 @@ func NewStaticActivator() StaticActivator {
 }
 
 type TimeRangeActivator struct {
+	clock   clock.Clock
 	startAt *time.Time
 	endAt   *time.Time
 }
@@ -32,7 +34,7 @@ type TimeRangeActivator struct {
 var _ Activator = (*TimeRangeActivator)(nil)
 
 func (t *TimeRangeActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
-	now := time.Now().UTC()
+	now := t.clock.Now().UTC()
 	if t.startAt != nil && now.Before(*t.startAt) {
 		return false, nil
 	}
@@ -44,8 +46,9 @@ func (t *TimeRangeActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
 	return true, nil
 }
 
-func NewTimeRangeActivator(startAt *time.Time, endAt *time.Time) TimeRangeActivator {
-	return TimeRangeActivator{
+func NewTimeRangeActivator(clock clock.Clock, startAt *time.Time, endAt *time.Time) *TimeRangeActivator {
+	return &TimeRangeActivator{
+		clock:   clock,
 		startAt: startAt,
 		endAt:   endAt,
 	}
@@ -69,7 +72,7 @@ func (m *MaxViewersActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
 		return *isActivated, nil
 	}
 
-	if m.totalViewers >= m.maxViewers {
+	if m.totalViewers+1 > m.maxViewers {
 		return false, nil
 	}
 
@@ -86,13 +89,13 @@ func (m *MaxViewersActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
 func NewMaxViewersActivator(
 	store Store,
 	maxViewers int,
-) (MaxViewersActivator, *errs.Error) {
+) (*MaxViewersActivator, *errs.Error) {
 	totalViewers, err := store.GetTotalViewers(0)
 	if err != nil {
-		return MaxViewersActivator{}, err
+		return nil, err
 	}
 
-	return MaxViewersActivator{
+	return &MaxViewersActivator{
 		store:        store,
 		totalViewers: totalViewers,
 		maxViewers:   maxViewers,
@@ -117,16 +120,19 @@ func (p *PercentageActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
 		return *isActivated, nil
 	}
 
-	isActive := p.randomGen.RandomInt(100) < p.percentage
+	randInt := p.randomGen.RandomInt(100)
+	isActive := randInt < p.percentage
 	err = p.store.SetIsActivated(viewerID, isActive)
 	return isActive, err
 }
 
 func NewPercentageActivator(
+	store Store,
 	randomGen randgen.RandomNumberGenerator,
 	percentage int,
-) PercentageActivator {
-	return PercentageActivator{
+) *PercentageActivator {
+	return &PercentageActivator{
+		store:      store,
 		randomGen:  randomGen,
 		percentage: percentage,
 	}
@@ -137,17 +143,18 @@ type Bucket struct {
 	MinimalBakeTime time.Duration
 }
 
-type IncrementalActivator struct {
+type IncrementalPercentageActivator struct {
 	store         Store
 	randomGen     randgen.RandomNumberGenerator
+	clock         clock.Clock
 	buckets       []Bucket
 	bucketIndex   int
 	bucketStartAt time.Time
 }
 
-var _ Activator = (*IncrementalActivator)(nil)
+var _ Activator = (*IncrementalPercentageActivator)(nil)
 
-func (i *IncrementalActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
+func (i *IncrementalPercentageActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
 	isActivated, err := i.store.GetIsActivated(viewerID)
 	if err != nil {
 		return false, err
@@ -157,45 +164,48 @@ func (i *IncrementalActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
 		return *isActivated, nil
 	}
 
+	now := i.clock.Now().UTC()
+	for i.bucketIndex < len(i.buckets) {
+		timeElapsed := now.Sub(i.bucketStartAt)
+		if timeElapsed < i.buckets[i.bucketIndex].MinimalBakeTime {
+			break
+		}
+
+		i.bucketStartAt = i.bucketStartAt.Add(i.buckets[i.bucketIndex].MinimalBakeTime)
+		i.bucketIndex++
+		err = i.store.SetBucketIndex(i.bucketIndex)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	if i.bucketIndex >= len(i.buckets) {
 		return true, nil
 	}
 
-	now := time.Now().UTC()
-	timeElapsed := now.Sub(i.bucketStartAt)
-	if timeElapsed >= i.buckets[i.bucketIndex].MinimalBakeTime {
-		i.bucketIndex++
-		i.bucketStartAt = now
-		err = i.store.SetBucketIndex(i.bucketIndex + 1)
-		if err != nil {
-			return false, err
-		}
-
-		if i.bucketIndex >= len(i.buckets) {
-			return true, nil
-		}
-	}
-
-	isActive := i.randomGen.RandomInt(100) < i.buckets[i.bucketIndex].Percentage
+	randInt := i.randomGen.RandomInt(100)
+	isActive := randInt < i.buckets[i.bucketIndex].Percentage
 	err = i.store.SetIsActivated(viewerID, isActive)
 	return isActive, err
 }
 
-func NewIncrementalActivator(
+func NewIncrementalPercentageActivator(
 	store Store,
 	randomGen randgen.RandomNumberGenerator,
+	clock clock.Clock,
 	buckets []Bucket,
-) (IncrementalActivator, *errs.Error) {
+) (*IncrementalPercentageActivator, *errs.Error) {
 	bucketIndex, err := store.GetBucketIndex(0)
 	if err != nil {
-		return IncrementalActivator{}, err
+		return nil, err
 	}
 
-	return IncrementalActivator{
+	return &IncrementalPercentageActivator{
+		clock:         clock,
 		store:         store,
 		randomGen:     randomGen,
 		buckets:       buckets,
 		bucketIndex:   bucketIndex,
-		bucketStartAt: time.Now().UTC(),
+		bucketStartAt: clock.Now().UTC(),
 	}, nil
 }
