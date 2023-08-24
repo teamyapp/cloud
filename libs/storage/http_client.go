@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/teamyapp/cloud/libs/errs"
@@ -36,15 +37,19 @@ func (c *HTTPClient) Get(key string) (io.Reader, *errs.Error) {
 }
 
 func (c *HTTPClient) Put(key string, value io.Reader) *errs.Error {
-	url := getUploadFileUrl(c.mapServerURL, key)
-	req, err := http.NewRequest(http.MethodPost, url, value)
+	url, err := getUploadFileURL(c.mapServerURL, key)
 	if err != nil {
-		return errs.NewError(errs.Unknown, err.Error())
+		return err
 	}
 
-	_, err = http.DefaultClient.Do(req)
-	if err != nil {
-		return errs.NewError(errs.Unknown, err.Error())
+	req, internalErr := http.NewRequest(http.MethodPost, url, value)
+	if internalErr != nil {
+		return errs.NewError(errs.Unknown, internalErr.Error())
+	}
+
+	_, internalErr = http.DefaultClient.Do(req)
+	if internalErr != nil {
+		return errs.NewError(errs.Unknown, internalErr.Error())
 	}
 
 	return nil
@@ -59,8 +64,16 @@ func getFileURL(mapServerURL string, fileID uint64) string {
 	return fmt.Sprintf("%s/files/%s", mapServerURL, fileIDParam)
 }
 
-func getUploadFileUrl(mapServerURL string, fileName string) string {
-	return fmt.Sprintf("%s/files/upload?fileName=%s", mapServerURL, fileName)
+func getUploadFileURL(mapServerURL string, fileName string) (string, *errs.Error) {
+	uploadFileUrl, err := url.Parse(fmt.Sprintf("%s/files/upload", mapServerURL))
+	if err != nil {
+		return "", errs.NewError(errs.Unknown, err.Error())
+	}
+
+	query := uploadFileUrl.Query()
+	query.Add("fileName", fileName)
+	uploadFileUrl.RawQuery = query.Encode()
+	return uploadFileUrl.String(), nil
 }
 
 func NewHTTPClient(mapServerURL string) *HTTPClient {
