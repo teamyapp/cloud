@@ -65,7 +65,7 @@ func getFileURL(mapServerURL string, fileID uint64) string {
 }
 
 func getUploadFileURL(mapServerURL string, fileName string) (string, *errs.Error) {
-	uploadFileUrl, err := url.Parse(fmt.Sprintf("%s/files/upload", mapServerURL))
+	uploadFileURL, err := url.Parse(fmt.Sprintf("%s/files/upload", mapServerURL))
 	if err != nil {
 		return "", errs.NewError(errs.Unknown, err.Error())
 	}
