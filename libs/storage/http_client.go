@@ -70,10 +70,10 @@ func getUploadFileURL(mapServerURL string, fileName string) (string, *errs.Error
 		return "", errs.NewError(errs.Unknown, err.Error())
 	}
 
-	query := uploadFileUrl.Query()
+	query := uploadFileURL.Query()
 	query.Add("fileName", fileName)
-	uploadFileUrl.RawQuery = query.Encode()
-	return uploadFileUrl.String(), nil
+	uploadFileURL.RawQuery = query.Encode()
+	return uploadFileURL.String(), nil
 }
 
 func NewHTTPClient(mapServerURL string) *HTTPClient {
