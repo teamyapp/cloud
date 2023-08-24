@@ -209,3 +209,30 @@ func NewIncrementalPercentageActivator(
 		bucketStartAt: clock.Now().UTC(),
 	}, nil
 }
+
+type ChainedActivator struct {
+	activators []Activator
+}
+
+var _ Activator = (*ChainedActivator)(nil)
+
+func (c *ChainedActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
+	for _, activator := range c.activators {
+		isActive, err := activator.IsActive(viewerID)
+		if err != nil {
+			return false, err
+		}
+
+		if !isActive {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func NewChainedActivator(activators []Activator) *ChainedActivator {
+	return &ChainedActivator{
+		activators: activators,
+	}
+}
