@@ -97,7 +97,11 @@ steps:
   - name: notify image update
     image: plugins/webhook
     settings:
-      urls: http://keel.deploy.svc.cluster.local:9300/v1/webhooks/native
+      username:
+        from_secret: KEEL_USERNAME
+      password:
+        from_secret: KEEL_PASSWORD
+      urls: https://deploy.internal.teamyapp.com/v1/webhooks/native
       template: |
         {
           "name": "registry.digitalocean.com/teamyapp/cloud-testing",
@@ -176,7 +180,11 @@ steps:
   - name: notify image update
     image: plugins/webhook
     settings:
-      urls: http://keel.deploy.svc.cluster.local:9300/v1/webhooks/native
+      username:
+        from_secret: KEEL_USERNAME
+      password:
+        from_secret: KEEL_PASSWORD
+      urls: https://deploy.internal.teamyapp.com/v1/webhooks/native
       template: |
         {
           "name": "registry.digitalocean.com/teamyapp/cloud-staging",
@@ -255,7 +263,11 @@ steps:
   - name: notify image update
     image: plugins/webhook
     settings:
-      urls: http://keel.deploy.svc.cluster.local:9300/v1/webhooks/native
+      username:
+        from_secret: KEEL_USERNAME
+      password:
+        from_secret: KEEL_PASSWORD
+      urls: https://deploy.internal.teamyapp.com/v1/webhooks/native
       template: |
         {
           "name": "registry.digitalocean.com/teamyapp/cloud",
