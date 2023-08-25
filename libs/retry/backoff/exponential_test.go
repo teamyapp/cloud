@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/teamyapp/cloud/libs/randgen/randgen_test"
+	"github.com/teamyapp/cloud/libs/randgen/randgentest"
 )
 
 func TestExponential(t *testing.T) {
@@ -70,7 +70,7 @@ func TestExponential(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			randGen := randgen_test.NewBuiltinRanGen(testCase.randomInts)
+			randGen := randgentest.NewStubRanGen(testCase.randomInts)
 			exponential := NewExponentialBuilder().
 				RandGenerator(randGen).
 				MinDelay(testCase.minDelay).

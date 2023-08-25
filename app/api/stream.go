@@ -28,12 +28,12 @@ func (s Stream) Start(rn *runner.ServiceRunner) *errs.Error {
 	rn.RegisterWebRoutes([]runner.WebRoute{
 		{
 			Method:      http.MethodGet,
-			Pattern:     path.Join(filePathPrefix, "files", runner.Param(fileIDParam)),
+			Pattern:     path.Join(streamPathPrefix, "files", runner.Param(fileIDParam)),
 			HandlerFunc: s.webGetFile,
 		},
 		{
 			Method:      http.MethodPost,
-			Pattern:     path.Join(filePathPrefix, "files", "upload"),
+			Pattern:     path.Join(streamPathPrefix, "files", "upload"),
 			HandlerFunc: s.webUploadFile,
 		},
 	})
