@@ -155,6 +155,7 @@ type IncrementalPercentageActivator struct {
 var _ Activator = (*IncrementalPercentageActivator)(nil)
 
 func (i *IncrementalPercentageActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
+	//TODO: fix bug that some viewers are not activated forever
 	isActivated, err := i.store.GetIsActivated(viewerID)
 	if err != nil {
 		return false, err

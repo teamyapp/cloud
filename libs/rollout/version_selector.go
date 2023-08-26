@@ -5,38 +5,37 @@ import (
 	"github.com/teamyapp/cloud/libs/randgen"
 )
 
-type VersionDistributor interface {
+type VersionSelector interface {
 	GetVersionNumber(viewerID uint64) (int, *errs.Error)
 }
 
-type StaticVersionDistributor struct {
+type StaticVersionSelector struct {
 	versionNumber int
 }
 
-var _ VersionDistributor = (*StaticVersionDistributor)(nil)
+var _ VersionSelector = (*StaticVersionSelector)(nil)
 
-func (s *StaticVersionDistributor) GetVersionNumber(viewerID uint64) (int, *errs.Error) {
+func (s *StaticVersionSelector) GetVersionNumber(viewerID uint64) (int, *errs.Error) {
 	return s.versionNumber, nil
 }
 
-func NewStaticVersionDistributor(
+func NewStaticVersionSelector(
 	versionNumber int,
-) *StaticVersionDistributor {
-	return &StaticVersionDistributor{
+) *StaticVersionSelector {
+	return &StaticVersionSelector{
 		versionNumber: versionNumber,
 	}
 }
 
-type ExperimentVersionDistributor struct {
+type ExperimentVersionSelector struct {
 	store          Store
 	randomGen      randgen.RandomNumberGenerator
-	activator      Activator
 	versionNumbers []int
 }
 
-var _ VersionDistributor = (*ExperimentVersionDistributor)(nil)
+var _ VersionSelector = (*ExperimentVersionSelector)(nil)
 
-func (u *ExperimentVersionDistributor) GetVersionNumber(viewerID uint64) (int, *errs.Error) {
+func (u *ExperimentVersionSelector) GetVersionNumber(viewerID uint64) (int, *errs.Error) {
 	versionNumber, err := u.store.GetViewerVersionNumber(viewerID)
 	if err != nil {
 		return 0, err
@@ -52,12 +51,12 @@ func (u *ExperimentVersionDistributor) GetVersionNumber(viewerID uint64) (int, *
 	return newVersionNumber, err
 }
 
-func NewExperimentVersionDistributor(
+func NewExperimentVersionSelector(
 	store Store,
 	randomGen randgen.RandomNumberGenerator,
 	versionNumbers []int,
-) *ExperimentVersionDistributor {
-	return &ExperimentVersionDistributor{
+) *ExperimentVersionSelector {
+	return &ExperimentVersionSelector{
 		store:          store,
 		randomGen:      randomGen,
 		versionNumbers: versionNumbers,

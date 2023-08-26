@@ -43,21 +43,21 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				rollout1, err := rollout.NewRollout(
 					deps.store,
 					rollout.NewStaticActivator(),
-					rollout.NewStaticVersionDistributor(1),
+					rollout.NewStaticVersionSelector(1),
 				)
 				require.Nil(t, err)
 
 				rollout2, err := rollout.NewRollout(
 					deps.store,
 					rollout.NewStaticActivator(),
-					rollout.NewStaticVersionDistributor(2),
+					rollout.NewStaticVersionSelector(2),
 				)
 				require.Nil(t, err)
 
 				rollout3, err := rollout.NewRollout(
 					deps.store,
 					rollout.NewStaticActivator(),
-					rollout.NewStaticVersionDistributor(3),
+					rollout.NewStaticVersionSelector(3),
 				)
 
 				return []rollout.Rollout{rollout1, rollout2, rollout3}
@@ -72,7 +72,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				rollout1, err := rollout.NewRollout(
 					deps.store,
 					rollout.NewStaticActivator(),
-					rollout.NewStaticVersionDistributor(1),
+					rollout.NewStaticVersionSelector(1),
 				)
 				require.Nil(t, err)
 
@@ -81,7 +81,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				rollout2, err := rollout.NewRollout(
 					deps.store,
 					rollout.NewTimeRangeActivator(deps.clock, &startAt1, &endAt1),
-					rollout.NewStaticVersionDistributor(2),
+					rollout.NewStaticVersionSelector(2),
 				)
 				require.Nil(t, err)
 
@@ -90,7 +90,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				rollout3, err := rollout.NewRollout(
 					deps.store,
 					rollout.NewTimeRangeActivator(deps.clock, &startAt2, &endAt2),
-					rollout.NewStaticVersionDistributor(3),
+					rollout.NewStaticVersionSelector(3),
 				)
 				require.Nil(t, err)
 
@@ -112,7 +112,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				rollout1, err := rollout.NewRollout(
 					deps.store,
 					rollout.NewStaticActivator(),
-					rollout.NewStaticVersionDistributor(1),
+					rollout.NewStaticVersionSelector(1),
 				)
 				require.Nil(t, err)
 
@@ -122,7 +122,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				rollout2, err := rollout.NewRollout(
 					deps.store,
 					maxViewerActivator,
-					rollout.NewStaticVersionDistributor(2),
+					rollout.NewStaticVersionSelector(2),
 				)
 				require.Nil(t, err)
 
@@ -138,7 +138,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				rollout1, err := rollout.NewRollout(
 					deps.store,
 					rollout.NewStaticActivator(),
-					rollout.NewStaticVersionDistributor(1),
+					rollout.NewStaticVersionSelector(1),
 				)
 				require.Nil(t, err)
 
@@ -148,13 +148,13 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				rollout2, err := rollout.NewRollout(
 					deps.store,
 					percentageActivator,
-					rollout.NewStaticVersionDistributor(2),
+					rollout.NewStaticVersionSelector(2),
 				)
 				require.Nil(t, err)
 
 				return []rollout.Rollout{rollout1, rollout2}
 			},
-			nows:      []time.Time{now, now, now, now, now, now, now, now, now, now},
+			nows:      []time.Time{now, now, now, now, now, now},
 			randInts:  []int{10, 20, 50},
 			viewerIDs: []uint64{1, 2, 5, 5, 2, 1},
 			expectedVersionNumbers: []*int{
@@ -172,7 +172,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				rollout1, err := rollout.NewRollout(
 					deps.store,
 					rollout.NewStaticActivator(),
-					rollout.NewStaticVersionDistributor(1),
+					rollout.NewStaticVersionSelector(1),
 				)
 				require.Nil(t, err)
 
@@ -199,7 +199,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				rollout2, err := rollout.NewRollout(
 					deps.store,
 					incrementalPercentageActivator,
-					rollout.NewStaticVersionDistributor(2),
+					rollout.NewStaticVersionSelector(2),
 				)
 				require.Nil(t, err)
 				return []rollout.Rollout{rollout1, rollout2}
@@ -245,14 +245,14 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				rollout1, err := rollout.NewRollout(
 					deps.store,
 					rollout.NewStaticActivator(),
-					rollout.NewStaticVersionDistributor(1),
+					rollout.NewStaticVersionSelector(1),
 				)
 				require.Nil(t, err)
 
 				rollout2, err := rollout.NewRollout(
 					deps.store,
 					rollout.NewStaticActivator(),
-					rollout.NewExperimentVersionDistributor(
+					rollout.NewExperimentVersionSelector(
 						deps.store,
 						deps.randGen,
 						[]int{2, 3},
