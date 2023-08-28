@@ -8,6 +8,11 @@ import (
 	"github.com/teamyapp/cloud/libs/randgen"
 )
 
+type ActivatorStore interface {
+	GetIsActivated(viewerID uint64) (*bool, *errs.Error)
+	SetIsActivated(viewerID uint64, isActivated bool) *errs.Error
+}
+
 type Activator interface {
 	IsActive(viewerID uint64) (bool, *errs.Error)
 }
@@ -55,8 +60,7 @@ func NewTimeRangeActivator(clock clock.Clock, startAt *time.Time, endAt *time.Ti
 }
 
 type MaxViewersActivatorStore interface {
-	GetIsActivated(viewerID uint64) (*bool, *errs.Error)
-	SetIsActivated(viewerID uint64, isActivated bool) *errs.Error
+	ActivatorStore
 	GetTotalViewers(defaultViewers int) (int, *errs.Error)
 	SetTotalViewers(totalViewers int) *errs.Error
 }
@@ -110,8 +114,7 @@ func NewMaxViewersActivator(
 }
 
 type PercentageActivatorStore interface {
-	GetIsActivated(viewerID uint64) (*bool, *errs.Error)
-	SetIsActivated(viewerID uint64, isActivated bool) *errs.Error
+	ActivatorStore
 }
 
 type PercentageActivator struct {
@@ -156,8 +159,7 @@ type Bucket struct {
 }
 
 type IncrementalPercentageActivatorStore interface {
-	GetIsActivated(viewerID uint64) (*bool, *errs.Error)
-	SetIsActivated(viewerID uint64, isActivated bool) *errs.Error
+	ActivatorStore
 	GetBucketIndex(defaultBucketIndex int) (int, *errs.Error)
 	SetBucketIndex(bucketIndex int) *errs.Error
 }
