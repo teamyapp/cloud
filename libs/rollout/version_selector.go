@@ -27,8 +27,13 @@ func NewStaticVersionSelector(
 	}
 }
 
+type ExperimentVersionSelectorStore interface {
+	GetViewerVersionNumber(viewerID uint64) (*int, *errs.Error)
+	SetViewerVersionNumber(viewerID uint64, versionNumber int) *errs.Error
+}
+
 type ExperimentVersionSelector struct {
-	store          Store
+	store          ExperimentVersionSelectorStore
 	randomGen      randgen.RandomNumberGenerator
 	versionNumbers []int
 }
@@ -52,7 +57,7 @@ func (u *ExperimentVersionSelector) GetVersionNumber(viewerID uint64) (int, *err
 }
 
 func NewExperimentVersionSelector(
-	store Store,
+	store ExperimentVersionSelectorStore,
 	randomGen randgen.RandomNumberGenerator,
 	versionNumbers []int,
 ) *ExperimentVersionSelector {

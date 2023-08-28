@@ -13,7 +13,7 @@ import (
 )
 
 type Deps struct {
-	store   rollout.Store
+	store   *rollouttest.Store
 	clock   clock.Clock
 	randGen randgen.RandomNumberGenerator
 }
