@@ -8,6 +8,11 @@ import (
 	"github.com/teamyapp/cloud/libs/randgen"
 )
 
+type ActivatorStore interface {
+	GetIsActivated(viewerID uint64) (*bool, *errs.Error)
+	SetIsActivated(viewerID uint64, isActivated bool) *errs.Error
+}
+
 type Activator interface {
 	IsActive(viewerID uint64) (bool, *errs.Error)
 }
@@ -54,8 +59,14 @@ func NewTimeRangeActivator(clock clock.Clock, startAt *time.Time, endAt *time.Ti
 	}
 }
 
+type MaxViewersActivatorStore interface {
+	ActivatorStore
+	GetTotalViewers(defaultViewers int) (int, *errs.Error)
+	SetTotalViewers(totalViewers int) *errs.Error
+}
+
 type MaxViewersActivator struct {
-	store        Store
+	store        MaxViewersActivatorStore
 	totalViewers int
 	maxViewers   int
 }
@@ -87,7 +98,7 @@ func (m *MaxViewersActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
 }
 
 func NewMaxViewersActivator(
-	store Store,
+	store MaxViewersActivatorStore,
 	maxViewers int,
 ) (*MaxViewersActivator, *errs.Error) {
 	totalViewers, err := store.GetTotalViewers(0)
@@ -102,8 +113,12 @@ func NewMaxViewersActivator(
 	}, nil
 }
 
+type PercentageActivatorStore interface {
+	ActivatorStore
+}
+
 type PercentageActivator struct {
-	store      Store
+	store      PercentageActivatorStore
 	randomGen  randgen.RandomNumberGenerator
 	percentage int
 }
@@ -127,7 +142,7 @@ func (p *PercentageActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
 }
 
 func NewPercentageActivator(
-	store Store,
+	store PercentageActivatorStore,
 	randomGen randgen.RandomNumberGenerator,
 	percentage int,
 ) *PercentageActivator {
@@ -143,8 +158,14 @@ type Bucket struct {
 	MinimalBakeTime time.Duration
 }
 
+type IncrementalPercentageActivatorStore interface {
+	ActivatorStore
+	GetBucketIndex(defaultBucketIndex int) (int, *errs.Error)
+	SetBucketIndex(bucketIndex int) *errs.Error
+}
+
 type IncrementalPercentageActivator struct {
-	store         Store
+	store         IncrementalPercentageActivatorStore
 	randomGen     randgen.RandomNumberGenerator
 	clock         clock.Clock
 	buckets       []Bucket
@@ -191,7 +212,7 @@ func (i *IncrementalPercentageActivator) IsActive(viewerID uint64) (bool, *errs.
 }
 
 func NewIncrementalPercentageActivator(
-	store Store,
+	store IncrementalPercentageActivatorStore,
 	randomGen randgen.RandomNumberGenerator,
 	clock clock.Clock,
 	buckets []Bucket,

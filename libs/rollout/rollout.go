@@ -4,6 +4,11 @@ import (
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
+type Store interface {
+	GetIsRolloutEnabled(defaultIsRolloutEnabled bool) (bool, *errs.Error)
+	SetIsRolloutEnabled(isRolloutEnabled bool) *errs.Error
+}
+
 type Rollout struct {
 	store           Store
 	isEnabled       bool
