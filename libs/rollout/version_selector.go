@@ -1,12 +1,14 @@
 package rollout
 
 import (
+	"context"
+
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/randgen"
 )
 
 type VersionSelector interface {
-	GetVersionNumber(viewerID uint64) (int, *errs.Error)
+	GetVersionNumber(ct context.Context, viewerID uint64) (int, *errs.Error)
 }
 
 type StaticVersionSelector struct {
@@ -15,7 +17,7 @@ type StaticVersionSelector struct {
 
 var _ VersionSelector = (*StaticVersionSelector)(nil)
 
-func (s *StaticVersionSelector) GetVersionNumber(viewerID uint64) (int, *errs.Error) {
+func (s *StaticVersionSelector) GetVersionNumber(ct context.Context, viewerID uint64) (int, *errs.Error) {
 	return s.versionNumber, nil
 }
 
@@ -28,8 +30,8 @@ func NewStaticVersionSelector(
 }
 
 type ExperimentVersionSelectorStore interface {
-	GetViewerVersionNumber(viewerID uint64) (*int, *errs.Error)
-	SetViewerVersionNumber(viewerID uint64, versionNumber int) *errs.Error
+	GetViewerVersionNumber(ct context.Context, viewerID uint64) (*int, *errs.Error)
+	SetViewerVersionNumber(ct context.Context, viewerID uint64, versionNumber int) *errs.Error
 }
 
 type ExperimentVersionSelector struct {
@@ -40,8 +42,8 @@ type ExperimentVersionSelector struct {
 
 var _ VersionSelector = (*ExperimentVersionSelector)(nil)
 
-func (u *ExperimentVersionSelector) GetVersionNumber(viewerID uint64) (int, *errs.Error) {
-	versionNumber, err := u.store.GetViewerVersionNumber(viewerID)
+func (u *ExperimentVersionSelector) GetVersionNumber(ct context.Context, viewerID uint64) (int, *errs.Error) {
+	versionNumber, err := u.store.GetViewerVersionNumber(ct, viewerID)
 	if err != nil {
 		return 0, err
 	}
@@ -52,7 +54,7 @@ func (u *ExperimentVersionSelector) GetVersionNumber(viewerID uint64) (int, *err
 
 	index := u.randomGen.RandomInt(len(u.versionNumbers))
 	newVersionNumber := u.versionNumbers[index]
-	err = u.store.SetViewerVersionNumber(viewerID, newVersionNumber)
+	err = u.store.SetViewerVersionNumber(ct, viewerID, newVersionNumber)
 	return newVersionNumber, err
 }
 
