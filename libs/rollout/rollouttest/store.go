@@ -1,6 +1,7 @@
 package rollouttest
 
 import (
+	"context"
 	"maps"
 
 	"github.com/teamyapp/cloud/libs/errs"
@@ -25,7 +26,7 @@ var _ rollout.PercentageActivatorStore = (*Store)(nil)
 var _ rollout.IncrementalPercentageActivatorStore = (*Store)(nil)
 var _ rollout.ExperimentVersionSelectorStore = (*Store)(nil)
 
-func (s *Store) GetViewerVersionNumber(viewerID uint64) (*int, *errs.Error) {
+func (s *Store) GetViewerVersionNumber(ct context.Context, viewerID uint64) (*int, *errs.Error) {
 	viewer, ok := s.viewers[viewerID]
 	if !ok {
 		return nil, nil
@@ -34,7 +35,7 @@ func (s *Store) GetViewerVersionNumber(viewerID uint64) (*int, *errs.Error) {
 	return &viewer.VersionNumber, nil
 }
 
-func (s *Store) SetViewerVersionNumber(viewerID uint64, versionNumber int) *errs.Error {
+func (s *Store) SetViewerVersionNumber(ct context.Context, viewerID uint64, versionNumber int) *errs.Error {
 	viewer, ok := s.viewers[viewerID]
 	if !ok {
 		viewer = &Viewer{}
@@ -45,7 +46,7 @@ func (s *Store) SetViewerVersionNumber(viewerID uint64, versionNumber int) *errs
 	return nil
 }
 
-func (s *Store) GetTotalViewers(defaultViewers int) (int, *errs.Error) {
+func (s *Store) GetTotalViewers(ct context.Context, defaultViewers int) (int, *errs.Error) {
 	if s.totalViewers == nil {
 		return defaultViewers, nil
 	}
@@ -53,12 +54,12 @@ func (s *Store) GetTotalViewers(defaultViewers int) (int, *errs.Error) {
 	return *s.totalViewers, nil
 }
 
-func (s *Store) SetTotalViewers(totalViewers int) *errs.Error {
+func (s *Store) SetTotalViewers(ct context.Context, totalViewers int) *errs.Error {
 	s.totalViewers = &totalViewers
 	return nil
 }
 
-func (s *Store) GetIsActivated(viewerID uint64) (*bool, *errs.Error) {
+func (s *Store) GetIsActivated(ct context.Context, viewerID uint64) (*bool, *errs.Error) {
 	viewer, ok := s.viewers[viewerID]
 	if !ok {
 		return nil, nil
@@ -67,7 +68,7 @@ func (s *Store) GetIsActivated(viewerID uint64) (*bool, *errs.Error) {
 	return &viewer.IsActivated, nil
 }
 
-func (s *Store) SetIsActivated(viewerID uint64, isActivated bool) *errs.Error {
+func (s *Store) SetIsActivated(ct context.Context, viewerID uint64, isActivated bool) *errs.Error {
 	viewer, ok := s.viewers[viewerID]
 	if !ok {
 		viewer = &Viewer{}
@@ -78,7 +79,7 @@ func (s *Store) SetIsActivated(viewerID uint64, isActivated bool) *errs.Error {
 	return nil
 }
 
-func (s *Store) GetIsRolloutEnabled(defaultIsRolloutEnabled bool) (bool, *errs.Error) {
+func (s *Store) GetIsRolloutEnabled(ct context.Context, defaultIsRolloutEnabled bool) (bool, *errs.Error) {
 	if s.isRolloutEnabled == nil {
 		return defaultIsRolloutEnabled, nil
 	}
@@ -86,16 +87,16 @@ func (s *Store) GetIsRolloutEnabled(defaultIsRolloutEnabled bool) (bool, *errs.E
 	return *s.isRolloutEnabled, nil
 }
 
-func (s *Store) SetIsRolloutEnabled(isRolloutEnabled bool) *errs.Error {
+func (s *Store) SetIsRolloutEnabled(ct context.Context, isRolloutEnabled bool) *errs.Error {
 	s.isRolloutEnabled = &isRolloutEnabled
 	return nil
 }
 
-func (s *Store) GetBucketIndex(defaultBucketIndex int) (int, *errs.Error) {
+func (s *Store) GetBucketIndex(ct context.Context, defaultBucketIndex int) (int, *errs.Error) {
 	return s.bucketIndex, nil
 }
 
-func (s *Store) SetBucketIndex(bucketIndex int) *errs.Error {
+func (s *Store) SetBucketIndex(ct context.Context, bucketIndex int) *errs.Error {
 	s.bucketIndex = bucketIndex
 	return nil
 }

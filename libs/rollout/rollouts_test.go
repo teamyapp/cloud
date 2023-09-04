@@ -1,6 +1,7 @@
 package rollout_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -22,7 +23,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 	now := time.Now().UTC()
 	testCases := []struct {
 		name                   string
-		makeRollouts           func(deps Deps) rollout.OrderedRollouts
+		makeRollouts           func(ct context.Context, deps Deps) rollout.OrderedRollouts
 		nows                   []time.Time
 		randInts               []int
 		viewerIDs              []uint64
@@ -30,7 +31,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 	}{
 		{
 			name: "no rollouts",
-			makeRollouts: func(deps Deps) rollout.OrderedRollouts {
+			makeRollouts: func(ct context.Context, deps Deps) rollout.OrderedRollouts {
 				return rollout.OrderedRollouts{}
 			},
 			nows:                   []time.Time{now, now, now},
@@ -39,8 +40,9 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 		},
 		{
 			name: "static rollouts",
-			makeRollouts: func(deps Deps) rollout.OrderedRollouts {
+			makeRollouts: func(ct context.Context, deps Deps) rollout.OrderedRollouts {
 				rollout1, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					rollout.NewStaticActivator(),
 					rollout.NewStaticVersionSelector(1),
@@ -48,6 +50,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				require.Nil(t, err)
 
 				rollout2, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					rollout.NewStaticActivator(),
 					rollout.NewStaticVersionSelector(2),
@@ -55,6 +58,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				require.Nil(t, err)
 
 				rollout3, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					rollout.NewStaticActivator(),
 					rollout.NewStaticVersionSelector(3),
@@ -68,8 +72,9 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 		},
 		{
 			name: "time range rollouts",
-			makeRollouts: func(deps Deps) rollout.OrderedRollouts {
+			makeRollouts: func(ct context.Context, deps Deps) rollout.OrderedRollouts {
 				rollout1, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					rollout.NewStaticActivator(),
 					rollout.NewStaticVersionSelector(1),
@@ -79,6 +84,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				startAt1 := now.Add(time.Hour)
 				endAt1 := now.Add(4 * time.Hour)
 				rollout2, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					rollout.NewTimeRangeActivator(deps.clock, &startAt1, &endAt1),
 					rollout.NewStaticVersionSelector(2),
@@ -88,6 +94,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				startAt2 := now.Add(2 * time.Hour)
 				endAt2 := now.Add(3 * time.Hour)
 				rollout3, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					rollout.NewTimeRangeActivator(deps.clock, &startAt2, &endAt2),
 					rollout.NewStaticVersionSelector(3),
@@ -108,18 +115,20 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 		},
 		{
 			name: "max viewers rollouts",
-			makeRollouts: func(deps Deps) rollout.OrderedRollouts {
+			makeRollouts: func(ct context.Context, deps Deps) rollout.OrderedRollouts {
 				rollout1, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					rollout.NewStaticActivator(),
 					rollout.NewStaticVersionSelector(1),
 				)
 				require.Nil(t, err)
 
-				maxViewerActivator, err := rollout.NewMaxViewersActivator(deps.store, 2)
+				maxViewerActivator, err := rollout.NewMaxViewersActivator(ct, deps.store, 2)
 				require.Nil(t, err)
 
 				rollout2, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					maxViewerActivator,
 					rollout.NewStaticVersionSelector(2),
@@ -134,8 +143,9 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 		},
 		{
 			name: "percentage rollouts",
-			makeRollouts: func(deps Deps) rollout.OrderedRollouts {
+			makeRollouts: func(ct context.Context, deps Deps) rollout.OrderedRollouts {
 				rollout1, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					rollout.NewStaticActivator(),
 					rollout.NewStaticVersionSelector(1),
@@ -146,6 +156,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				require.Nil(t, err)
 
 				rollout2, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					percentageActivator,
 					rollout.NewStaticVersionSelector(2),
@@ -168,8 +179,9 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 		},
 		{
 			name: "incremental percentage rollouts",
-			makeRollouts: func(deps Deps) rollout.OrderedRollouts {
+			makeRollouts: func(ct context.Context, deps Deps) rollout.OrderedRollouts {
 				rollout1, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					rollout.NewStaticActivator(),
 					rollout.NewStaticVersionSelector(1),
@@ -177,6 +189,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				require.Nil(t, err)
 
 				incrementalPercentageActivator, err := rollout.NewIncrementalPercentageActivator(
+					ct,
 					deps.store,
 					deps.randGen,
 					deps.clock,
@@ -197,6 +210,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				)
 				require.Nil(t, err)
 				rollout2, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					incrementalPercentageActivator,
 					rollout.NewStaticVersionSelector(2),
@@ -241,8 +255,9 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 		},
 		{
 			name: "experiment rollouts",
-			makeRollouts: func(deps Deps) rollout.OrderedRollouts {
+			makeRollouts: func(ct context.Context, deps Deps) rollout.OrderedRollouts {
 				rollout1, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					rollout.NewStaticActivator(),
 					rollout.NewStaticVersionSelector(1),
@@ -250,6 +265,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				require.Nil(t, err)
 
 				rollout2, err := rollout.NewRollout(
+					ct,
 					deps.store,
 					rollout.NewStaticActivator(),
 					rollout.NewExperimentVersionSelector(
@@ -277,6 +293,7 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			ct := context.Background()
 			store := rollouttest.NewStoreBuilder().Build()
 			mockClock := clock.NewMock()
 			mockClock.Set(now)
@@ -286,10 +303,10 @@ func TestOrderedRollouts_GetVersionNumber(t *testing.T) {
 				clock:   mockClock,
 				randGen: stubRandGen,
 			}
-			rollouts := testCase.makeRollouts(deps)
+			rollouts := testCase.makeRollouts(ct, deps)
 			for index, viewerID := range testCase.viewerIDs {
 				mockClock.Set(testCase.nows[index])
-				versionNumber, err := rollouts.GetVersionNumber(viewerID)
+				versionNumber, err := rollouts.GetVersionNumber(ct, viewerID)
 				require.Nil(t, err, "index: %d", index)
 
 				if testCase.expectedVersionNumbers[index] == nil {
