@@ -21,6 +21,10 @@ type Store struct {
 }
 
 var _ rollout.Store = (*Store)(nil)
+var _ rollout.MaxViewersActivatorStore = (*Store)(nil)
+var _ rollout.PercentageActivatorStore = (*Store)(nil)
+var _ rollout.IncrementalPercentageActivatorStore = (*Store)(nil)
+var _ rollout.ExperimentVersionSelectorStore = (*Store)(nil)
 
 func (s *Store) GetViewerVersionNumber(ct context.Context, viewerID uint64) (*int, *errs.Error) {
 	viewer, ok := s.viewers[viewerID]
