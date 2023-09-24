@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"time"
 
 	"github.com/benbjohnson/clock"
@@ -8,8 +9,13 @@ import (
 	"github.com/teamyapp/cloud/libs/randgen"
 )
 
+type ActivatorStore interface {
+	GetIsActivated(ct context.Context, viewerID uint64) (*bool, *errs.Error)
+	SetIsActivated(ct context.Context, viewerID uint64, isActivated bool) *errs.Error
+}
+
 type Activator interface {
-	IsActive(viewerID uint64) (bool, *errs.Error)
+	IsActive(ct context.Context, viewerID uint64) (bool, *errs.Error)
 }
 
 type StaticActivator struct {
@@ -17,7 +23,7 @@ type StaticActivator struct {
 
 var _ Activator = (*StaticActivator)(nil)
 
-func (s StaticActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
+func (s StaticActivator) IsActive(ct context.Context, viewerID uint64) (bool, *errs.Error) {
 	return true, nil
 }
 
@@ -33,7 +39,7 @@ type TimeRangeActivator struct {
 
 var _ Activator = (*TimeRangeActivator)(nil)
 
-func (t *TimeRangeActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
+func (t *TimeRangeActivator) IsActive(ct context.Context, viewerID uint64) (bool, *errs.Error) {
 	now := t.clock.Now().UTC()
 	if t.startAt != nil && now.Before(*t.startAt) {
 		return false, nil
@@ -54,16 +60,22 @@ func NewTimeRangeActivator(clock clock.Clock, startAt *time.Time, endAt *time.Ti
 	}
 }
 
+type MaxViewersActivatorStore interface {
+	ActivatorStore
+	GetTotalViewers(ct context.Context, defaultViewers int) (int, *errs.Error)
+	SetTotalViewers(ct context.Context, totalViewers int) *errs.Error
+}
+
 type MaxViewersActivator struct {
-	store        Store
+	store        MaxViewersActivatorStore
 	totalViewers int
 	maxViewers   int
 }
 
 var _ Activator = (*MaxViewersActivator)(nil)
 
-func (m *MaxViewersActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
-	isActivated, err := m.store.GetIsActivated(viewerID)
+func (m *MaxViewersActivator) IsActive(ct context.Context, viewerID uint64) (bool, *errs.Error) {
+	isActivated, err := m.store.GetIsActivated(ct, viewerID)
 	if err != nil {
 		return false, err
 	}
@@ -77,20 +89,21 @@ func (m *MaxViewersActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
 	}
 
 	m.totalViewers++
-	err = m.store.SetTotalViewers(m.totalViewers)
+	err = m.store.SetTotalViewers(ct, m.totalViewers)
 	if err != nil {
 		return false, err
 	}
 
-	err = m.store.SetIsActivated(viewerID, true)
+	err = m.store.SetIsActivated(ct, viewerID, true)
 	return true, err
 }
 
 func NewMaxViewersActivator(
-	store Store,
+	ct context.Context,
+	store MaxViewersActivatorStore,
 	maxViewers int,
 ) (*MaxViewersActivator, *errs.Error) {
-	totalViewers, err := store.GetTotalViewers(0)
+	totalViewers, err := store.GetTotalViewers(ct, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -102,16 +115,20 @@ func NewMaxViewersActivator(
 	}, nil
 }
 
+type PercentageActivatorStore interface {
+	ActivatorStore
+}
+
 type PercentageActivator struct {
-	store      Store
+	store      PercentageActivatorStore
 	randomGen  randgen.RandomNumberGenerator
 	percentage int
 }
 
 var _ Activator = (*PercentageActivator)(nil)
 
-func (p *PercentageActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
-	isActivated, err := p.store.GetIsActivated(viewerID)
+func (p *PercentageActivator) IsActive(ct context.Context, viewerID uint64) (bool, *errs.Error) {
+	isActivated, err := p.store.GetIsActivated(ct, viewerID)
 	if err != nil {
 		return false, err
 	}
@@ -122,12 +139,12 @@ func (p *PercentageActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
 
 	randInt := p.randomGen.RandomInt(100)
 	isActive := randInt < p.percentage
-	err = p.store.SetIsActivated(viewerID, isActive)
+	err = p.store.SetIsActivated(ct, viewerID, isActive)
 	return isActive, err
 }
 
 func NewPercentageActivator(
-	store Store,
+	store PercentageActivatorStore,
 	randomGen randgen.RandomNumberGenerator,
 	percentage int,
 ) *PercentageActivator {
@@ -143,8 +160,14 @@ type Bucket struct {
 	MinimalBakeTime time.Duration
 }
 
+type IncrementalPercentageActivatorStore interface {
+	ActivatorStore
+	GetBucketIndex(ct context.Context, defaultBucketIndex int) (int, *errs.Error)
+	SetBucketIndex(ct context.Context, bucketIndex int) *errs.Error
+}
+
 type IncrementalPercentageActivator struct {
-	store         Store
+	store         IncrementalPercentageActivatorStore
 	randomGen     randgen.RandomNumberGenerator
 	clock         clock.Clock
 	buckets       []Bucket
@@ -154,8 +177,9 @@ type IncrementalPercentageActivator struct {
 
 var _ Activator = (*IncrementalPercentageActivator)(nil)
 
-func (i *IncrementalPercentageActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
-	isActivated, err := i.store.GetIsActivated(viewerID)
+func (i *IncrementalPercentageActivator) IsActive(ct context.Context, viewerID uint64) (bool, *errs.Error) {
+	//TODO: fix bug that some viewers are not activated forever
+	isActivated, err := i.store.GetIsActivated(ct, viewerID)
 	if err != nil {
 		return false, err
 	}
@@ -173,7 +197,7 @@ func (i *IncrementalPercentageActivator) IsActive(viewerID uint64) (bool, *errs.
 
 		i.bucketStartAt = i.bucketStartAt.Add(i.buckets[i.bucketIndex].MinimalBakeTime)
 		i.bucketIndex++
-		err = i.store.SetBucketIndex(i.bucketIndex)
+		err = i.store.SetBucketIndex(ct, i.bucketIndex)
 		if err != nil {
 			return false, err
 		}
@@ -185,17 +209,18 @@ func (i *IncrementalPercentageActivator) IsActive(viewerID uint64) (bool, *errs.
 
 	randInt := i.randomGen.RandomInt(100)
 	isActive := randInt < i.buckets[i.bucketIndex].Percentage
-	err = i.store.SetIsActivated(viewerID, isActive)
+	err = i.store.SetIsActivated(ct, viewerID, isActive)
 	return isActive, err
 }
 
 func NewIncrementalPercentageActivator(
-	store Store,
+	ct context.Context,
+	store IncrementalPercentageActivatorStore,
 	randomGen randgen.RandomNumberGenerator,
 	clock clock.Clock,
 	buckets []Bucket,
 ) (*IncrementalPercentageActivator, *errs.Error) {
-	bucketIndex, err := store.GetBucketIndex(0)
+	bucketIndex, err := store.GetBucketIndex(ct, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -216,9 +241,9 @@ type ChainedActivator struct {
 
 var _ Activator = (*ChainedActivator)(nil)
 
-func (c *ChainedActivator) IsActive(viewerID uint64) (bool, *errs.Error) {
+func (c *ChainedActivator) IsActive(ct context.Context, viewerID uint64) (bool, *errs.Error) {
 	for _, activator := range c.activators {
-		isActive, err := activator.IsActive(viewerID)
+		isActive, err := activator.IsActive(ct, viewerID)
 		if err != nil {
 			return false, err
 		}
