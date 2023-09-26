@@ -4,11 +4,7 @@ import (
 	"io"
 )
 
-type MultiReaders struct {
-	// logger telemetry.Logger
-}
-
-func (m *MultiReaders) GenerateMultiReaders(reader io.Reader, count int) []io.Reader {
+func NewMultiReaders(reader io.Reader, count int) []io.Reader {
 	readers := make([]io.Reader, count)
 	writers := make([]io.Writer, count)
 
@@ -37,8 +33,4 @@ func (m *MultiReaders) GenerateMultiReaders(reader io.Reader, count int) []io.Re
 	}()
 
 	return readers
-}
-
-func NewMultiReaders( /*logger telemetry.Logger*/ ) *MultiReaders {
-	return &MultiReaders{ /*logger: logger*/ }
 }
