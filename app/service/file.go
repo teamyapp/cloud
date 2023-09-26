@@ -134,10 +134,8 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.
 		return entity.UploadSession{}, errs.NewError(errs.Deserialization, err.Error())
 	}
 
-	multiReader := tmio.NewMultiReaders( /*f.logger*/ )
-	readers := multiReader.GenerateMultiReaders(chunkData, 2)
+	readers := tmio.GenerateMultiReaders(chunkData, 2)
 	hashReader, chunkReader := readers[0], readers[1]
-
 	wg := sync.WaitGroup{}
 	var wgErr *errs.Error
 	once := sync.Once{}
