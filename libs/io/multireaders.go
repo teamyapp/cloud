@@ -4,7 +4,7 @@ import (
 	"io"
 )
 
-func GenerateMultiReaders(reader io.Reader, count int) []io.Reader {
+func NewMultiReaders(reader io.Reader, count int) []io.Reader {
 	readers := make([]io.Reader, count)
 	writers := make([]io.Writer, count)
 
