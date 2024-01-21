@@ -24,7 +24,6 @@ var _ runner.Service = (*Service[any])(nil)
 
 func (s Service[Resolver]) Start(rn *runner.ServiceRunner) *errs.Error {
 	schema, err := graphql.ParseSchema(s.schema, s.resolver,
-		graphql.UseFieldResolvers(),
 		graphql.UseStringDescriptions(),
 		graphql.Tracer(s.graphQLTracer))
 	if err != nil {
