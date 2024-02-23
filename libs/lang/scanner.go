@@ -185,7 +185,8 @@ func (s *Scanner) scanToken() (*Token, *Err) {
 					Column: startColumn,
 				}, nil
 			case '/':
-				return s.scanSingleLineComment(startColumn), nil
+				_ = s.scanSingleLineComment(startColumn)
+				return nil, nil
 			}
 		}
 

@@ -2,6 +2,7 @@ package lang
 
 import (
 	"fmt"
+	"io"
 )
 
 type DataType string
@@ -11,20 +12,106 @@ type Value struct {
 	data     any
 }
 
-func Evaluate(expression Expression) (any, *Err) {
+type Executor struct {
+	environment *Environment
+	output      io.Writer
+}
+
+func (e *Executor) Execute(statements []Statement) ([]any, *Err) {
+	var values []any
+	for _, statement := range statements {
+		switch statement.Type {
+		case PrintStatementType:
+			err := e.executePrintStatement(statement)
+			if err != nil {
+				return values, err
+			}
+		case ExpressionStatementType:
+			value, err := e.evaluateExpressionStatement(statement)
+			if err != nil {
+				return values, err
+			}
+
+			values = append(values, value)
+		case LetStatementType:
+			err := e.executeLetStatement(statement)
+			if err != nil {
+				return values, err
+			}
+		case BlockStatementType:
+			err := e.executeBlockStatement(statement)
+			if err != nil {
+				return values, err
+			}
+		default:
+			return values, &Err{
+				Message: fmt.Sprintf("unknown statement type: %v", statement.Type),
+				Line:    statement.Line,
+				Column:  statement.Column,
+			}
+		}
+	}
+
+	return values, nil
+}
+
+func (e *Executor) executeBlockStatement(statement Statement) *Err {
+	prevEnvironment := e.environment
+	e.environment = e.environment.NewInnerEnvironment()
+	_, err := e.Execute(statement.BlockInnerStatements)
+	e.environment = prevEnvironment
+	return err
+}
+
+func (e *Executor) executeLetStatement(statement Statement) *Err {
+	var value any
+	if statement.LetInitializerExpression != nil {
+		var err *Err
+		value, err = e.evaluateExpression(*statement.LetInitializerExpression)
+		if err != nil {
+			return err
+		}
+
+		e.environment.DefineWithInitializer(*statement.LetIdentifier, value)
+		return nil
+	}
+
+	e.environment.Define(*statement.LetIdentifier)
+	return nil
+}
+
+func (e *Executor) executePrintStatement(statement Statement) *Err {
+	value, err := e.evaluateExpression(*statement.PrintArgExpression)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprint(e.output, toString(value))
+	return nil
+}
+
+func (e *Executor) evaluateExpressionStatement(statement Statement) (any, *Err) {
+	return e.evaluateExpression(*statement.StatementExpression)
+}
+
+func (e *Executor) evaluateExpression(expression Expression) (any, *Err) {
 	switch expression.Type {
 	case TernaryExpressionType:
-		return evaluateTernaryExpression(expression)
+		return e.evaluateTernaryExpression(expression)
 	case BinaryExpressionType:
-		return evaluateBinaryExpression(expression)
+		return e.evaluateBinaryExpression(expression)
 	case UnaryExpressionType:
-		return evaluateUnaryExpression(expression)
+		return e.evaluateUnaryExpression(expression)
 	case LiteralExpressionType:
 		return evaluateLiteralExpression(expression), nil
 	case GroupingExpressionType:
-		return evaluateGroupingExpression(expression)
+		return e.evaluateGroupingExpression(expression)
 	case ExpressionListExpressionType:
-		return evaluateExpressionListExpression(expression)
+		return e.evaluateExpressionListExpression(expression)
+	case IdentifierExpressionType:
+		return e.evaluateIdentifierExpression(expression)
+	case AssignmentExpressionType:
+		return e.evaluateAssignmentExpression(expression)
 	}
 
 	return nil, &Err{
@@ -34,26 +121,40 @@ func Evaluate(expression Expression) (any, *Err) {
 	}
 }
 
-func evaluateTernaryExpression(expression Expression) (any, *Err) {
-	condition, err := Evaluate(*expression.TernaryConditionExpression)
+func (e *Executor) evaluateAssignmentExpression(expression Expression) (any, *Err) {
+	value, err := e.evaluateExpression(*expression.AssignmentValueExpression)
+	if err != nil {
+		return nil, err
+	}
+
+	err = e.environment.Assign(expression.Identifier, value)
+	return value, err
+}
+
+func (e *Executor) evaluateIdentifierExpression(expression Expression) (any, *Err) {
+	return e.environment.Get(expression.Identifier)
+}
+
+func (e *Executor) evaluateTernaryExpression(expression Expression) (any, *Err) {
+	condition, err := e.evaluateExpression(*expression.TernaryConditionExpression)
 	if err != nil {
 		return nil, err
 	}
 
 	if condition == true {
-		return Evaluate(*expression.TernaryTrueExpression)
+		return e.evaluateExpression(*expression.TernaryTrueExpression)
 	} else {
-		return Evaluate(*expression.TernaryFalseExpression)
+		return e.evaluateExpression(*expression.TernaryFalseExpression)
 	}
 }
 
-func evaluateBinaryExpression(expression Expression) (any, *Err) {
-	leftValue, err := Evaluate(*expression.BinaryLeftExpression)
+func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
+	leftValue, err := e.evaluateExpression(*expression.BinaryLeftExpression)
 	if err != nil {
 		return nil, err
 	}
 
-	rightValue, err := Evaluate(*expression.BinaryRightExpression)
+	rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
 	if err != nil {
 		return nil, err
 	}
@@ -278,8 +379,8 @@ func evaluateBinaryExpression(expression Expression) (any, *Err) {
 	}
 }
 
-func evaluateUnaryExpression(expression Expression) (any, *Err) {
-	value, err := Evaluate(*expression.UnaryExpression)
+func (e *Executor) evaluateUnaryExpression(expression Expression) (any, *Err) {
+	value, err := e.evaluateExpression(*expression.UnaryExpression)
 	if err != nil {
 		return nil, err
 	}
@@ -376,19 +477,37 @@ func evaluateLiteralExpression(expression Expression) any {
 	return expression.Literal.Value
 }
 
-func evaluateGroupingExpression(expression Expression) (any, *Err) {
-	return Evaluate(*expression.GroupInnerExpression)
+func (e *Executor) evaluateGroupingExpression(expression Expression) (any, *Err) {
+	return e.evaluateExpression(*expression.GroupInnerExpression)
 }
 
-func evaluateExpressionListExpression(expression Expression) (any, *Err) {
+func (e *Executor) evaluateExpressionListExpression(expression Expression) (any, *Err) {
 	var result any
 	for _, expr := range expression.ExpressionList {
 		var err *Err
-		result, err = Evaluate(expr)
+		result, err = e.evaluateExpression(expr)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	return result, nil
+}
+
+func toString(value any) string {
+	if value == nil {
+		return "nil"
+	}
+
+	return fmt.Sprintf("%v", value)
+}
+
+func NewExecutor(
+	environment *Environment,
+	output io.Writer,
+) *Executor {
+	return &Executor{
+		environment: environment,
+		output:      output,
+	}
 }

@@ -1,0 +1,33 @@
+program -> declaration* EOF;
+declaration -> letDeclaration | statement;
+letDeclaration -> "let" IDENTIFIER ("=" expressions)? ";";
+statement ->
+    expressionStatement |
+    printStatement |
+    blockStatement;
+expressionStatement -> expressions ";";
+printStatement -> "print(" expression ");";
+blockStatement -> "{" declaration* "}";
+expressions -> expression ("," expression)*;
+expression -> conditional;
+assignment -> IDENTIFIER "=" assignment | conditional;
+conditional -> equality ("?" equality ":" conditional)*;
+equality -> logical (("=="|"!=") logical)*;
+logicalOr -> logicalAnd ("||" logicalAnd)*;
+logicalAnd -> comparison ("&&" comparison)*;
+comparison -> bitwiseOr ((">"|"<"|">="|"<=") bitwiseOr)*;
+bitwiseOr -> bitwiseXor ("|" bitwiseXor)*;
+bitwiseXor -> bitwiseAnd ("^" bitwiseAnd)*;
+bitwiseAnd -> term ("&" term)*;
+shift -> term (("<<"|">>") term)*;
+term -> factor (("+"|"-") factor)*;
+factor -> unary (("*"|"/") unary)*;
+unary -> ("!"|"-"|"~") unary | primary;
+primary ->
+    NUMBER |
+    STRING |
+    "true" |
+    "false" |
+    "nil" |
+    "(" expression ")" |
+    IDENTIFIER;

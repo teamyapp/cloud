@@ -14,6 +14,8 @@ const (
 	LiteralExpressionType        ExpressionType = "Literal"
 	GroupingExpressionType       ExpressionType = "Grouping"
 	ExpressionListExpressionType ExpressionType = "ExpressionList"
+	IdentifierExpressionType     ExpressionType = "Identifier"
+	AssignmentExpressionType     ExpressionType = "Assignment"
 )
 
 type Expression struct {
@@ -30,6 +32,8 @@ type Expression struct {
 	TernaryFalseExpression     *Expression
 	GroupInnerExpression       *Expression
 	ExpressionList             []Expression
+	Identifier                 Token
+	AssignmentValueExpression  *Expression
 }
 
 var _ fmt.Stringer = (*Expression)(nil)
@@ -53,7 +57,11 @@ func (e Expression) String() string {
 		}
 
 		return fmt.Sprintf("(expressionList %s)", strings.Join(expressions, " "))
+	case IdentifierExpressionType:
+		return fmt.Sprintf("%s", e.Identifier.Lexeme)
+	case AssignmentExpressionType:
+		return fmt.Sprintf("(= %s %s)", e.Identifier.Lexeme, e.AssignmentValueExpression)
 	default:
-		return "unknown expression type"
+		return "[unknown expression type]"
 	}
 }

@@ -2,35 +2,221 @@ package lang
 
 import "fmt"
 
-/*
-Grammar:
-	expressions -> expression ("," expression)*
-	expression -> conditional
-	conditional -> equality ("?" equality ":" equality)*
-	equality -> logical (("=="|"!=") logical)*
-	logicalOr -> logicalAnd ("||" logicalAnd)*
-	logicalAnd -> comparison ("&&" comparison)*
-	comparison -> bitwiseOr ((">"|"<"|">="|"<=") bitwiseOr)*
-	bitwiseOr -> bitwiseXor ("|" bitwiseXor)*
-	bitwiseXor -> bitwiseAnd ("^" bitwiseAnd)*
-	bitwiseAnd -> term ("&" term)*
-	shift -> term (("<<"|">>") term)*
-	term -> factor (("+"|"-") factor)*
-	factor -> unary (("*"|"/") unary)*
-	unary -> ("!"|"-"|"~") unary | primary
-	primary -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")"
-*/
-
 type Parser struct {
 	tokens         []Token
 	nextTokenIndex int
 	errs           []Err
 }
 
-func (p *Parser) parse(tokens []Token) (Expression, *Err) {
+func (p *Parser) Parse(tokens []Token) ([]Statement, []Err) {
 	p.tokens = tokens
 	p.nextTokenIndex = 0
-	return p.scanExpressionList()
+	statements := make([]Statement, 0)
+	for p.nextTokenIndex < len(tokens) &&
+		tokens[p.nextTokenIndex].Type != EOFTokenType {
+		statement := p.scanDeclaration()
+		if statement == nil {
+			continue
+		}
+
+		statements = append(statements, *statement)
+	}
+
+	return statements, p.errs
+}
+
+func (p *Parser) scanDeclaration() *Statement {
+	if p.matchTokenType([]TokenType{LetKeywordTokenType}) {
+		letToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		statement, err := p.scanLetDeclaration(letToken.Line, letToken.Column)
+		if err != nil {
+			p.synchronize()
+			return nil
+		}
+
+		return &statement
+	}
+
+	statement, err := p.scanStatement()
+	if err != nil {
+		p.synchronize()
+		return nil
+	}
+
+	return &statement
+}
+
+func (p *Parser) scanLetDeclaration(line int, column int) (Statement, *Err) {
+	if p.matchTokenType([]TokenType{IdentifierTokenType}) {
+		identifierToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+
+		var initializer *Expression
+		if p.matchTokenType([]TokenType{AssignTokenType}) {
+			p.nextTokenIndex++
+			tmpInitializer, err := p.scanExpressionList()
+			if err != nil {
+				return Statement{}, err
+			}
+
+			initializer = &tmpInitializer
+		}
+
+		if !p.matchTokenType([]TokenType{SemicolonTokenType}) {
+			token := p.tokens[p.nextTokenIndex]
+			return Statement{}, &Err{
+				Message: fmt.Sprintf("expect ';', got %v", token.Lexeme),
+				Line:    token.Line,
+				Column:  token.Column,
+			}
+		}
+
+		p.nextTokenIndex++
+
+		return Statement{
+			Type:                     LetStatementType,
+			LetIdentifier:            &identifierToken,
+			LetInitializerExpression: initializer,
+			Line:                     line,
+			Column:                   column,
+		}, nil
+	}
+
+	return Statement{}, &Err{
+		Message: "expect identifier",
+		Line:    line,
+		Column:  column,
+	}
+}
+
+func (p *Parser) scanStatement() (Statement, *Err) {
+	if p.matchTokenType([]TokenType{PrintKeywordTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return p.scanPrintStatement(token.Line, token.Column)
+	}
+
+	if p.matchTokenType([]TokenType{LeftBraceTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return p.scanBlockStatement(token.Line, token.Column)
+	}
+
+	return p.scanExpressionStatement()
+}
+
+func (p *Parser) scanBlockStatement(line int, column int) (Statement, *Err) {
+	var statements []Statement
+	for p.nextTokenIndex < len(p.tokens) &&
+		!p.matchTokenType([]TokenType{RightBraceTokenType, EOFTokenType}) {
+		statement := p.scanDeclaration()
+		if statement == nil {
+			continue
+		}
+
+		statements = append(statements, *statement)
+	}
+
+	if p.nextTokenIndex >= len(p.tokens) {
+		lastToken := p.tokens[len(p.tokens)-1]
+		return Statement{}, &Err{
+			Message: "'}' not found",
+			Line:    lastToken.Line,
+			Column:  lastToken.Column,
+		}
+	}
+
+	if !p.matchTokenType([]TokenType{RightBraceTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect '}', got '%v'", token.Lexeme),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+	return Statement{
+		Type:                 BlockStatementType,
+		BlockInnerStatements: statements,
+		Line:                 line,
+		Column:               column,
+	}, nil
+}
+
+func (p *Parser) scanPrintStatement(line int, column int) (Statement, *Err) {
+	if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect '(', but got %v", token.Lexeme),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+	expr, err := p.scanExpressionList()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	if !p.matchTokenType([]TokenType{RightParenthesisTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect ')', but got %v", token.Lexeme),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	if !p.matchTokenType([]TokenType{SemicolonTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		err = &Err{
+			Message: fmt.Sprintf("expect ';', but got %v", token.Lexeme),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+		p.errs = append(p.errs, *err)
+		return Statement{}, err
+	}
+
+	p.nextTokenIndex++
+
+	return Statement{
+		Type:               PrintStatementType,
+		PrintArgExpression: &expr,
+		Line:               line,
+		Column:             column,
+	}, nil
+}
+
+func (p *Parser) scanExpressionStatement() (Statement, *Err) {
+	expr, err := p.scanExpressionList()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	if !p.matchTokenType([]TokenType{SemicolonTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		err = &Err{
+			Message: fmt.Sprintf("expect ';', but got %v", token.Lexeme),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+		p.errs = append(p.errs, *err)
+		return Statement{}, err
+	}
+
+	p.nextTokenIndex++
+	return Statement{
+		Type:                ExpressionStatementType,
+		StatementExpression: &expr,
+		Line:                expr.Line,
+		Column:              expr.Column,
+	}, nil
 }
 
 func (p *Parser) scanExpressionList() (Expression, *Err) {
@@ -66,12 +252,45 @@ func (p *Parser) scanExpressionList() (Expression, *Err) {
 }
 
 func (p *Parser) scanExpression() (Expression, *Err) {
-	return p.scanConditional()
+	return p.scanAssignment()
+}
+
+func (p *Parser) scanAssignment() (Expression, *Err) {
+	expr, err := p.scanConditional()
+	if err != nil {
+		return Expression{}, err
+	}
+
+	if p.matchTokenType([]TokenType{AssignTokenType}) {
+		assignToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+
+		if expr.Type == IdentifierExpressionType {
+			valueExpr, err := p.scanAssignment()
+			if err != nil {
+				return Expression{}, err
+			}
+
+			return Expression{
+				Type:                      AssignmentExpressionType,
+				Line:                      expr.Line,
+				Column:                    expr.Column,
+				Identifier:                expr.Identifier,
+				AssignmentValueExpression: &valueExpr,
+			}, nil
+		}
+
+		return Expression{}, &Err{
+			Message: fmt.Sprintf("assignment target must be identifier"),
+			Line:    assignToken.Line,
+			Column:  assignToken.Column,
+		}
+	}
+
+	return expr, nil
 }
 
 func (p *Parser) scanConditional() (Expression, *Err) {
-	ternaryExprDummyHead := Expression{}
-	ternaryExpr := &ternaryExprDummyHead
 	conditionExpr, err := p.scanEquality()
 	if err != nil {
 		return Expression{}, err
@@ -97,26 +316,22 @@ func (p *Parser) scanConditional() (Expression, *Err) {
 		p.nextTokenIndex++
 
 		tempConditionExpr := conditionExpr
-		nextTernaryExpr := &Expression{
-			Type:                       TernaryExpressionType,
-			TernaryConditionExpression: &tempConditionExpr,
-			TernaryTrueExpression:      &trueExpression,
-			Line:                       conditionExpr.Line,
-			Column:                     conditionExpr.Column,
-		}
-		ternaryExpr.TernaryFalseExpression = nextTernaryExpr
-		ternaryExpr = nextTernaryExpr
-
-		falseExpression, err := p.scanEquality()
+		falseExpression, err := p.scanConditional()
 		if err != nil {
 			return Expression{}, err
 		}
 
-		conditionExpr = falseExpression
+		return Expression{
+			Type:                       TernaryExpressionType,
+			TernaryConditionExpression: &tempConditionExpr,
+			TernaryTrueExpression:      &trueExpression,
+			TernaryFalseExpression:     &falseExpression,
+			Line:                       conditionExpr.Line,
+			Column:                     conditionExpr.Column,
+		}, nil
 	}
 
-	ternaryExpr.TernaryFalseExpression = &conditionExpr
-	return *ternaryExprDummyHead.TernaryFalseExpression, nil
+	return conditionExpr, nil
 }
 
 func (p *Parser) scanEquality() (Expression, *Err) {
@@ -238,7 +453,19 @@ func (p *Parser) scanPrimary() (Expression, *Err) {
 		}, nil
 	}
 
+	if p.matchTokenType([]TokenType{IdentifierTokenType}) {
+		identifierToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return Expression{
+			Type:       IdentifierExpressionType,
+			Identifier: identifierToken,
+			Line:       identifierToken.Line,
+			Column:     identifierToken.Column,
+		}, nil
+	}
+
 	token := p.tokens[p.nextTokenIndex]
+	p.nextTokenIndex++
 	err := &Err{
 		Message: "expect expression",
 		Line:    token.Line,
@@ -312,10 +539,6 @@ func (p *Parser) matchTokenType(expectedTokenTypes []TokenType) bool {
 	}
 
 	return false
-}
-
-func (p *Parser) GetErrors() []Err {
-	return p.errs
 }
 
 func NewParser() *Parser {
