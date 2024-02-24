@@ -69,7 +69,7 @@ var daoSet = wire.NewSet(
 )
 
 var storageSet = wire.NewSet(
-	wire.Bind(new(storage.MapClient), new(*storage.S3Bucket)),
+	wire.Bind(new(storage.ObjectStore), new(*storage.S3Bucket)),
 	wire.Bind(new(storage.MapRequestHandlers), new(*storage.S3Bucket)),
 	newS3Bucket,
 )

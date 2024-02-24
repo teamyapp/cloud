@@ -21,7 +21,7 @@ type S3Bucket struct {
 	bucketName string
 }
 
-var _ MapClient = (*S3Bucket)(nil)
+var _ ObjectStore = (*S3Bucket)(nil)
 var _ MapRequestHandlers = (*S3Bucket)(nil)
 
 func (s *S3Bucket) GetMetadata(ct context.Context, key string) (Metadata, *errs.Error) {
@@ -40,8 +40,8 @@ func (s *S3Bucket) GetMetadata(ct context.Context, key string) (Metadata, *errs.
 	}, nil
 }
 
-func (s *S3Bucket) GetFileStreams(ct context.Context, key string) ([]FileStream, *errs.Error) {
-	fileStreams := []FileStream{}
+func (s *S3Bucket) GetDataStreams(ct context.Context, key string) ([]DataStream, *errs.Error) {
+	fileStreams := []DataStream{}
 	// We need the slash at the end to make sure we only get the files in the directory
 	prefix := path.Join(appDataRoot, string(s.env), key) + "/"
 
@@ -59,7 +59,7 @@ func (s *S3Bucket) GetFileStreams(ct context.Context, key string) ([]FileStream,
 			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
-		fileStreams = append(fileStreams, FileStream{
+		fileStreams = append(fileStreams, DataStream{
 			Reader: objReader,
 			Metadata: Metadata{
 				ContentType:  obj.ContentType,

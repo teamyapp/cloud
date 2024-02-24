@@ -14,9 +14,9 @@ type InMemoryMap struct {
 	data map[string][]byte
 }
 
-var _ storage.MapClient = (*InMemoryMap)(nil)
+var _ storage.ObjectStore = (*InMemoryMap)(nil)
 
-func (*InMemoryMap) GetFileStreams(ct context.Context, key string) ([]storage.FileStream, *errs.Error) {
+func (*InMemoryMap) GetDataStreams(ct context.Context, key string) ([]storage.DataStream, *errs.Error) {
 	panic("unimplemented")
 }
 

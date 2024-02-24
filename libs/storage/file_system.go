@@ -15,9 +15,9 @@ type FileSystem struct {
 	rootDir string
 }
 
-var _ MapClient = (*FileSystem)(nil)
+var _ ObjectStore = (*FileSystem)(nil)
 
-func (*FileSystem) GetFileStreams(ct context.Context, key string) ([]FileStream, *errs.Error) {
+func (*FileSystem) GetDataStreams(ct context.Context, key string) ([]DataStream, *errs.Error) {
 	panic("unimplemented")
 }
 

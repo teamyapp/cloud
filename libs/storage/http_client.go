@@ -15,9 +15,9 @@ type HTTPClient struct {
 	mapServerURL string
 }
 
-var _ MapClient = (*HTTPClient)(nil)
+var _ ObjectStore = (*HTTPClient)(nil)
 
-func (*HTTPClient) GetFileStreams(ct context.Context, key string) ([]FileStream, *errs.Error) {
+func (*HTTPClient) GetDataStreams(ct context.Context, key string) ([]DataStream, *errs.Error) {
 	panic("unimplemented")
 }
 

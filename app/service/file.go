@@ -31,7 +31,7 @@ type CompressedFileStream struct {
 
 type File struct {
 	logger             telemetry.Logger
-	mapClient          storage.MapClient
+	ObjectStore        storage.ObjectStore
 	uploadSessionDao   dao.UploadSession
 	fileMetadataDao    dao.FileMetadata
 	chunkMetadataDao   dao.ChunkMetadata
@@ -152,7 +152,7 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		internalErr = saveChunk(ct, f.mapClient, chunkID, chunkReader)
+		internalErr = saveChunk(ct, f.ObjectStore, chunkID, chunkReader)
 		if internalErr != nil {
 			once.Do(func() {
 				wgErr = internalErr
@@ -238,9 +238,7 @@ func (f File) GetFileMetadata(ct context.Context, fileID uint64) (entity.FileMet
 }
 
 func (f File) GetCompressedFileStreamFromPath(ct context.Context, filePath string) (CompressedFileStream, *errs.Error) {
-	// rename to objectStore or something
-	// getDataStreams
-	fileStreams, err := f.mapClient.GetFileStreams(ct, filePath)
+	fileStreams, err := f.ObjectStore.GetDataStreams(ct, filePath)
 	if err != nil {
 		return CompressedFileStream{}, err
 	}
@@ -264,19 +262,9 @@ func (f File) GetCompressedFileStreamFromPath(ct context.Context, filePath strin
 	}
 
 	go func() {
-		defer func() {
-			if err := tarWriter.Close(); err != nil {
-				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, err.Error()))
-			}
-
-			if err := gzipWriter.Close(); err != nil {
-				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, err.Error()))
-			}
-
-			if err := pipeWriter.Close(); err != nil {
-				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, err.Error()))
-			}
-		}()
+		defer pipeWriter.Close()
+		defer gzipWriter.Close()
+		defer tarWriter.Close()
 
 		for _, fileStream := range fileStreams {
 			header := &tar.Header{
@@ -302,11 +290,11 @@ func (f File) GetCompressedFileStreamFromPath(ct context.Context, filePath strin
 }
 
 func (f File) GetFileFromFilePath(ct context.Context, filePath string) (io.Reader, *errs.Error) {
-	return f.mapClient.Get(ct, filePath)
+	return f.ObjectStore.Get(ct, filePath)
 }
 
 func (f File) GetFileMetadataFromFilePath(ct context.Context, filePath string) (storage.Metadata, *errs.Error) {
-	return f.mapClient.GetMetadata(ct, filePath)
+	return f.ObjectStore.GetMetadata(ct, filePath)
 }
 
 func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Error) {
@@ -315,7 +303,7 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 		return entity.File{}, err
 	}
 
-	chunksIterator := newChunksIterator(f.logger, f.mapClient, metadata.ChunkIDs)
+	chunksIterator := newChunksIterator(f.logger, f.ObjectStore, metadata.ChunkIDs)
 	chunksBufferReader, chunksBufferWriter := io.Pipe()
 
 	go func() {
@@ -356,7 +344,7 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 
 func NewFile(
 	logger telemetry.Logger,
-	mapClient storage.MapClient,
+	ObjectStore storage.ObjectStore,
 	uniqueNumberRegistry *UniqueNumberGenRegistry,
 	uploadSessionDao dao.UploadSession,
 	fileMetadataDao dao.FileMetadata,
@@ -379,7 +367,7 @@ func NewFile(
 
 	return File{
 		logger:             logger,
-		mapClient:          mapClient,
+		ObjectStore:        ObjectStore,
 		uploadSessionDao:   uploadSessionDao,
 		fileMetadataDao:    fileMetadataDao,
 		chunkMetadataDao:   chunkMetadataDao,

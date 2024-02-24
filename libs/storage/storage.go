@@ -16,14 +16,14 @@ type Metadata struct {
 	Name         string
 }
 
-type FileStream struct {
+type DataStream struct {
 	Reader   io.Reader
 	Metadata Metadata
 }
 
-type MapClient interface {
+type ObjectStore interface {
 	Get(ct context.Context, key string) (io.Reader, *errs.Error)
-	GetFileStreams(ct context.Context, key string) ([]FileStream, *errs.Error)
+	GetDataStreams(ct context.Context, key string) ([]DataStream, *errs.Error)
 	Put(ct context.Context, key string, reader io.Reader) *errs.Error
 	Delete(ct context.Context, key string) *errs.Error
 	GetMetadata(ct context.Context, key string) (Metadata, *errs.Error)
