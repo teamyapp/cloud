@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
 
@@ -63,7 +64,17 @@ func (f File) Start(rn *runner.ServiceRunner) *errs.Error {
 		{
 			Method:      http.MethodGet,
 			Pattern:     path.Join(filePathPrefix, "files", runner.Param(fileIDParam)),
-			HandlerFunc: f.webGetFile,
+			HandlerFunc: f.webGetFileByID,
+		},
+		{
+			Method:      http.MethodGet,
+			Pattern:     path.Join(filePathPrefix, "download"),
+			HandlerFunc: f.webDownloadPath,
+		},
+		{
+			Method:      http.MethodGet,
+			Pattern:     path.Join(filePathPrefix, "files"),
+			HandlerFunc: f.webGetFileByPath,
 		},
 	})
 	rn.WithGRPCServer(func(server *grpc.Server) {
@@ -228,7 +239,115 @@ func (f File) webGetFileMetadata(writer http.ResponseWriter, request *http.Reque
 	web.WriteJSONToResponse(writer, fileMetadata)
 }
 
-func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
+func (f File) webDownloadPath(writer http.ResponseWriter, request *http.Request) {
+	ct := request.Context()
+	encodedFilePath := request.URL.Query().Get("path")
+	if encodedFilePath == "" {
+		internalErr := errs.NewError(errs.InvalidArgument, "path query param is required")
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
+	}
+
+	filePath, err := url.QueryUnescape(encodedFilePath)
+	if err != nil {
+		internalErr := errs.NewError(errs.InvalidArgument, err.Error())
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
+	}
+
+	fileStream, internalErr := f.fileService.GetCompressedFileStream(request.Context(), filePath)
+	if internalErr != nil {
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
+	}
+
+	writer.Header().Set("Content-Type", fileStream.MIMEContentType)
+	writer.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fileStream.Name))
+
+	flusher, ok := writer.(http.Flusher)
+	if !ok {
+		internalErr = errs.NewError(errs.Unknown, "writer must be http.Flusher")
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
+	}
+
+	_, err = io.Copy(writer, fileStream.ContentReader)
+	if err != nil {
+		internalErr = errs.NewError(errs.Unknown, err.Error())
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
+	}
+
+	flusher.Flush()
+}
+
+func (f File) webGetFileByPath(writer http.ResponseWriter, request *http.Request) {
+	ct := request.Context()
+	encodedFilePath := request.URL.Query().Get("path")
+	if encodedFilePath == "" {
+		internalErr := errs.NewError(errs.InvalidArgument, "path query param is required")
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
+	}
+
+	filePath, err := url.QueryUnescape(encodedFilePath)
+	if err != nil {
+		internalErr := errs.NewError(errs.InvalidArgument, err.Error())
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
+	}
+
+	metadata, internalErr := f.fileService.GetFileMetadataFromPath(ct, filePath)
+	if internalErr != nil {
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
+	}
+
+	writer.Header().Set("Content-Type", metadata.ContentType)
+	writer.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, metadata.Name))
+	writer.Header().Set("ETag", metadata.ETag)
+	if eTag := request.Header.Get("If-None-Match"); len(eTag) > 0 {
+		if eTag == metadata.ETag {
+			writer.WriteHeader(http.StatusNotModified)
+			return
+		}
+	}
+
+	fileReader, internalErr := f.fileService.GetFileFromPath(request.Context(), filePath)
+	if internalErr != nil {
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
+	}
+
+	flusher, ok := writer.(http.Flusher)
+	if !ok {
+		internalErr = errs.NewError(errs.Unknown, "writer must be http.Flusher")
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
+	}
+
+	_, err = io.Copy(writer, fileReader)
+	if err != nil {
+		internalErr = errs.NewError(errs.Unknown, err.Error())
+		f.logger.ErrorWithContext(ct, internalErr)
+		errs.SetHTTPErr(internalErr, writer)
+		return
+	}
+
+	flusher.Flush()
+}
+
+func (f File) webGetFileByID(writer http.ResponseWriter, request *http.Request) {
 	ct := request.Context()
 	fileIDRaw := chi.URLParam(request, fileIDParam)
 	fileID, err := strconv.ParseUint(fileIDRaw, 10, 64)

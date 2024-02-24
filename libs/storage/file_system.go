@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"path"
@@ -14,9 +15,17 @@ type FileSystem struct {
 	rootDir string
 }
 
-var _ MapClient = (*FileSystem)(nil)
+var _ ObjectStore = (*FileSystem)(nil)
 
-func (f FileSystem) Get(key string) (io.Reader, *errs.Error) {
+func (*FileSystem) GetDataStreams(ct context.Context, key string) ([]ObjectDataStream, *errs.Error) {
+	panic("unimplemented")
+}
+
+func (*FileSystem) GetMetadata(ct context.Context, key string) (ObjectMetadata, *errs.Error) {
+	panic("unimplemented")
+}
+
+func (f *FileSystem) Get(ct context.Context, key string) (io.Reader, *errs.Error) {
 	buf, err := os.ReadFile(path.Join(f.rootDir, key))
 	if err != nil {
 		return nil, errs.NewError(errs.OS, err.Error())
@@ -25,7 +34,7 @@ func (f FileSystem) Get(key string) (io.Reader, *errs.Error) {
 	return bytes.NewReader(buf), nil
 }
 
-func (f FileSystem) Put(key string, data io.Reader) *errs.Error {
+func (f *FileSystem) Put(ct context.Context, key string, data io.Reader) *errs.Error {
 	filePath := path.Join(f.rootDir, key)
 	dir := filepath.Dir(filePath)
 	err := os.MkdirAll(dir, os.ModePerm)
@@ -42,7 +51,7 @@ func (f FileSystem) Put(key string, data io.Reader) *errs.Error {
 	return nil
 }
 
-func (f FileSystem) Delete(key string) *errs.Error {
+func (f *FileSystem) Delete(ct context.Context, key string) *errs.Error {
 	err := os.RemoveAll(path.Join(f.rootDir, key))
 	if err != nil {
 		return errs.NewError(errs.OS, err.Error())
@@ -51,6 +60,6 @@ func (f FileSystem) Delete(key string) *errs.Error {
 	return nil
 }
 
-func NewFileSystem(rootDir string) FileSystem {
-	return FileSystem{rootDir: rootDir}
+func NewFileSystem(rootDir string) *FileSystem {
+	return &FileSystem{rootDir: rootDir}
 }
