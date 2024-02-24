@@ -151,7 +151,7 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		internalErr = saveChunk(ct, f.ObjectStore, chunkID, chunkReader)
+		internalErr = saveChunk(ct, f.objectStore, chunkID, chunkReader)
 		if internalErr != nil {
 			once.Do(func() {
 				wgErr = internalErr
@@ -236,8 +236,8 @@ func (f File) GetFileMetadata(ct context.Context, fileID uint64) (entity.FileMet
 	return f.fileMetadataDao.FindMetadataByFileID(ct, fileID)
 }
 
-func (f File) GetCompressedFileStreamFromPath(ct context.Context, filePath string) (CompressedFileStream, *errs.Error) {
-	fileStreams, err := f.ObjectStore.GetDataStreams(ct, filePath)
+func (f File) GetCompressedFileStream(ct context.Context, filePath string) (CompressedFileStream, *errs.Error) {
+	fileStreams, err := f.objectStore.GetDataStreams(ct, filePath)
 	if err != nil {
 		return CompressedFileStream{}, err
 	}
@@ -283,11 +283,11 @@ func (f File) GetCompressedFileStreamFromPath(ct context.Context, filePath strin
 }
 
 func (f File) GetFileFromPath(ct context.Context, filePath string) (io.Reader, *errs.Error) {
-	return f.ObjectStore.Get(ct, filePath)
+	return f.objectStore.Get(ct, filePath)
 }
 
-func (f File) GetFileMetadataFromPath(ct context.Context, filePath string) (storage.Metadata, *errs.Error) {
-	return f.ObjectStore.GetMetadata(ct, filePath)
+func (f File) GetFileMetadataFromPath(ct context.Context, filePath string) (storage.ObjectMetadata, *errs.Error) {
+	return f.objectStore.GetMetadata(ct, filePath)
 }
 
 func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Error) {
@@ -296,7 +296,7 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 		return entity.File{}, err
 	}
 
-	chunksIterator := newChunksIterator(f.logger, f.ObjectStore, metadata.ChunkIDs)
+	chunksIterator := newChunksIterator(f.logger, f.objectStore, metadata.ChunkIDs)
 	chunksBufferReader, chunksBufferWriter := io.Pipe()
 
 	go func() {
@@ -337,7 +337,7 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 
 func NewFile(
 	logger telemetry.Logger,
-	ObjectStore storage.ObjectStore,
+	objectStore storage.ObjectStore,
 	uniqueNumberRegistry *UniqueNumberGenRegistry,
 	uploadSessionDao dao.UploadSession,
 	fileMetadataDao dao.FileMetadata,
@@ -360,7 +360,7 @@ func NewFile(
 
 	return File{
 		logger:             logger,
-		ObjectStore:        ObjectStore,
+		objectStore:        objectStore,
 		uploadSessionDao:   uploadSessionDao,
 		fileMetadataDao:    fileMetadataDao,
 		chunkMetadataDao:   chunkMetadataDao,

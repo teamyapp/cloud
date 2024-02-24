@@ -16,11 +16,11 @@ type InMemoryMap struct {
 
 var _ storage.ObjectStore = (*InMemoryMap)(nil)
 
-func (*InMemoryMap) GetDataStreams(ct context.Context, key string) ([]storage.DataStream, *errs.Error) {
+func (*InMemoryMap) GetDataStreams(ct context.Context, key string) ([]storage.ObjectDataStream, *errs.Error) {
 	panic("unimplemented")
 }
 
-func (*InMemoryMap) GetMetadata(ct context.Context, key string) (storage.Metadata, *errs.Error) {
+func (*InMemoryMap) GetMetadata(ct context.Context, key string) (storage.ObjectMetadata, *errs.Error) {
 	panic("unimplemented")
 }
 

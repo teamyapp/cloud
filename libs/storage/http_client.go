@@ -17,11 +17,11 @@ type HTTPClient struct {
 
 var _ ObjectStore = (*HTTPClient)(nil)
 
-func (*HTTPClient) GetDataStreams(ct context.Context, key string) ([]DataStream, *errs.Error) {
+func (*HTTPClient) GetDataStreams(ct context.Context, key string) ([]ObjectDataStream, *errs.Error) {
 	panic("unimplemented")
 }
 
-func (*HTTPClient) GetMetadata(ct context.Context, key string) (Metadata, *errs.Error) {
+func (*HTTPClient) GetMetadata(ct context.Context, key string) (ObjectMetadata, *errs.Error) {
 	panic("unimplemented")
 }
 

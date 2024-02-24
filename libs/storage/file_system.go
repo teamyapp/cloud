@@ -17,11 +17,11 @@ type FileSystem struct {
 
 var _ ObjectStore = (*FileSystem)(nil)
 
-func (*FileSystem) GetDataStreams(ct context.Context, key string) ([]DataStream, *errs.Error) {
+func (*FileSystem) GetDataStreams(ct context.Context, key string) ([]ObjectDataStream, *errs.Error) {
 	panic("unimplemented")
 }
 
-func (*FileSystem) GetMetadata(ct context.Context, key string) (Metadata, *errs.Error) {
+func (*FileSystem) GetMetadata(ct context.Context, key string) (ObjectMetadata, *errs.Error) {
 	panic("unimplemented")
 }
 

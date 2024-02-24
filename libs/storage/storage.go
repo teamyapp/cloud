@@ -18,15 +18,15 @@ type ObjectMetadata struct {
 
 type ObjectDataStream struct {
 	Reader   io.Reader
-	Metadata Metadata
+	Metadata ObjectMetadata
 }
 
 type ObjectStore interface {
 	Get(ct context.Context, key string) (io.Reader, *errs.Error)
-	GetDataStreams(ct context.Context, key string) ([]DataStream, *errs.Error)
+	GetDataStreams(ct context.Context, key string) ([]ObjectDataStream, *errs.Error)
 	Put(ct context.Context, key string, reader io.Reader) *errs.Error
 	Delete(ct context.Context, key string) *errs.Error
-	GetMetadata(ct context.Context, key string) (Metadata, *errs.Error)
+	GetMetadata(ct context.Context, key string) (ObjectMetadata, *errs.Error)
 }
 
 type ObjectStoreRequestHandlers interface {

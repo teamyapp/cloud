@@ -69,7 +69,7 @@ func (f File) Start(rn *runner.ServiceRunner) *errs.Error {
 		{
 			Method:      http.MethodGet,
 			Pattern:     path.Join(filePathPrefix, "download"),
-			HandlerFunc: f.webDownloadFolderFromFolderPath,
+			HandlerFunc: f.webDownloadPath,
 		},
 		{
 			Method:      http.MethodGet,
@@ -304,7 +304,7 @@ func (f File) webGetFileByPath(writer http.ResponseWriter, request *http.Request
 		return
 	}
 
-	metadata, internalErr := f.fileService.GetFileMetadataFromFilePath(ct, filePath)
+	metadata, internalErr := f.fileService.GetFileMetadataFromPath(ct, filePath)
 	if internalErr != nil {
 		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
@@ -347,7 +347,7 @@ func (f File) webGetFileByPath(writer http.ResponseWriter, request *http.Request
 	flusher.Flush()
 }
 
-func (f File) webGetFile(writer http.ResponseWriter, request *http.Request) {
+func (f File) webGetFileByID(writer http.ResponseWriter, request *http.Request) {
 	ct := request.Context()
 	fileIDRaw := chi.URLParam(request, fileIDParam)
 	fileID, err := strconv.ParseUint(fileIDRaw, 10, 64)

@@ -12,7 +12,6 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-
 type S3Bucket struct {
 	logger     telemetry.Logger
 	client     *minio.Client
@@ -21,28 +20,28 @@ type S3Bucket struct {
 }
 
 var _ ObjectStore = (*S3Bucket)(nil)
-var _ MapRequestHandlers = (*S3Bucket)(nil)
+var _ ObjectStoreRequestHandlers = (*S3Bucket)(nil)
 
-func (s *S3Bucket) GetMetadata(ct context.Context, key string) (Metadata, *errs.Error) {
+func (s *S3Bucket) GetMetadata(ct context.Context, key string) (ObjectMetadata, *errs.Error) {
 	fullPath := path.Join(string(s.env), key)
 	stats, err := s.client.StatObject(ct, s.bucketName, fullPath, minio.StatObjectOptions{})
 	if err != nil {
-		return Metadata{}, errs.NewError(errs.Unknown, err.Error())
+		return ObjectMetadata{}, errs.NewError(errs.Unknown, err.Error())
 	}
 
-	return Metadata{
-		ContentType:  obj.ContentType,
-		ETag:         obj.ETag,
-		LastModified: obj.LastModified,
-		Size:         obj.Size,
-		Name:         obj.Key,
+	return ObjectMetadata{
+		ContentType:  stats.ContentType,
+		ETag:         stats.ETag,
+		LastModified: stats.LastModified,
+		Size:         stats.Size,
+		Name:         stats.Key,
 	}, nil
 }
 
-func (s *S3Bucket) GetDataStreams(ct context.Context, key string) ([]DataStream, *errs.Error) {
-	fileStreams := []DataStream{}
+func (s *S3Bucket) GetDataStreams(ct context.Context, key string) ([]ObjectDataStream, *errs.Error) {
+	fileStreams := []ObjectDataStream{}
 	// We need the slash at the end to make sure we only get the files in the directory
-	prefix := path.Join(string(s.env), key,  "/")
+	prefix := path.Join(string(s.env), key, "/")
 
 	for obj := range s.client.ListObjects(ct, s.bucketName, minio.ListObjectsOptions{
 		Prefix:       prefix,
@@ -58,9 +57,9 @@ func (s *S3Bucket) GetDataStreams(ct context.Context, key string) ([]DataStream,
 			return nil, errs.NewError(errs.Unknown, err.Error())
 		}
 
-		fileStreams = append(fileStreams, DataStream{
+		fileStreams = append(fileStreams, ObjectDataStream{
 			Reader: objReader,
-			Metadata: Metadata{
+			Metadata: ObjectMetadata{
 				ContentType:  obj.ContentType,
 				ETag:         obj.ETag,
 				LastModified: obj.LastModified,
@@ -74,7 +73,7 @@ func (s *S3Bucket) GetDataStreams(ct context.Context, key string) ([]DataStream,
 }
 
 func (s *S3Bucket) Get(ct context.Context, key string) (io.Reader, *errs.Error) {
-	fullPath := path.Join(appDataRoot, string(s.env), key)
+	fullPath := path.Join(string(s.env), key)
 	obj, err := s.client.GetObject(ct, s.bucketName, fullPath, minio.GetObjectOptions{})
 	if err != nil {
 		return nil, errs.NewError(errs.Unknown, err.Error())
@@ -94,7 +93,7 @@ func (s *S3Bucket) Put(ct context.Context, key string, data io.Reader) *errs.Err
 }
 
 func (s *S3Bucket) Delete(ct context.Context, key string) *errs.Error {
-	fullPath := path.Join(appDataRoot, string(s.env), key)
+	fullPath := path.Join(string(s.env), key)
 	err := s.client.RemoveObject(ct, s.bucketName, fullPath, minio.RemoveObjectOptions{})
 	if err != nil {
 		return errs.NewError(errs.Unknown, err.Error())
