@@ -24,14 +24,13 @@ import (
 
 type CompressedFileStream struct {
 	Name            string
-	Size            int64
 	MIMEContentType string
 	ContentReader   io.Reader
 }
 
 type File struct {
 	logger             telemetry.Logger
-	ObjectStore        storage.ObjectStore
+	objectStore        storage.ObjectStore
 	uploadSessionDao   dao.UploadSession
 	fileMetadataDao    dao.FileMetadata
 	chunkMetadataDao   dao.ChunkMetadata
@@ -247,16 +246,10 @@ func (f File) GetCompressedFileStreamFromPath(ct context.Context, filePath strin
 	gzipWriter := gzip.NewWriter(pipeWriter)
 	tarWriter := tar.NewWriter(gzipWriter)
 
-	size := int64(0)
-	for _, fileStream := range fileStreams {
-		size += fileStream.Metadata.Size
-	}
-
 	name := filepath.Base(filePath)
 	fullName := fmt.Sprintf("%s.tar.gz", name)
 	compressedFileStream := CompressedFileStream{
 		Name:            fullName,
-		Size:            size,
 		MIMEContentType: "application/gzip",
 		ContentReader:   pipeReader,
 	}
@@ -289,11 +282,11 @@ func (f File) GetCompressedFileStreamFromPath(ct context.Context, filePath strin
 	return compressedFileStream, nil
 }
 
-func (f File) GetFileFromFilePath(ct context.Context, filePath string) (io.Reader, *errs.Error) {
+func (f File) GetFileFromPath(ct context.Context, filePath string) (io.Reader, *errs.Error) {
 	return f.ObjectStore.Get(ct, filePath)
 }
 
-func (f File) GetFileMetadataFromFilePath(ct context.Context, filePath string) (storage.Metadata, *errs.Error) {
+func (f File) GetFileMetadataFromPath(ct context.Context, filePath string) (storage.Metadata, *errs.Error) {
 	return f.ObjectStore.GetMetadata(ct, filePath)
 }
 

@@ -12,7 +12,6 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
-const appDataRoot = ""
 
 type S3Bucket struct {
 	logger     telemetry.Logger
@@ -25,8 +24,8 @@ var _ ObjectStore = (*S3Bucket)(nil)
 var _ MapRequestHandlers = (*S3Bucket)(nil)
 
 func (s *S3Bucket) GetMetadata(ct context.Context, key string) (Metadata, *errs.Error) {
-	fullPath := path.Join(appDataRoot, string(s.env), key)
-	obj, err := s.client.StatObject(ct, s.bucketName, fullPath, minio.StatObjectOptions{})
+	fullPath := path.Join(string(s.env), key)
+	stats, err := s.client.StatObject(ct, s.bucketName, fullPath, minio.StatObjectOptions{})
 	if err != nil {
 		return Metadata{}, errs.NewError(errs.Unknown, err.Error())
 	}
@@ -43,7 +42,7 @@ func (s *S3Bucket) GetMetadata(ct context.Context, key string) (Metadata, *errs.
 func (s *S3Bucket) GetDataStreams(ct context.Context, key string) ([]DataStream, *errs.Error) {
 	fileStreams := []DataStream{}
 	// We need the slash at the end to make sure we only get the files in the directory
-	prefix := path.Join(appDataRoot, string(s.env), key) + "/"
+	prefix := path.Join(string(s.env), key,  "/")
 
 	for obj := range s.client.ListObjects(ct, s.bucketName, minio.ListObjectsOptions{
 		Prefix:       prefix,
@@ -85,7 +84,7 @@ func (s *S3Bucket) Get(ct context.Context, key string) (io.Reader, *errs.Error) 
 }
 
 func (s *S3Bucket) Put(ct context.Context, key string, data io.Reader) *errs.Error {
-	fullPath := path.Join(appDataRoot, string(s.env), key)
+	fullPath := path.Join(string(s.env), key)
 	_, err := s.client.PutObject(ct, s.bucketName, fullPath, data, -1, minio.PutObjectOptions{})
 	if err != nil {
 		return errs.NewError(errs.Unknown, err.Error())

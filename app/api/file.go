@@ -64,17 +64,17 @@ func (f File) Start(rn *runner.ServiceRunner) *errs.Error {
 		{
 			Method:      http.MethodGet,
 			Pattern:     path.Join(filePathPrefix, "files", runner.Param(fileIDParam)),
-			HandlerFunc: f.webGetFile,
+			HandlerFunc: f.webGetFileByID,
 		},
 		{
 			Method:      http.MethodGet,
-			Pattern:     path.Join(filePathPrefix, "download-folder"),
+			Pattern:     path.Join(filePathPrefix, "download"),
 			HandlerFunc: f.webDownloadFolderFromFolderPath,
 		},
 		{
 			Method:      http.MethodGet,
 			Pattern:     path.Join(filePathPrefix, "files"),
-			HandlerFunc: f.webGetFileFromFilePath,
+			HandlerFunc: f.webGetFileByPath,
 		},
 	})
 	rn.WithGRPCServer(func(server *grpc.Server) {
@@ -239,7 +239,7 @@ func (f File) webGetFileMetadata(writer http.ResponseWriter, request *http.Reque
 	web.WriteJSONToResponse(writer, fileMetadata)
 }
 
-func (f File) webDownloadFolderFromFolderPath(writer http.ResponseWriter, request *http.Request) {
+func (f File) webDownloadPath(writer http.ResponseWriter, request *http.Request) {
 	ct := request.Context()
 	encodedFilePath := request.URL.Query().Get("path")
 	if encodedFilePath == "" {
@@ -257,7 +257,7 @@ func (f File) webDownloadFolderFromFolderPath(writer http.ResponseWriter, reques
 		return
 	}
 
-	fileStream, internalErr := f.fileService.GetCompressedFileStreamFromPath(request.Context(), filePath)
+	fileStream, internalErr := f.fileService.GetCompressedFileStream(request.Context(), filePath)
 	if internalErr != nil {
 		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
@@ -286,7 +286,7 @@ func (f File) webDownloadFolderFromFolderPath(writer http.ResponseWriter, reques
 	flusher.Flush()
 }
 
-func (f File) webGetFileFromFilePath(writer http.ResponseWriter, request *http.Request) {
+func (f File) webGetFileByPath(writer http.ResponseWriter, request *http.Request) {
 	ct := request.Context()
 	encodedFilePath := request.URL.Query().Get("path")
 	if encodedFilePath == "" {
@@ -314,14 +314,14 @@ func (f File) webGetFileFromFilePath(writer http.ResponseWriter, request *http.R
 	writer.Header().Set("Content-Type", metadata.ContentType)
 	writer.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, metadata.Name))
 	writer.Header().Set("ETag", metadata.ETag)
-	if match := request.Header.Get("If-None-Match"); match != "" {
-		if match == metadata.ETag {
+	if eTag := request.Header.Get("If-None-Match"); len(eTag) > 0 {
+		if eTag == metadata.ETag {
 			writer.WriteHeader(http.StatusNotModified)
 			return
 		}
 	}
 
-	fileReader, internalErr := f.fileService.GetFileFromFilePath(request.Context(), filePath)
+	fileReader, internalErr := f.fileService.GetFileFromPath(request.Context(), filePath)
 	if internalErr != nil {
 		f.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)

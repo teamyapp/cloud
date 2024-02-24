@@ -8,7 +8,7 @@ import (
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
-type Metadata struct {
+type ObjectMetadata struct {
 	ContentType  string
 	ETag         string
 	LastModified time.Time
@@ -16,7 +16,7 @@ type Metadata struct {
 	Name         string
 }
 
-type DataStream struct {
+type ObjectDataStream struct {
 	Reader   io.Reader
 	Metadata Metadata
 }
@@ -29,7 +29,7 @@ type ObjectStore interface {
 	GetMetadata(ct context.Context, key string) (Metadata, *errs.Error)
 }
 
-type MapRequestHandlers interface {
+type ObjectStoreRequestHandlers interface {
 	HandleGet(ct context.Context, key string) (io.Reader, *errs.Error)
 	HandlePut(ct context.Context, key string, reader io.Reader) *errs.Error
 	HandleDelete(ct context.Context, key string) *errs.Error
