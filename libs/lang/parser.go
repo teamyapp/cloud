@@ -29,7 +29,7 @@ func (p *Parser) scanDeclaration() *Statement {
 	if p.matchTokenType([]TokenType{LetKeywordTokenType}) {
 		letToken := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
-		statement, err := p.scanLetDeclaration(letToken.Line, letToken.Column)
+		statement, err := p.scanLetDeclaration(letToken)
 		if err != nil {
 			p.synchronize()
 			return nil
@@ -47,7 +47,7 @@ func (p *Parser) scanDeclaration() *Statement {
 	return &statement
 }
 
-func (p *Parser) scanLetDeclaration(line int, column int) (Statement, *Err) {
+func (p *Parser) scanLetDeclaration(startToken Token) (Statement, *Err) {
 	if p.matchTokenType([]TokenType{IdentifierTokenType}) {
 		identifierToken := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
@@ -78,15 +78,15 @@ func (p *Parser) scanLetDeclaration(line int, column int) (Statement, *Err) {
 			Type:                     LetStatementType,
 			LetIdentifier:            &identifierToken,
 			LetInitializerExpression: initializer,
-			Line:                     line,
-			Column:                   column,
+			Line:                     startToken.Line,
+			Column:                   startToken.Column,
 		}, nil
 	}
 
 	return Statement{}, &Err{
 		Message: "expect identifier",
-		Line:    line,
-		Column:  column,
+		Line:    startToken.Line,
+		Column:  startToken.Column,
 	}
 }
 
@@ -94,37 +94,37 @@ func (p *Parser) scanStatement() (Statement, *Err) {
 	if p.matchTokenType([]TokenType{PrintKeywordTokenType}) {
 		token := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
-		return p.scanPrintStatement(token.Line, token.Column)
+		return p.scanPrintStatement(token)
 	}
 
 	if p.matchTokenType([]TokenType{LeftBraceTokenType}) {
 		token := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
-		return p.scanBlockStatement(token.Line, token.Column)
+		return p.scanBlockStatement(token)
 	}
 
 	if p.matchTokenType([]TokenType{IfKeywordTokenType}) {
 		token := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
-		return p.scanIfStatement(token.Line, token.Column)
+		return p.scanIfStatement(token)
 	}
 
 	if p.matchTokenType([]TokenType{WhileKeywordTokenType}) {
 		token := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
-		return p.scanWhileStatement(token.Line, token.Column)
+		return p.scanWhileStatement(token)
 	}
 
 	if p.matchTokenType([]TokenType{ForKeywordTokenType}) {
 		token := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
-		return p.scanForStatement(token.Line, token.Column)
+		return p.scanForStatement(token)
 	}
 
 	return p.scanExpressionStatement()
 }
 
-func (p *Parser) scanForStatement(line int, column int) (Statement, *Err) {
+func (p *Parser) scanForStatement(startToken Token) (Statement, *Err) {
 	if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}) {
 		token := p.tokens[p.nextTokenIndex]
 		return Statement{}, &Err{
@@ -142,7 +142,7 @@ func (p *Parser) scanForStatement(line int, column int) (Statement, *Err) {
 	} else if p.matchTokenType([]TokenType{LetKeywordTokenType}) {
 		token := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
-		tmpInitializer, err := p.scanLetDeclaration(token.Line, token.Column)
+		tmpInitializer, err := p.scanLetDeclaration(token)
 		if err != nil {
 			return Statement{}, err
 		}
@@ -212,12 +212,10 @@ func (p *Parser) scanForStatement(line int, column int) (Statement, *Err) {
 				{
 					Type:                ExpressionStatementType,
 					StatementExpression: increment,
-					Line:                -1,
-					Column:              -1,
+					IsGenerated:         true,
 				},
 			},
-			Line:   -1,
-			Column: -1,
+			IsGenerated: true,
 		}
 	}
 
@@ -225,14 +223,12 @@ func (p *Parser) scanForStatement(line int, column int) (Statement, *Err) {
 		condition = &Expression{
 			Type: LiteralExpressionType,
 			Literal: Token{
-				Type:   BoolTokenType,
-				Lexeme: "true",
-				Value:  true,
-				Line:   -1,
-				Column: -1,
+				Type:        BoolTokenType,
+				Lexeme:      "true",
+				Value:       true,
+				IsGenerated: true,
 			},
-			Line:   -1,
-			Column: -1,
+			IsGenerated: true,
 		}
 	}
 
@@ -240,8 +236,8 @@ func (p *Parser) scanForStatement(line int, column int) (Statement, *Err) {
 		Type:                     WhileStatementType,
 		WhileConditionExpression: condition,
 		WhileBodyStatement:       &body,
-		Line:                     line,
-		Column:                   column,
+		Line:                     startToken.Line,
+		Column:                   startToken.Column,
 	}
 
 	if initializer != nil {
@@ -251,15 +247,14 @@ func (p *Parser) scanForStatement(line int, column int) (Statement, *Err) {
 				*initializer,
 				statement,
 			},
-			Line:   -1,
-			Column: -1,
+			IsGenerated: true,
 		}
 	}
 
 	return statement, nil
 }
 
-func (p *Parser) scanWhileStatement(line int, column int) (Statement, *Err) {
+func (p *Parser) scanWhileStatement(startToken Token) (Statement, *Err) {
 	if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}) {
 		token := p.tokens[p.nextTokenIndex]
 		return Statement{}, &Err{
@@ -296,12 +291,12 @@ func (p *Parser) scanWhileStatement(line int, column int) (Statement, *Err) {
 		Type:                     WhileStatementType,
 		WhileConditionExpression: &conditionExpr,
 		WhileBodyStatement:       &bodyStmt,
-		Line:                     line,
-		Column:                   column,
+		Line:                     startToken.Line,
+		Column:                   startToken.Column,
 	}, nil
 }
 
-func (p *Parser) scanIfStatement(line int, column int) (Statement, *Err) {
+func (p *Parser) scanIfStatement(startToken Token) (Statement, *Err) {
 	if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}) {
 		token := p.tokens[p.nextTokenIndex]
 		return Statement{}, &Err{
@@ -350,12 +345,12 @@ func (p *Parser) scanIfStatement(line int, column int) (Statement, *Err) {
 		IfConditionExpression:  &conditionExpr,
 		IfTrueBranchStatement:  &trueBranchStmt,
 		IfFalseBranchStatement: falseBranchStmt,
-		Line:                   line,
-		Column:                 column,
+		Line:                   startToken.Line,
+		Column:                 startToken.Column,
 	}, nil
 }
 
-func (p *Parser) scanBlockStatement(line int, column int) (Statement, *Err) {
+func (p *Parser) scanBlockStatement(startToken Token) (Statement, *Err) {
 	var statements []Statement
 	for p.nextTokenIndex < len(p.tokens) &&
 		!p.matchTokenType([]TokenType{RightBraceTokenType, EOFTokenType}) {
@@ -389,12 +384,12 @@ func (p *Parser) scanBlockStatement(line int, column int) (Statement, *Err) {
 	return Statement{
 		Type:                 BlockStatementType,
 		BlockInnerStatements: statements,
-		Line:                 line,
-		Column:               column,
+		Line:                 startToken.Line,
+		Column:               startToken.Column,
 	}, nil
 }
 
-func (p *Parser) scanPrintStatement(line int, column int) (Statement, *Err) {
+func (p *Parser) scanPrintStatement(startToken Token) (Statement, *Err) {
 	if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}) {
 		token := p.tokens[p.nextTokenIndex]
 		return Statement{}, &Err{
@@ -437,8 +432,8 @@ func (p *Parser) scanPrintStatement(line int, column int) (Statement, *Err) {
 	return Statement{
 		Type:               PrintStatementType,
 		PrintArgExpression: &expr,
-		Line:               line,
-		Column:             column,
+		Line:               startToken.Line,
+		Column:             startToken.Column,
 	}, nil
 }
 

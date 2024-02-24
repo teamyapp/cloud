@@ -18,6 +18,9 @@ const (
 
 type Statement struct {
 	Type                     StatementType
+	Line                     int
+	Column                   int
+	IsGenerated              bool
 	PrintArgExpression       *Expression
 	StatementExpression      *Expression
 	LetIdentifier            *Token
@@ -28,8 +31,6 @@ type Statement struct {
 	IfFalseBranchStatement   *Statement
 	WhileConditionExpression *Expression
 	WhileBodyStatement       *Statement
-	Line                     int
-	Column                   int
 }
 
 var _ fmt.Stringer = (*Statement)(nil)

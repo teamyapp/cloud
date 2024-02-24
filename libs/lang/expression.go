@@ -22,6 +22,7 @@ type Expression struct {
 	Type                       ExpressionType
 	Line                       int
 	Column                     int
+	IsGenerated                bool
 	Literal                    Token
 	Operator                   Token
 	UnaryExpression            *Expression

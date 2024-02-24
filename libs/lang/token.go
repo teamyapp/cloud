@@ -93,9 +93,10 @@ var keywords = map[string]TokenType{
 }
 
 type Token struct {
-	Type   TokenType
-	Lexeme string
-	Value  any
-	Line   int
-	Column int
+	Type        TokenType
+	Lexeme      string
+	Value       any
+	Line        int
+	Column      int
+	IsGenerated bool
 }

@@ -55,9 +55,10 @@ func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Err)
 	}
 
 	return nil, false, &Err{
-		Message: fmt.Sprintf("unknown statement type: %v", statement.Type),
-		Line:    statement.Line,
-		Column:  statement.Column,
+		Message:           fmt.Sprintf("unknown statement type: %v", statement.Type),
+		Line:              statement.Line,
+		Column:            statement.Column,
+		FromGeneratedCode: statement.IsGenerated,
 	}
 }
 
@@ -71,7 +72,8 @@ func (e *Executor) executeWhileStatement(statement Statement) *Err {
 		conditionBool, err := toBoolean(
 			conditionVal,
 			statement.WhileConditionExpression.Line,
-			statement.WhileConditionExpression.Column)
+			statement.WhileConditionExpression.Column,
+			statement.WhileConditionExpression.IsGenerated)
 		if err != nil {
 			return err
 		}
@@ -99,7 +101,7 @@ func (e *Executor) executeIfStatement(statement Statement) *Err {
 		value,
 		statement.IfConditionExpression.Line,
 		statement.IfConditionExpression.Column,
-	)
+		statement.IfConditionExpression.IsGenerated)
 	if err != nil {
 		return err
 	}
@@ -148,7 +150,7 @@ func (e *Executor) executePrintStatement(statement Statement) *Err {
 		return err
 	}
 
-	fmt.Fprint(e.output, toString(value))
+	_, _ = fmt.Fprint(e.output, toString(value))
 	return nil
 }
 
@@ -177,9 +179,10 @@ func (e *Executor) evaluateExpression(expression Expression) (any, *Err) {
 	}
 
 	return nil, &Err{
-		Message: fmt.Sprintf("unsupported expression type: %v", expression.Type),
-		Line:    expression.Line,
-		Column:  expression.Column,
+		Message:           fmt.Sprintf("unsupported expression type: %v", expression.Type),
+		Line:              expression.Line,
+		Column:            expression.Column,
+		FromGeneratedCode: expression.IsGenerated,
 	}
 }
 
@@ -203,7 +206,11 @@ func (e *Executor) evaluateTernaryExpression(expression Expression) (any, *Err) 
 		return nil, err
 	}
 
-	condition, err := toBoolean(conditionExpr, expression.Line, expression.Column)
+	condition, err := toBoolean(
+		conditionExpr,
+		expression.TernaryConditionExpression.Line,
+		expression.TernaryConditionExpression.Column,
+		expression.TernaryConditionExpression.IsGenerated)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +244,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 
 		return leftValue != rightValue, nil
 	case LogicalOrTokenType:
-		leftBool, err := toBoolean(leftValue, expression.Operator.Line, expression.Operator.Column)
+		leftBool, err := toBoolean(
+			leftValue,
+			expression.BinaryLeftExpression.Line,
+			expression.BinaryLeftExpression.Column,
+			expression.BinaryLeftExpression.IsGenerated)
 		if err != nil {
 			return nil, err
 		}
@@ -251,14 +262,22 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
-		rightBool, err := toBoolean(rightValue, expression.Operator.Line, expression.Operator.Column)
+		rightBool, err := toBoolean(
+			rightValue,
+			expression.BinaryRightExpression.Line,
+			expression.BinaryRightExpression.Column,
+			expression.BinaryRightExpression.IsGenerated)
 		if err != nil {
 			return nil, err
 		}
 
 		return leftBool || rightBool, nil
 	case LogicalAndTokenType:
-		leftBool, err := toBoolean(leftValue, expression.Operator.Line, expression.Operator.Column)
+		leftBool, err := toBoolean(
+			leftValue,
+			expression.BinaryLeftExpression.Line,
+			expression.BinaryLeftExpression.Column,
+			expression.BinaryLeftExpression.IsGenerated)
 		if err != nil {
 			return nil, err
 		}
@@ -272,7 +291,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
-		rightBool, err := toBoolean(rightValue, expression.Operator.Line, expression.Operator.Column)
+		rightBool, err := toBoolean(
+			rightValue,
+			expression.BinaryRightExpression.Line,
+			expression.BinaryRightExpression.Column,
+			expression.BinaryRightExpression.IsGenerated)
 		if err != nil {
 			return nil, err
 		}
@@ -284,7 +307,12 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
-		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
+		return consumeNumbers(
+			leftValue,
+			rightValue,
+			expression.Operator.Line,
+			expression.Operator.Column,
+			expression.Operator.IsGenerated,
 			func(int1 int64, int2 int64) (bool, *Err) {
 				return int1 > int2, nil
 			},
@@ -297,7 +325,12 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
-		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
+		return consumeNumbers(
+			leftValue,
+			rightValue,
+			expression.Operator.Line,
+			expression.Operator.Column,
+			expression.Operator.IsGenerated,
 			func(int1 int64, int2 int64) (bool, *Err) {
 				return int1 >= int2, nil
 			},
@@ -310,7 +343,12 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
-		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
+		return consumeNumbers(
+			leftValue,
+			rightValue,
+			expression.Operator.Line,
+			expression.Operator.Column,
+			expression.Operator.IsGenerated,
 			func(int1 int64, int2 int64) (bool, *Err) {
 				return int1 < int2, nil
 			},
@@ -323,7 +361,12 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
-		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
+		return consumeNumbers(
+			leftValue,
+			rightValue,
+			expression.Operator.Line,
+			expression.Operator.Column,
+			expression.Operator.IsGenerated,
 			func(int1 int64, int2 int64) (bool, *Err) {
 				return int1 <= int2, nil
 			},
@@ -336,7 +379,12 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
-		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
+		return consumeNumbers(
+			leftValue,
+			rightValue,
+			expression.Operator.Line,
+			expression.Operator.Column,
+			expression.Operator.IsGenerated,
 			func(int1 int64, int2 int64) (any, *Err) {
 				return int64(byte(int1) | byte(int2)), nil
 			},
@@ -349,7 +397,12 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
-		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
+		return consumeNumbers(
+			leftValue,
+			rightValue,
+			expression.Operator.Line,
+			expression.Operator.Column,
+			expression.Operator.IsGenerated,
 			func(int1 int64, int2 int64) (any, *Err) {
 				return int64(byte(int1) ^ byte(int2)), nil
 			},
@@ -362,7 +415,12 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
-		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
+		return consumeNumbers(
+			leftValue,
+			rightValue,
+			expression.Operator.Line,
+			expression.Operator.Column,
+			expression.Operator.IsGenerated,
 			func(int1 int64, int2 int64) (any, *Err) {
 				return int64(byte(int1) & byte(int2)), nil
 			},
@@ -393,8 +451,9 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 				expression.Operator.Type,
 				leftValue,
 				rightValue),
-			Line:   expression.Operator.Line,
-			Column: expression.Operator.Column,
+			Line:              expression.Operator.Line,
+			Column:            expression.Operator.Column,
+			FromGeneratedCode: expression.Operator.IsGenerated,
 		}
 	case BitwiseRightShiftTokenType:
 		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
@@ -420,8 +479,9 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 				expression.Operator.Type,
 				leftValue,
 				rightValue),
-			Line:   expression.Operator.Line,
-			Column: expression.Operator.Column,
+			Line:              expression.Operator.Line,
+			Column:            expression.Operator.Column,
+			FromGeneratedCode: expression.Operator.IsGenerated,
 		}
 	case AddTokenType:
 		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
@@ -443,7 +503,12 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return fmt.Sprintf("%v", leftValue) + typedRight, nil
 		}
 
-		return consumeNumbers(leftValue, rightValue, expression.Line, expression.Column,
+		return consumeNumbers(
+			leftValue,
+			rightValue,
+			expression.Operator.Line,
+			expression.Operator.Column,
+			expression.Operator.IsGenerated,
 			func(int1 int64, int2 int64) (any, *Err) {
 				return int1 + int2, nil
 			},
@@ -456,7 +521,12 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
-		return consumeNumbers(leftValue, rightValue, expression.Line, expression.Column,
+		return consumeNumbers(
+			leftValue,
+			rightValue,
+			expression.Operator.Line,
+			expression.Operator.Column,
+			expression.Operator.IsGenerated,
 			func(int1 int64, int2 int64) (any, *Err) {
 				return int1 - int2, nil
 			},
@@ -469,7 +539,12 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
-		return consumeNumbers(leftValue, rightValue, expression.Line, expression.Column,
+		return consumeNumbers(
+			leftValue,
+			rightValue,
+			expression.Operator.Line,
+			expression.Operator.Column,
+			expression.Operator.IsGenerated,
 			func(int1 int64, int2 int64) (any, *Err) {
 				return int1 * int2, nil
 			},
@@ -482,13 +557,19 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
-		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
+		return consumeNumbers(
+			leftValue,
+			rightValue,
+			expression.Operator.Line,
+			expression.Operator.Column,
+			expression.Operator.IsGenerated,
 			func(int1 int64, int2 int64) (any, *Err) {
 				if int2 == 0 {
 					return nil, &Err{
-						Message: "division by zero",
-						Line:    expression.Operator.Line,
-						Column:  expression.Operator.Column,
+						Message:           "division by zero",
+						Line:              expression.Operator.Line,
+						Column:            expression.Operator.Column,
+						FromGeneratedCode: expression.Operator.IsGenerated,
 					}
 				}
 
@@ -497,9 +578,10 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			func(float1 float64, float2 float64) (any, *Err) {
 				if float2 == 0 {
 					return nil, &Err{
-						Message: "division by zero",
-						Line:    expression.Operator.Line,
-						Column:  expression.Operator.Column,
+						Message:           "division by zero",
+						Line:              expression.Operator.Line,
+						Column:            expression.Operator.Column,
+						FromGeneratedCode: expression.Operator.IsGenerated,
 					}
 				}
 
@@ -511,13 +593,19 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
-		return consumeNumbers(leftValue, rightValue, expression.Line, expression.Column,
+		return consumeNumbers(
+			leftValue,
+			rightValue,
+			expression.Operator.Line,
+			expression.Operator.Column,
+			expression.Operator.IsGenerated,
 			func(int1 int64, int2 int64) (any, *Err) {
 				if int2 == 0 {
 					return nil, &Err{
-						Message: "division by zero",
-						Line:    expression.Operator.Line,
-						Column:  expression.Operator.Column,
+						Message:           "division by zero",
+						Line:              expression.Operator.Line,
+						Column:            expression.Operator.Column,
+						FromGeneratedCode: expression.Operator.IsGenerated,
 					}
 				}
 
@@ -525,17 +613,19 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			},
 			func(float1 float64, float2 float64) (any, *Err) {
 				return nil, &Err{
-					Message: "unsupported operator %v for float: %v",
-					Line:    expression.Operator.Line,
-					Column:  expression.Operator.Column,
+					Message:           "unsupported operator %v for float: %v",
+					Line:              expression.Operator.Line,
+					Column:            expression.Operator.Column,
+					FromGeneratedCode: expression.Operator.IsGenerated,
 				}
 			})
 	}
 
 	return nil, &Err{
-		Message: fmt.Sprintf("unsupported operator %v", expression.Operator),
-		Line:    expression.Operator.Line,
-		Column:  expression.Operator.Column,
+		Message:           fmt.Sprintf("unsupported operator %v", expression.Operator),
+		Line:              expression.Operator.Line,
+		Column:            expression.Operator.Column,
+		FromGeneratedCode: expression.Operator.IsGenerated,
 	}
 }
 
@@ -547,7 +637,11 @@ func (e *Executor) evaluateUnaryExpression(expression Expression) (any, *Err) {
 
 	switch expression.Operator.Type {
 	case LogicalNotTokenType:
-		boolVal, err := toBoolean(value, expression.Operator.Line, expression.Operator.Column)
+		boolVal, err := toBoolean(
+			value,
+			expression.UnaryExpression.Line,
+			expression.UnaryExpression.Column,
+			expression.UnaryExpression.IsGenerated)
 		if err != nil {
 			return false, err
 		}
@@ -562,9 +656,10 @@ func (e *Executor) evaluateUnaryExpression(expression Expression) (any, *Err) {
 		}
 
 		return nil, &Err{
-			Message: fmt.Sprintf("unsupported data type for %v: %v", MinusTokenType, value),
-			Line:    expression.Operator.Line,
-			Column:  expression.Operator.Column,
+			Message:           fmt.Sprintf("unsupported data type for %v: %v", MinusTokenType, value),
+			Line:              expression.Operator.Line,
+			Column:            expression.Operator.Column,
+			FromGeneratedCode: expression.Operator.IsGenerated,
 		}
 	case BitwiseNotTokenType:
 		switch typedVal := value.(type) {
@@ -575,16 +670,18 @@ func (e *Executor) evaluateUnaryExpression(expression Expression) (any, *Err) {
 		}
 
 		return nil, &Err{
-			Message: fmt.Sprintf("unsupported data type for %v: %v", BitwiseNotTokenType, value),
-			Line:    expression.Operator.Line,
-			Column:  expression.Operator.Column,
+			Message:           fmt.Sprintf("unsupported data type for %v: %v", BitwiseNotTokenType, value),
+			Line:              expression.Operator.Line,
+			Column:            expression.Operator.Column,
+			FromGeneratedCode: expression.Operator.IsGenerated,
 		}
 	}
 
 	return nil, &Err{
-		Message: fmt.Sprintf("unsupported operator %v", expression.Operator),
-		Line:    expression.Operator.Line,
-		Column:  expression.Operator.Column,
+		Message:           fmt.Sprintf("unsupported operator %v", expression.Operator),
+		Line:              expression.Operator.Line,
+		Column:            expression.Operator.Column,
+		FromGeneratedCode: expression.Operator.IsGenerated,
 	}
 }
 
@@ -593,6 +690,7 @@ func consumeNumbers[Result any](
 	val2 any,
 	line int,
 	column int,
+	isGenerated bool,
 	compareInts func(int1 int64, int2 int64) (Result, *Err),
 	compareFloats func(float1 float64, float2 float64) (Result, *Err),
 ) (Result, *Err) {
@@ -610,13 +708,14 @@ func consumeNumbers[Result any](
 	}
 
 	return *new(Result), &Err{
-		Message: fmt.Sprintf("unsupported value type: val1=%v, val2=%v", val1, val2),
-		Line:    line,
-		Column:  column,
+		Message:           fmt.Sprintf("unsupported value type: val1=%v, val2=%v", val1, val2),
+		Line:              line,
+		Column:            column,
+		FromGeneratedCode: isGenerated,
 	}
 }
 
-func toBoolean(value any, line int, column int) (bool, *Err) {
+func toBoolean(value any, line int, column int, isGenerated bool) (bool, *Err) {
 	switch typedVal := value.(type) {
 	case bool:
 		return typedVal, nil
@@ -627,9 +726,10 @@ func toBoolean(value any, line int, column int) (bool, *Err) {
 	}
 
 	return false, &Err{
-		Message: fmt.Sprintf("cannot convert value to boolean: %v", value),
-		Line:    line,
-		Column:  column,
+		Message:           fmt.Sprintf("cannot convert value to boolean: %v", value),
+		Line:              line,
+		Column:            column,
+		FromGeneratedCode: isGenerated,
 	}
 }
 
