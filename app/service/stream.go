@@ -22,7 +22,7 @@ func (s Stream) GetFileMetadata(ct context.Context, fileID uint64) (entity.FileM
 }
 
 func (s Stream) AddFile(ct context.Context, fileName string, fileData io.Reader) *errs.Error {
-	return s.mapClient.Put(fileName, fileData)
+	return s.mapClient.Put(ct, fileName, fileData)
 }
 
 func (s Stream) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Error) {

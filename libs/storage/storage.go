@@ -1,19 +1,36 @@
 package storage
 
 import (
+	"context"
 	"io"
+	"time"
 
 	"github.com/teamyapp/cloud/libs/errs"
 )
 
+type Metadata struct {
+	ContentType  string
+	ETag         string
+	LastModified time.Time
+	Size         int64
+	Name         string
+}
+
+type FileStream struct {
+	Reader   io.Reader
+	Metadata Metadata
+}
+
 type MapClient interface {
-	Get(key string) (io.Reader, *errs.Error)
-	Put(key string, reader io.Reader) *errs.Error
-	Delete(key string) *errs.Error
+	Get(ct context.Context, key string) (io.Reader, *errs.Error)
+	GetFileStreams(ct context.Context, key string) ([]FileStream, *errs.Error)
+	Put(ct context.Context, key string, reader io.Reader) *errs.Error
+	Delete(ct context.Context, key string) *errs.Error
+	GetMetadata(ct context.Context, key string) (Metadata, *errs.Error)
 }
 
 type MapRequestHandlers interface {
-	HandleGet(key string) (io.Reader, *errs.Error)
-	HandlePut(key string, reader io.Reader) *errs.Error
-	HandleDelete(key string) *errs.Error
+	HandleGet(ct context.Context, key string) (io.Reader, *errs.Error)
+	HandlePut(ct context.Context, key string, reader io.Reader) *errs.Error
+	HandleDelete(ct context.Context, key string) *errs.Error
 }

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,7 +17,15 @@ type HTTPClient struct {
 
 var _ MapClient = (*HTTPClient)(nil)
 
-func (c *HTTPClient) Get(key string) (io.Reader, *errs.Error) {
+func (*HTTPClient) GetFileStreams(ct context.Context, key string) ([]FileStream, *errs.Error) {
+	panic("unimplemented")
+}
+
+func (*HTTPClient) GetMetadata(ct context.Context, key string) (Metadata, *errs.Error) {
+	panic("unimplemented")
+}
+
+func (c *HTTPClient) Get(ct context.Context, key string) (io.Reader, *errs.Error) {
 	fileID, err := strconv.ParseUint(key, 10, 64)
 	if err != nil {
 		return nil, errs.NewError(errs.Unknown, err.Error())
@@ -36,7 +45,7 @@ func (c *HTTPClient) Get(key string) (io.Reader, *errs.Error) {
 	return res.Body, nil
 }
 
-func (c *HTTPClient) Put(key string, value io.Reader) *errs.Error {
+func (c *HTTPClient) Put(ct context.Context, key string, value io.Reader) *errs.Error {
 	url, err := getUploadFileURL(c.mapServerURL, key)
 	if err != nil {
 		return err
@@ -55,7 +64,7 @@ func (c *HTTPClient) Put(key string, value io.Reader) *errs.Error {
 	return nil
 }
 
-func (c *HTTPClient) Delete(key string) *errs.Error {
+func (c *HTTPClient) Delete(ct context.Context, key string) *errs.Error {
 	panic("implement me")
 }
 

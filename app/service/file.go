@@ -1,6 +1,8 @@
 package service
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding"
@@ -8,6 +10,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -18,6 +21,13 @@ import (
 	"github.com/teamyapp/cloud/libs/storage"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
+
+type CompressedFileStream struct {
+	Name            string
+	Size            int64
+	MIMEContentType string
+	ContentReader   io.Reader
+}
 
 type File struct {
 	logger             telemetry.Logger
@@ -142,7 +152,7 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		internalErr = saveChunk(f.mapClient, chunkID, chunkReader)
+		internalErr = saveChunk(ct, f.mapClient, chunkID, chunkReader)
 		if internalErr != nil {
 			once.Do(func() {
 				wgErr = internalErr
@@ -225,6 +235,78 @@ func (f File) FinishFileUpload(ct context.Context, uploadSession entity.UploadSe
 
 func (f File) GetFileMetadata(ct context.Context, fileID uint64) (entity.FileMetadata, *errs.Error) {
 	return f.fileMetadataDao.FindMetadataByFileID(ct, fileID)
+}
+
+func (f File) GetCompressedFileStreamFromPath(ct context.Context, filePath string) (CompressedFileStream, *errs.Error) {
+	// rename to objectStore or something
+	// getDataStreams
+	fileStreams, err := f.mapClient.GetFileStreams(ct, filePath)
+	if err != nil {
+		return CompressedFileStream{}, err
+	}
+
+	pipeReader, pipeWriter := io.Pipe()
+	gzipWriter := gzip.NewWriter(pipeWriter)
+	tarWriter := tar.NewWriter(gzipWriter)
+
+	size := int64(0)
+	for _, fileStream := range fileStreams {
+		size += fileStream.Metadata.Size
+	}
+
+	name := filepath.Base(filePath)
+	fullName := fmt.Sprintf("%s.tar.gz", name)
+	compressedFileStream := CompressedFileStream{
+		Name:            fullName,
+		Size:            size,
+		MIMEContentType: "application/gzip",
+		ContentReader:   pipeReader,
+	}
+
+	go func() {
+		defer func() {
+			if err := tarWriter.Close(); err != nil {
+				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, err.Error()))
+			}
+
+			if err := gzipWriter.Close(); err != nil {
+				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, err.Error()))
+			}
+
+			if err := pipeWriter.Close(); err != nil {
+				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, err.Error()))
+			}
+		}()
+
+		for _, fileStream := range fileStreams {
+			header := &tar.Header{
+				Name: fileStream.Metadata.Name,
+				Size: fileStream.Metadata.Size,
+				Mode: 0600,
+			}
+			err := tarWriter.WriteHeader(header)
+			if err != nil {
+				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, err.Error()))
+				return
+			}
+
+			_, err = io.Copy(tarWriter, fileStream.Reader)
+			if err != nil {
+				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, err.Error()))
+				return
+			}
+		}
+	}()
+
+	return compressedFileStream, nil
+}
+
+func (f File) GetFileFromFilePath(ct context.Context, filePath string) (io.Reader, *errs.Error) {
+	return f.mapClient.Get(ct, filePath)
+}
+
+func (f File) GetFileMetadataFromFilePath(ct context.Context, filePath string) (storage.Metadata, *errs.Error) {
+	return f.mapClient.GetMetadata(ct, filePath)
 }
 
 func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Error) {

@@ -2,6 +2,7 @@ package storagetest
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 
@@ -15,7 +16,15 @@ type InMemoryMap struct {
 
 var _ storage.MapClient = (*InMemoryMap)(nil)
 
-func (i InMemoryMap) Get(key string) (io.Reader, *errs.Error) {
+func (*InMemoryMap) GetFileStreams(ct context.Context, key string) ([]storage.FileStream, *errs.Error) {
+	panic("unimplemented")
+}
+
+func (*InMemoryMap) GetMetadata(ct context.Context, key string) (storage.Metadata, *errs.Error) {
+	panic("unimplemented")
+}
+
+func (i *InMemoryMap) Get(ct context.Context, key string) (io.Reader, *errs.Error) {
 	value, ok := i.data[key]
 	if !ok {
 		return nil, errs.NewError(errs.NotFound, fmt.Sprintf("key not found: key=%v", key))
@@ -24,7 +33,7 @@ func (i InMemoryMap) Get(key string) (io.Reader, *errs.Error) {
 	return bytes.NewReader(value), nil
 }
 
-func (i InMemoryMap) Put(key string, data io.Reader) *errs.Error {
+func (i *InMemoryMap) Put(ct context.Context, key string, data io.Reader) *errs.Error {
 	reader, err := io.ReadAll(data)
 
 	if err != nil {
@@ -35,11 +44,11 @@ func (i InMemoryMap) Put(key string, data io.Reader) *errs.Error {
 	return nil
 }
 
-func (i InMemoryMap) Delete(key string) *errs.Error {
+func (i *InMemoryMap) Delete(ct context.Context, key string) *errs.Error {
 	delete(i.data, key)
 	return nil
 }
 
-func NewInMemoryMap() InMemoryMap {
-	return InMemoryMap{data: map[string][]byte{}}
+func NewInMemoryMap() *InMemoryMap {
+	return &InMemoryMap{data: map[string][]byte{}}
 }

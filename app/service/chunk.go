@@ -42,7 +42,7 @@ func (c *ChunksIterator) Next(ct context.Context) (io.Reader, *errs.Error) {
 
 	chunkIDPath := strconv.FormatUint(c.chunkIDs[c.nextChunkIndex], 10)
 	fullPath := path.Join(chunkKeyPrefix, chunkIDPath)
-	data, err := c.mapClient.Get(fullPath)
+	data, err := c.mapClient.Get(ct, fullPath)
 	if err != nil {
 		return nil, err
 	}
@@ -64,8 +64,8 @@ func newChunksIterator(
 	}
 }
 
-func saveChunk(mapClient storage.MapClient, chunkID uint64, data io.Reader) *errs.Error {
+func saveChunk(ct context.Context, mapClient storage.MapClient, chunkID uint64, data io.Reader) *errs.Error {
 	chunkIDPath := strconv.FormatUint(chunkID, 10)
 	fullPath := path.Join(chunkKeyPrefix, chunkIDPath)
-	return mapClient.Put(fullPath, data)
+	return mapClient.Put(ct, fullPath, data)
 }
