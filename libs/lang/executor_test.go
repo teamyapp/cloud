@@ -194,6 +194,60 @@ func TestEvaluate(t *testing.T) {
 			expectHasErr:   true,
 			expectedValues: []any{int64(10), int64(1)},
 		},
+		{
+			name: "if without else",
+			source: `
+				if (1 + 2 > 0) {
+					print("first true");
+
+					if (3 * 4 > 1) {
+						print(" | second true");
+					}
+				}
+			`,
+			expectedOutput: "first true | second true",
+		},
+		{
+			name: "if with else",
+			source: `
+				if (1 + 2 > 0) {
+					print("first true");
+
+					if (3 * 4 < 1) {
+						print(" | second true");
+					} else {
+						print(" | second false");
+					}
+				} else {
+					print("first false");
+				}
+			`,
+			expectedOutput: "first true | second false",
+		},
+		{
+			name: "while loop",
+			source: `
+				let a = 0;
+				while (a < 5) {
+					print(a);
+					a = a + 1;
+				}
+
+				a;
+`,
+			expectedOutput: "01234",
+			expectedValues: []any{int64(5)},
+		},
+		{
+			name: "for loop",
+			source: `
+				for (let i = 0; i < 5; i = i + 1) {
+					let num = i * 2;
+					print(num);
+				}
+			`,
+			expectedOutput: "02468",
+		},
 	}
 
 	for _, tc := range testCases {

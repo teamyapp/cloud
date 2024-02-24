@@ -190,9 +190,72 @@ func TestParser_Parse(t *testing.T) {
 			expectedStatements: []string{
 				"(let a 5)",
 				"(let b 6)",
-				`({} (let a 8) (= b (+ b 1)) (print (+ (+ a " ") b)))`,
+				`{(let a 8) (= b (+ b 1)) (print (+ (+ a " ") b))}`,
 				`(print " ")`,
 				`(print (+ (+ a " ") b))`,
+			},
+		},
+		{
+			name: "if without else",
+			source: `
+				if (1 + 2 > 0) {
+					print("first true");
+
+					if (3 * 4 > 1) {
+						print(" | second true");
+					}
+				}
+			`,
+			expectedStatements: []string{
+				`(if (> (+ 1 2) 0) {(print "first true") (if (> (* 3 4) 1) {(print " | second true")})})`,
+			},
+		},
+		{
+			name: "if with else",
+			source: `
+				if (1 + 2 > 0) {
+					print("first true");
+
+					if (3 * 4 < 1) {
+						print(" | second true");
+					} else {
+						print(" | second false");
+					}
+				} else {
+					print("first false");
+				}
+			`,
+			expectedStatements: []string{
+				`(if (> (+ 1 2) 0) {(print "first true") (if (< (* 3 4) 1) {(print " | second true")} else {(print " | second false")})} else {(print "first false")})`,
+			},
+		},
+		{
+			name: "while loop",
+			source: `
+				let a = 0;
+				while (a < 5) {
+					print(a);
+					a = a + 1;
+				}
+
+				a;
+`,
+			expectedStatements: []string{
+				"(let a 0)",
+				`(while (< a 5) {(print a) (= a (+ a 1))})`,
+				"a",
+			},
+		},
+		{
+			name: "for loop",
+			source: `
+				for (let i = 0; i < 5; i = i + 1) {
+					let num = i * 2;
+					print(num);
+				}
+			`,
+			expectedStatements: []string{
+				`{(let i 0) (while (< i 5) {{(let num (* i 2)) (print num)} (= i (+ i 1))})}`,
 			},
 		},
 	}

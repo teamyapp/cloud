@@ -20,39 +20,101 @@ type Executor struct {
 func (e *Executor) Execute(statements []Statement) ([]any, *Err) {
 	var values []any
 	for _, statement := range statements {
-		switch statement.Type {
-		case PrintStatementType:
-			err := e.executePrintStatement(statement)
-			if err != nil {
-				return values, err
-			}
-		case ExpressionStatementType:
-			value, err := e.evaluateExpressionStatement(statement)
-			if err != nil {
-				return values, err
-			}
+		value, hasValue, err := e.executeSingleStatement(statement)
+		if err != nil {
+			return values, err
+		}
 
+		if hasValue {
 			values = append(values, value)
-		case LetStatementType:
-			err := e.executeLetStatement(statement)
-			if err != nil {
-				return values, err
-			}
-		case BlockStatementType:
-			err := e.executeBlockStatement(statement)
-			if err != nil {
-				return values, err
-			}
-		default:
-			return values, &Err{
-				Message: fmt.Sprintf("unknown statement type: %v", statement.Type),
-				Line:    statement.Line,
-				Column:  statement.Column,
-			}
 		}
 	}
 
 	return values, nil
+}
+
+func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Err) {
+	switch statement.Type {
+	case PrintStatementType:
+		return nil, false, e.executePrintStatement(statement)
+	case ExpressionStatementType:
+		value, err := e.evaluateExpressionStatement(statement)
+		if err != nil {
+			return nil, false, err
+		}
+
+		return value, true, nil
+	case LetStatementType:
+		return nil, false, e.executeLetStatement(statement)
+	case BlockStatementType:
+		return nil, false, e.executeBlockStatement(statement)
+	case IfStatementType:
+		return nil, false, e.executeIfStatement(statement)
+	case WhileStatementType:
+		return nil, false, e.executeWhileStatement(statement)
+	}
+
+	return nil, false, &Err{
+		Message: fmt.Sprintf("unknown statement type: %v", statement.Type),
+		Line:    statement.Line,
+		Column:  statement.Column,
+	}
+}
+
+func (e *Executor) executeWhileStatement(statement Statement) *Err {
+	for {
+		conditionVal, err := e.evaluateExpression(*statement.WhileConditionExpression)
+		if err != nil {
+			return err
+		}
+
+		conditionBool, err := toBoolean(
+			conditionVal,
+			statement.WhileConditionExpression.Line,
+			statement.WhileConditionExpression.Column)
+		if err != nil {
+			return err
+		}
+
+		if !conditionBool {
+			break
+		}
+
+		_, _, err = e.executeSingleStatement(*statement.WhileBodyStatement)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (e *Executor) executeIfStatement(statement Statement) *Err {
+	value, err := e.evaluateExpression(*statement.IfConditionExpression)
+	if err != nil {
+		return err
+	}
+
+	valueBool, err := toBoolean(
+		value,
+		statement.IfConditionExpression.Line,
+		statement.IfConditionExpression.Column,
+	)
+	if err != nil {
+		return err
+	}
+
+	if valueBool {
+		_, _, err = e.executeSingleStatement(*statement.IfTrueBranchStatement)
+		return err
+	}
+
+	if statement.IfFalseBranchStatement != nil {
+		_, _, err = e.executeSingleStatement(*statement.IfFalseBranchStatement)
+		return err
+	}
+
+	return nil
 }
 
 func (e *Executor) executeBlockStatement(statement Statement) *Err {
@@ -136,7 +198,12 @@ func (e *Executor) evaluateIdentifierExpression(expression Expression) (any, *Er
 }
 
 func (e *Executor) evaluateTernaryExpression(expression Expression) (any, *Err) {
-	condition, err := e.evaluateExpression(*expression.TernaryConditionExpression)
+	conditionExpr, err := e.evaluateExpression(*expression.TernaryConditionExpression)
+	if err != nil {
+		return nil, err
+	}
+
+	condition, err := toBoolean(conditionExpr, expression.Line, expression.Column)
 	if err != nil {
 		return nil, err
 	}
@@ -154,18 +221,32 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 		return nil, err
 	}
 
-	rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
-	if err != nil {
-		return nil, err
-	}
-
 	switch expression.Operator.Type {
 	case LogicalEqualTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		return leftValue == rightValue, nil
 	case LogicalNotEqualTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		return leftValue != rightValue, nil
 	case LogicalOrTokenType:
 		leftBool, err := toBoolean(leftValue, expression.Operator.Line, expression.Operator.Column)
+		if err != nil {
+			return nil, err
+		}
+
+		if leftBool {
+			return true, nil
+		}
+
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
 		if err != nil {
 			return nil, err
 		}
@@ -182,6 +263,15 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			return nil, err
 		}
 
+		if !leftBool {
+			return false, nil
+		}
+
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		rightBool, err := toBoolean(rightValue, expression.Operator.Line, expression.Operator.Column)
 		if err != nil {
 			return nil, err
@@ -189,6 +279,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 
 		return leftBool && rightBool, nil
 	case GreaterThanTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
 			func(int1 int64, int2 int64) (bool, *Err) {
 				return int1 > int2, nil
@@ -197,6 +292,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 				return float1 > float2, nil
 			})
 	case GreaterThanOrEqualTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
 			func(int1 int64, int2 int64) (bool, *Err) {
 				return int1 >= int2, nil
@@ -205,6 +305,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 				return float1 >= float2, nil
 			})
 	case LessThanTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
 			func(int1 int64, int2 int64) (bool, *Err) {
 				return int1 < int2, nil
@@ -213,6 +318,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 				return float1 < float2, nil
 			})
 	case LessThanOrEqualTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
 			func(int1 int64, int2 int64) (bool, *Err) {
 				return int1 <= int2, nil
@@ -221,6 +331,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 				return float1 <= float2, nil
 			})
 	case BitwiseOrTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
 			func(int1 int64, int2 int64) (any, *Err) {
 				return int64(byte(int1) | byte(int2)), nil
@@ -229,6 +344,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 				return float64(byte(float1) | byte(float2)), nil
 			})
 	case BitwiseXorTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
 			func(int1 int64, int2 int64) (any, *Err) {
 				return int64(byte(int1) ^ byte(int2)), nil
@@ -237,6 +357,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 				return float64(byte(float1) ^ byte(float2)), nil
 			})
 	case BitwiseAndTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
 			func(int1 int64, int2 int64) (any, *Err) {
 				return int64(byte(int1) & byte(int2)), nil
@@ -245,6 +370,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 				return float64(byte(float1) & byte(float2)), nil
 			})
 	case BitwiseLeftShiftTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		switch typedLeft := leftValue.(type) {
 		case int64:
 			switch typedRight := rightValue.(type) {
@@ -267,6 +397,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			Column: expression.Operator.Column,
 		}
 	case BitwiseRightShiftTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		switch typedLeft := leftValue.(type) {
 		case int64:
 			switch typedRight := rightValue.(type) {
@@ -289,6 +424,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 			Column: expression.Operator.Column,
 		}
 	case AddTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		typedLeft, leftOk := leftValue.(string)
 		typedRight, rightOk := rightValue.(string)
 		if leftOk && rightOk {
@@ -311,6 +451,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 				return float1 + float2, nil
 			})
 	case MinusTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		return consumeNumbers(leftValue, rightValue, expression.Line, expression.Column,
 			func(int1 int64, int2 int64) (any, *Err) {
 				return int1 - int2, nil
@@ -319,6 +464,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 				return float1 - float2, nil
 			})
 	case StarTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		return consumeNumbers(leftValue, rightValue, expression.Line, expression.Column,
 			func(int1 int64, int2 int64) (any, *Err) {
 				return int1 * int2, nil
@@ -327,6 +477,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 				return float1 * float2, nil
 			})
 	case DivideTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		return consumeNumbers(leftValue, rightValue, expression.Operator.Line, expression.Operator.Column,
 			func(int1 int64, int2 int64) (any, *Err) {
 				if int2 == 0 {
@@ -351,6 +506,11 @@ func (e *Executor) evaluateBinaryExpression(expression Expression) (any, *Err) {
 				return float1 / float2, nil
 			})
 	case ModuloTokenType:
+		rightValue, err := e.evaluateExpression(*expression.BinaryRightExpression)
+		if err != nil {
+			return nil, err
+		}
+
 		return consumeNumbers(leftValue, rightValue, expression.Line, expression.Column,
 			func(int1 int64, int2 int64) (any, *Err) {
 				if int2 == 0 {

@@ -4,9 +4,18 @@ letDeclaration -> "let" IDENTIFIER ("=" expressions)? ";";
 statement ->
     expressionStatement |
     printStatement |
-    blockStatement;
+    blockStatement |
+    ifStatement |
+    whileStatement |
+    forStatement |
+    breakStatement;
+ifStatement -> "if" "(" expressions ")" statement ("else" statement)?;
+whileStatement -> "while" "(" expressions ")" statement;
+forStatement -> "for" "(" (letDeclaration | expressionStatement | ";") expressions? ";" expressions? ")"
+    statement;
+breakStatement -> "break" ";";
 expressionStatement -> expressions ";";
-printStatement -> "print(" expression ");";
+printStatement -> "print(" expression ")" ";";
 blockStatement -> "{" declaration* "}";
 expressions -> expression ("," expression)*;
 expression -> conditional;

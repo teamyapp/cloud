@@ -12,6 +12,8 @@ const (
 	PrintStatementType      StatementType = "Print"
 	LetStatementType        StatementType = "Let"
 	BlockStatementType      StatementType = "Block"
+	IfStatementType         StatementType = "If"
+	WhileStatementType      StatementType = "While"
 )
 
 type Statement struct {
@@ -21,6 +23,11 @@ type Statement struct {
 	LetIdentifier            *Token
 	LetInitializerExpression *Expression
 	BlockInnerStatements     []Statement
+	IfConditionExpression    *Expression
+	IfTrueBranchStatement    *Statement
+	IfFalseBranchStatement   *Statement
+	WhileConditionExpression *Expression
+	WhileBodyStatement       *Statement
 	Line                     int
 	Column                   int
 }
@@ -41,7 +48,15 @@ func (s Statement) String() string {
 			statements = append(statements, innerStatement.String())
 		}
 
-		return fmt.Sprintf("({} %s)", strings.Join(statements, " "))
+		return fmt.Sprintf("{%s}", strings.Join(statements, " "))
+	case IfStatementType:
+		if s.IfFalseBranchStatement == nil {
+			return fmt.Sprintf("(if %s %s)", s.IfConditionExpression, s.IfTrueBranchStatement)
+		}
+
+		return fmt.Sprintf("(if %s %s else %s)", s.IfConditionExpression, s.IfTrueBranchStatement, s.IfFalseBranchStatement)
+	case WhileStatementType:
+		return fmt.Sprintf("(while %s %s)", s.WhileConditionExpression, s.WhileBodyStatement)
 	}
 
 	return "unknown statement type"

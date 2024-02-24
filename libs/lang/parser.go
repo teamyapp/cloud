@@ -103,7 +103,256 @@ func (p *Parser) scanStatement() (Statement, *Err) {
 		return p.scanBlockStatement(token.Line, token.Column)
 	}
 
+	if p.matchTokenType([]TokenType{IfKeywordTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return p.scanIfStatement(token.Line, token.Column)
+	}
+
+	if p.matchTokenType([]TokenType{WhileKeywordTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return p.scanWhileStatement(token.Line, token.Column)
+	}
+
+	if p.matchTokenType([]TokenType{ForKeywordTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return p.scanForStatement(token.Line, token.Column)
+	}
+
 	return p.scanExpressionStatement()
+}
+
+func (p *Parser) scanForStatement(line int, column int) (Statement, *Err) {
+	if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect '(', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	var initializer *Statement
+	if p.matchTokenType([]TokenType{SemicolonTokenType}) {
+		p.nextTokenIndex++
+	} else if p.matchTokenType([]TokenType{LetKeywordTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		tmpInitializer, err := p.scanLetDeclaration(token.Line, token.Column)
+		if err != nil {
+			return Statement{}, err
+		}
+
+		initializer = &tmpInitializer
+	} else {
+		tmpInitializer, err := p.scanExpressionStatement()
+		if err != nil {
+			return Statement{}, err
+		}
+
+		initializer = &tmpInitializer
+	}
+
+	var condition *Expression
+	if !p.matchTokenType([]TokenType{SemicolonTokenType}) {
+		tmpCondition, err := p.scanExpressionList()
+		if err != nil {
+			return Statement{}, err
+		}
+
+		condition = &tmpCondition
+	}
+
+	if !p.matchTokenType([]TokenType{SemicolonTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect ';', but got '%v'", token.Lexeme),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	var increment *Expression
+	if !p.matchTokenType([]TokenType{RightParenthesisTokenType}) {
+		tmpIncrement, err := p.scanExpressionList()
+		if err != nil {
+			return Statement{}, err
+		}
+
+		increment = &tmpIncrement
+	}
+
+	if !p.matchTokenType([]TokenType{RightParenthesisTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect ')', but got '%v'", token.Lexeme),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	body, err := p.scanStatement()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	if increment != nil {
+		body = Statement{
+			Type: BlockStatementType,
+			BlockInnerStatements: []Statement{
+				body,
+				{
+					Type:                ExpressionStatementType,
+					StatementExpression: increment,
+					Line:                -1,
+					Column:              -1,
+				},
+			},
+			Line:   -1,
+			Column: -1,
+		}
+	}
+
+	if condition == nil {
+		condition = &Expression{
+			Type: LiteralExpressionType,
+			Literal: Token{
+				Type:   BoolTokenType,
+				Lexeme: "true",
+				Value:  true,
+				Line:   -1,
+				Column: -1,
+			},
+			Line:   -1,
+			Column: -1,
+		}
+	}
+
+	statement := Statement{
+		Type:                     WhileStatementType,
+		WhileConditionExpression: condition,
+		WhileBodyStatement:       &body,
+		Line:                     line,
+		Column:                   column,
+	}
+
+	if initializer != nil {
+		statement = Statement{
+			Type: BlockStatementType,
+			BlockInnerStatements: []Statement{
+				*initializer,
+				statement,
+			},
+			Line:   -1,
+			Column: -1,
+		}
+	}
+
+	return statement, nil
+}
+
+func (p *Parser) scanWhileStatement(line int, column int) (Statement, *Err) {
+	if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect '(', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	conditionExpr, err := p.scanExpressionList()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	if !p.matchTokenType([]TokenType{RightParenthesisTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect ')', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	bodyStmt, err := p.scanStatement()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	return Statement{
+		Type:                     WhileStatementType,
+		WhileConditionExpression: &conditionExpr,
+		WhileBodyStatement:       &bodyStmt,
+		Line:                     line,
+		Column:                   column,
+	}, nil
+}
+
+func (p *Parser) scanIfStatement(line int, column int) (Statement, *Err) {
+	if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect '(', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	conditionExpr, err := p.scanExpressionList()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	if !p.matchTokenType([]TokenType{RightParenthesisTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect ')', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	trueBranchStmt, err := p.scanStatement()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	var falseBranchStmt *Statement
+	if p.matchTokenType([]TokenType{ElseKeywordTokenType}) {
+		p.nextTokenIndex++
+		falseTmpBranchStmt, err := p.scanStatement()
+		if err != nil {
+			return Statement{}, err
+		}
+
+		falseBranchStmt = &falseTmpBranchStmt
+	}
+
+	return Statement{
+		Type:                   IfStatementType,
+		IfConditionExpression:  &conditionExpr,
+		IfTrueBranchStatement:  &trueBranchStmt,
+		IfFalseBranchStatement: falseBranchStmt,
+		Line:                   line,
+		Column:                 column,
+	}, nil
 }
 
 func (p *Parser) scanBlockStatement(line int, column int) (Statement, *Err) {
@@ -532,6 +781,10 @@ func (p *Parser) scanBinaryExpression(
 
 func (p *Parser) matchTokenType(expectedTokenTypes []TokenType) bool {
 	for _, expectedTokenType := range expectedTokenTypes {
+		if p.nextTokenIndex >= len(p.tokens) {
+			return false
+		}
+
 		currToken := p.tokens[p.nextTokenIndex]
 		if currToken.Type == expectedTokenType {
 			return true
