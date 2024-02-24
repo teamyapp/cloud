@@ -42,12 +42,13 @@ func (s *S3Bucket) GetDataStreams(ct context.Context, key string) ([]ObjectDataS
 	fileStreams := []ObjectDataStream{}
 	// We need the slash at the end to make sure we only get the files in the directory
 	prefix := path.Join(string(s.env), key, "/")
-
-	for obj := range s.client.ListObjects(ct, s.bucketName, minio.ListObjectsOptions{
+	objectList := s.client.ListObjects(ct, s.bucketName, minio.ListObjectsOptions{
 		Prefix:       prefix,
 		WithMetadata: true,
 		Recursive:    true,
-	}) {
+	})
+
+	for obj := range objectList {
 		if obj.Err != nil {
 			return nil, errs.NewError(errs.Unknown, obj.Err.Error())
 		}
