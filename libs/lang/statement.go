@@ -14,6 +14,7 @@ const (
 	BlockStatementType      StatementType = "Block"
 	IfStatementType         StatementType = "If"
 	WhileStatementType      StatementType = "While"
+	BreakStatementType      StatementType = "Break"
 )
 
 type Statement struct {
@@ -58,6 +59,8 @@ func (s Statement) String() string {
 		return fmt.Sprintf("(if %s %s else %s)", s.IfConditionExpression, s.IfTrueBranchStatement, s.IfFalseBranchStatement)
 	case WhileStatementType:
 		return fmt.Sprintf("(while %s %s)", s.WhileConditionExpression, s.WhileBodyStatement)
+	case BreakStatementType:
+		return "(break)"
 	}
 
 	return "unknown statement type"

@@ -248,6 +248,54 @@ func TestEvaluate(t *testing.T) {
 			`,
 			expectedOutput: "02468",
 		},
+		{
+			name: "while loop with break",
+			source: `
+				let i = 0;
+				while (i < 5) {
+					let a = 10 + i;
+					while (true) {
+						if (a >= 13 + i) {
+							break;
+						}
+					
+						print(a);
+						a = a + 1;
+					}
+
+					print("(" + i + ")");
+					i = i + 1;
+				}
+			`,
+			expectedOutput: "101112(0)111213(1)121314(2)131415(3)141516(4)",
+		},
+		{
+			name: "for loop with break",
+			source: `
+				for (let i = 0; i < 5; i = i + 1) {
+					for (let a = 10 + i; a < 20 + i; a = a + 1) {
+						if (a == 13 + i) {
+							break;
+						}
+
+						print(a);
+					}
+
+					print("(" + i + ")");
+				}
+`,
+			expectedOutput: "101112(0)111213(1)121314(2)131415(3)141516(4)",
+		},
+		{
+			name: "break without loop",
+			source: `
+				let a = 10;
+				if (a > 5) {
+					break;
+				}
+			`,
+			expectHasErr: true,
+		},
 	}
 
 	for _, tc := range testCases {

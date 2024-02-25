@@ -18,11 +18,36 @@ type Executor struct {
 }
 
 func (e *Executor) Execute(statements []Statement) ([]any, *Err) {
+	values, signal, err := e.executeStatements(statements)
+	if err != nil {
+		return values, err
+	}
+
+	if signal != nil {
+		switch signal.Type {
+		case BreakSignalType:
+			return values, &Err{
+				Message:           "break must appear inside loop",
+				Line:              signal.Line,
+				Column:            signal.Column,
+				FromGeneratedCode: signal.IsGenerated,
+			}
+		}
+	}
+
+	return values, nil
+}
+
+func (e *Executor) executeStatements(statements []Statement) ([]any, *Signal, *Err) {
 	var values []any
 	for _, statement := range statements {
-		value, hasValue, err := e.executeSingleStatement(statement)
+		value, hasValue, signal, err := e.executeSingleStatement(statement)
 		if err != nil {
-			return values, err
+			return values, nil, err
+		}
+
+		if signal != nil {
+			return values, signal, nil
 		}
 
 		if hasValue {
@@ -30,31 +55,40 @@ func (e *Executor) Execute(statements []Statement) ([]any, *Err) {
 		}
 	}
 
-	return values, nil
+	return values, nil, nil
 }
 
-func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Err) {
+func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Signal, *Err) {
 	switch statement.Type {
 	case PrintStatementType:
-		return nil, false, e.executePrintStatement(statement)
+		return nil, false, nil, e.executePrintStatement(statement)
 	case ExpressionStatementType:
 		value, err := e.evaluateExpressionStatement(statement)
 		if err != nil {
-			return nil, false, err
+			return nil, false, nil, err
 		}
 
-		return value, true, nil
+		return value, true, nil, nil
 	case LetStatementType:
-		return nil, false, e.executeLetStatement(statement)
+		return nil, false, nil, e.executeLetStatement(statement)
 	case BlockStatementType:
-		return nil, false, e.executeBlockStatement(statement)
+		signal, err := e.executeBlockStatement(statement)
+		return nil, false, signal, err
 	case IfStatementType:
-		return nil, false, e.executeIfStatement(statement)
+		signal, err := e.executeIfStatement(statement)
+		return nil, false, signal, err
 	case WhileStatementType:
-		return nil, false, e.executeWhileStatement(statement)
+		return nil, false, nil, e.executeWhileStatement(statement)
+	case BreakStatementType:
+		return nil, false, &Signal{
+			Type:        BreakSignalType,
+			Line:        statement.Line,
+			Column:      statement.Column,
+			IsGenerated: statement.IsGenerated,
+		}, nil
 	}
 
-	return nil, false, &Err{
+	return nil, false, nil, &Err{
 		Message:           fmt.Sprintf("unknown statement type: %v", statement.Type),
 		Line:              statement.Line,
 		Column:            statement.Column,
@@ -81,20 +115,26 @@ func (e *Executor) executeWhileStatement(statement Statement) *Err {
 		if !conditionBool {
 			break
 		}
-
-		_, _, err = e.executeSingleStatement(*statement.WhileBodyStatement)
+		_, _, signal, err := e.executeSingleStatement(*statement.WhileBodyStatement)
 		if err != nil {
 			return err
+		}
+
+		if signal != nil {
+			switch signal.Type {
+			case BreakSignalType:
+				return nil
+			}
 		}
 	}
 
 	return nil
 }
 
-func (e *Executor) executeIfStatement(statement Statement) *Err {
+func (e *Executor) executeIfStatement(statement Statement) (*Signal, *Err) {
 	value, err := e.evaluateExpression(*statement.IfConditionExpression)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	valueBool, err := toBoolean(
@@ -103,28 +143,28 @@ func (e *Executor) executeIfStatement(statement Statement) *Err {
 		statement.IfConditionExpression.Column,
 		statement.IfConditionExpression.IsGenerated)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if valueBool {
-		_, _, err = e.executeSingleStatement(*statement.IfTrueBranchStatement)
-		return err
+		_, _, signal, err := e.executeSingleStatement(*statement.IfTrueBranchStatement)
+		return signal, err
 	}
 
 	if statement.IfFalseBranchStatement != nil {
-		_, _, err = e.executeSingleStatement(*statement.IfFalseBranchStatement)
-		return err
+		_, _, signal, err := e.executeSingleStatement(*statement.IfFalseBranchStatement)
+		return signal, err
 	}
 
-	return nil
+	return nil, nil
 }
 
-func (e *Executor) executeBlockStatement(statement Statement) *Err {
+func (e *Executor) executeBlockStatement(statement Statement) (*Signal, *Err) {
 	prevEnvironment := e.environment
 	e.environment = e.environment.NewInnerEnvironment()
-	_, err := e.Execute(statement.BlockInnerStatements)
+	_, signal, err := e.executeStatements(statement.BlockInnerStatements)
 	e.environment = prevEnvironment
-	return err
+	return signal, err
 }
 
 func (e *Executor) executeLetStatement(statement Statement) *Err {

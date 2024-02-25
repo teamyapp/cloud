@@ -258,6 +258,40 @@ func TestParser_Parse(t *testing.T) {
 				`{(let i 0) (while (< i 5) {{(let num (* i 2)) (print num)} (= i (+ i 1))})}`,
 			},
 		},
+		{
+			name: "while loop with break",
+			source: `
+				let a = 0;
+				while (true) {
+					if (a >= 5) {
+						break;
+					}
+					
+					print(a);
+					a = a + 1;
+				}
+			`,
+			expectedStatements: []string{
+				"(let a 0)",
+				`(while true {(if (>= a 5) {(break)}) (print a) (= a (+ a 1))})`,
+			},
+		},
+		{
+			name: "for loop with break",
+			source: `
+				for (let i = 0; true; i = i + 1) {
+					if (i >= 5) {
+						break;
+					}
+					
+					let num = i * 2;
+					print(num);
+				}
+			`,
+			expectedStatements: []string{
+				`{(let i 0) (while true {{(if (>= i 5) {(break)}) (let num (* i 2)) (print num)} (= i (+ i 1))})}`,
+			},
+		},
 	}
 
 	for _, tc := range testCases {
