@@ -127,7 +127,32 @@ func (p *Parser) scanStatement() (Statement, *Err) {
 		return p.scanBreakStatement(token)
 	}
 
+	if p.matchTokenType([]TokenType{ContinueKeywordTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return p.scanContinueStatement(token)
+	}
+
 	return p.scanExpressionStatement()
+}
+
+func (p *Parser) scanContinueStatement(startToken Token) (Statement, *Err) {
+	if !p.matchTokenType([]TokenType{SemicolonTokenType}) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect ';', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	return Statement{
+		Type:   ContinueStatementType,
+		Line:   startToken.Line,
+		Column: startToken.Column,
+	}, nil
 }
 
 func (p *Parser) scanBreakStatement(startToken Token) (Statement, *Err) {

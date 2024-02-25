@@ -8,12 +8,14 @@ statement ->
     ifStatement |
     whileStatement |
     forStatement |
-    breakStatement;
+    breakStatement |
+    continueStatement;
 ifStatement -> "if" "(" expressions ")" statement ("else" statement)?;
 whileStatement -> "while" "(" expressions ")" statement;
 forStatement -> "for" "(" (letDeclaration | expressionStatement | ";") expressions? ";" expressions? ")"
     statement;
 breakStatement -> "break" ";";
+continueStatement -> "continue" ";";
 expressionStatement -> expressions ";";
 printStatement -> "print(" expression ")" ";";
 blockStatement -> "{" declaration* "}";

@@ -5,20 +5,21 @@ type TokenType string
 const (
 	IdentifierTokenType TokenType = "Identifier"
 
-	IfKeywordTokenType     TokenType = "IfKeyword"
-	ElseKeywordTokenType   TokenType = "ElseKeyword"
-	ForKeywordTokenType    TokenType = "ForKeyword"
-	WhileKeywordTokenType  TokenType = "WhileKeyword"
-	BreakKeywordTokenType  TokenType = "BreakKeyword"
-	SwitchKeywordTokenType TokenType = "SwitchKeyword"
-	CaseKeywordTokenType   TokenType = "CaseKeyword"
-	ReturnKeywordTokenType TokenType = "ReturnKeyword"
-	FuncKeywordTokenType   TokenType = "FuncKeyword"
-	SuperKeywordTokenType  TokenType = "SuperKeyword"
-	ThisKeywordTokenType   TokenType = "ThisKeyword"
-	LetKeywordTokenType    TokenType = "LetKeyword"
-	ClassKeywordTokenType  TokenType = "ClassKeyword"
-	PrintKeywordTokenType  TokenType = "PrintKeyword"
+	IfKeywordTokenType       TokenType = "IfKeyword"
+	ElseKeywordTokenType     TokenType = "ElseKeyword"
+	ForKeywordTokenType      TokenType = "ForKeyword"
+	WhileKeywordTokenType    TokenType = "WhileKeyword"
+	BreakKeywordTokenType    TokenType = "BreakKeyword"
+	ContinueKeywordTokenType TokenType = "ContinueKeyword"
+	SwitchKeywordTokenType   TokenType = "SwitchKeyword"
+	CaseKeywordTokenType     TokenType = "CaseKeyword"
+	ReturnKeywordTokenType   TokenType = "ReturnKeyword"
+	FuncKeywordTokenType     TokenType = "FuncKeyword"
+	SuperKeywordTokenType    TokenType = "SuperKeyword"
+	ThisKeywordTokenType     TokenType = "ThisKeyword"
+	LetKeywordTokenType      TokenType = "LetKeyword"
+	ClassKeywordTokenType    TokenType = "ClassKeyword"
+	PrintKeywordTokenType    TokenType = "PrintKeyword"
 
 	LeftParenthesisTokenType  TokenType = "LeftParenthesis"
 	RightParenthesisTokenType TokenType = "RightParenthesis"
@@ -76,20 +77,21 @@ const (
 )
 
 var keywords = map[string]TokenType{
-	"if":     IfKeywordTokenType,
-	"else":   ElseKeywordTokenType,
-	"for":    ForKeywordTokenType,
-	"while":  WhileKeywordTokenType,
-	"break":  BreakKeywordTokenType,
-	"switch": SwitchKeywordTokenType,
-	"case":   CaseKeywordTokenType,
-	"return": ReturnKeywordTokenType,
-	"func":   FuncKeywordTokenType,
-	"super":  SuperKeywordTokenType,
-	"this":   ThisKeywordTokenType,
-	"let":    LetKeywordTokenType,
-	"class":  ClassKeywordTokenType,
-	"print":  PrintKeywordTokenType,
+	"if":       IfKeywordTokenType,
+	"else":     ElseKeywordTokenType,
+	"for":      ForKeywordTokenType,
+	"while":    WhileKeywordTokenType,
+	"break":    BreakKeywordTokenType,
+	"continue": ContinueKeywordTokenType,
+	"switch":   SwitchKeywordTokenType,
+	"case":     CaseKeywordTokenType,
+	"return":   ReturnKeywordTokenType,
+	"func":     FuncKeywordTokenType,
+	"super":    SuperKeywordTokenType,
+	"this":     ThisKeywordTokenType,
+	"let":      LetKeywordTokenType,
+	"class":    ClassKeywordTokenType,
+	"print":    PrintKeywordTokenType,
 }
 
 type Token struct {

@@ -3,8 +3,9 @@ package lang
 type SignalType string
 
 const (
-	BreakSignalType  SignalType = "Break"
-	ReturnSignalType SignalType = "Return"
+	BreakSignalType    SignalType = "Break"
+	ContinueSignalType SignalType = "Continue"
+	ReturnSignalType   SignalType = "Return"
 )
 
 type Signal struct {

@@ -2,8 +2,9 @@ package lang
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestEvaluate(t *testing.T) {
@@ -295,6 +296,25 @@ func TestEvaluate(t *testing.T) {
 				}
 			`,
 			expectHasErr: true,
+		},
+		{
+			name: "while loop with continue",
+			source: `
+				for (let i = 0; i < 5; i = i + 1) {
+					let a = 0;
+					while (a < 5) {
+						a = a + 1;
+						if (a % 2 == 0) {
+							continue;
+						}
+	
+						print(a);
+					}
+
+					print("(" + i + ")");
+				}
+`,
+			expectedOutput: "135(0)135(1)135(2)135(3)135(4)",
 		},
 	}
 

@@ -32,6 +32,13 @@ func (e *Executor) Execute(statements []Statement) ([]any, *Err) {
 				Column:            signal.Column,
 				FromGeneratedCode: signal.IsGenerated,
 			}
+		case ContinueSignalType:
+			return values, &Err{
+				Message:           "continue must appear inside loop",
+				Line:              signal.Line,
+				Column:            signal.Column,
+				FromGeneratedCode: signal.IsGenerated,
+			}
 		}
 	}
 
@@ -86,6 +93,13 @@ func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Sign
 			Column:      statement.Column,
 			IsGenerated: statement.IsGenerated,
 		}, nil
+	case ContinueStatementType:
+		return nil, false, &Signal{
+			Type:        ContinueSignalType,
+			Line:        statement.Line,
+			Column:      statement.Column,
+			IsGenerated: statement.IsGenerated,
+		}, nil
 	}
 
 	return nil, false, nil, &Err{
@@ -124,6 +138,8 @@ func (e *Executor) executeWhileStatement(statement Statement) *Err {
 			switch signal.Type {
 			case BreakSignalType:
 				return nil
+			case ContinueSignalType:
+				continue
 			}
 		}
 	}
