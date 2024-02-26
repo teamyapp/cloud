@@ -19,7 +19,6 @@ const (
 	ThisKeywordTokenType     TokenType = "ThisKeyword"
 	LetKeywordTokenType      TokenType = "LetKeyword"
 	ClassKeywordTokenType    TokenType = "ClassKeyword"
-	PrintKeywordTokenType    TokenType = "PrintKeyword"
 
 	LeftParenthesisTokenType  TokenType = "LeftParenthesis"
 	RightParenthesisTokenType TokenType = "RightParenthesis"
@@ -64,12 +63,11 @@ const (
 	BitwiseLeftShiftTokenType   TokenType = "BitwiseLeftShift"
 	BitwiseRightShiftTokenType  TokenType = "BitwiseRightShift"
 
-	IntTokenType      TokenType = "IntToken"
-	DecimalTokenType  TokenType = "DecimalToken"
-	BoolTokenType     TokenType = "BoolToken"
-	StringTokenType   TokenType = "StringToken"
-	DatetimeTokenType TokenType = "DatetimeToken"
-	NilTokenType      TokenType = "NilToken"
+	IntTokenType     TokenType = "IntToken"
+	DecimalTokenType TokenType = "DecimalToken"
+	BoolTokenType    TokenType = "BoolToken"
+	StringTokenType  TokenType = "StringToken"
+	NilTokenType     TokenType = "NilToken"
 
 	WhitespaceTokenType TokenType = "Whitespace"
 	CommentTokenType    TokenType = "Comment"
@@ -91,7 +89,6 @@ var keywords = map[string]TokenType{
 	"this":     ThisKeywordTokenType,
 	"let":      LetKeywordTokenType,
 	"class":    ClassKeywordTokenType,
-	"print":    PrintKeywordTokenType,
 }
 
 type Token struct {

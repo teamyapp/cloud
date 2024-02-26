@@ -1,9 +1,16 @@
 program -> declaration* EOF;
-declaration -> letDeclaration | statement;
+declaration ->
+    funcDeclaration |
+    letDeclaration |
+    statement;
 letDeclaration -> "let" IDENTIFIER ("=" expressions)? ";";
+funcDeclaration -> "func" callable;
+callable -> IDENTIFIER parametersAndBody;
+lambdaExpression -> "func" parametersAndBody;
+parametersAndBody -> "(" parameters? ")" blockStatement;
+parameters -> IDENTIFIER ("," IDENTIFIER)*;
 statement ->
     expressionStatement |
-    printStatement |
     blockStatement |
     ifStatement |
     whileStatement |
@@ -16,8 +23,8 @@ forStatement -> "for" "(" (letDeclaration | expressionStatement | ";") expressio
     statement;
 breakStatement -> "break" ";";
 continueStatement -> "continue" ";";
+returnStatement -> "return" expressions? ";";
 expressionStatement -> expressions ";";
-printStatement -> "print(" expression ")" ";";
 blockStatement -> "{" declaration* "}";
 expressions -> expression ("," expression)*;
 expression -> conditional;
@@ -33,7 +40,9 @@ bitwiseAnd -> term ("&" term)*;
 shift -> term (("<<"|">>") term)*;
 term -> factor (("+"|"-") factor)*;
 factor -> unary (("*"|"/") unary)*;
-unary -> ("!"|"-"|"~") unary | primary;
+unary -> ("!"|"-"|"~") unary | call;
+call -> primary ("(" arguments? ")")*;
+arguments -> expression ("," expression)*;
 primary ->
     NUMBER |
     STRING |
@@ -41,4 +50,5 @@ primary ->
     "false" |
     "nil" |
     "(" expression ")" |
-    IDENTIFIER;
+    IDENTIFIER |
+    lambdaExpression;

@@ -16,6 +16,8 @@ const (
 	ExpressionListExpressionType ExpressionType = "ExpressionList"
 	IdentifierExpressionType     ExpressionType = "Identifier"
 	AssignmentExpressionType     ExpressionType = "Assignment"
+	CallExpressionType           ExpressionType = "Call"
+	LambdaExpressionType         ExpressionType = "Lambda"
 )
 
 type Expression struct {
@@ -35,6 +37,10 @@ type Expression struct {
 	ExpressionList             []Expression
 	Identifier                 Token
 	AssignmentValueExpression  *Expression
+	CallableExpression         *Expression
+	CallArgumentExpressions    []Expression
+	LambdaParameters           []Token
+	LambdaBody                 Statement
 }
 
 var _ fmt.Stringer = (*Expression)(nil)
@@ -62,7 +68,21 @@ func (e Expression) String() string {
 		return fmt.Sprintf("%s", e.Identifier.Lexeme)
 	case AssignmentExpressionType:
 		return fmt.Sprintf("(= %s %s)", e.Identifier.Lexeme, e.AssignmentValueExpression)
-	default:
-		return "[unknown expression type]"
+	case CallExpressionType:
+		args := make([]string, 0)
+		for _, argExpr := range e.CallArgumentExpressions {
+			args = append(args, argExpr.String())
+		}
+
+		return fmt.Sprintf("(call %s [%v])", e.CallableExpression, strings.Join(args, " "))
+	case LambdaExpressionType:
+		parameters := make([]string, 0)
+		for _, param := range e.LambdaParameters {
+			parameters = append(parameters, param.Lexeme)
+		}
+
+		return fmt.Sprintf("(lambda [%v] %s)", strings.Join(parameters, " "), e.LambdaBody)
 	}
+
+	return fmt.Sprintf("[unknown expression type: %s]", e.Type)
 }

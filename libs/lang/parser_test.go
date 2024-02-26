@@ -139,7 +139,7 @@ func TestParser_Parse(t *testing.T) {
 				print(2 + 5 * 6); 
 				2 == 5;`,
 			expectedStatements: []string{
-				"(print (+ 2 (* 5 6)))",
+				"(call print [(+ 2 (* 5 6))])",
 				"(== 2 5)",
 			},
 		},
@@ -155,7 +155,7 @@ func TestParser_Parse(t *testing.T) {
 				"(let a 5)",
 				"(let b 6)",
 				"(let c (+ a b))",
-				"(print (* c 2))",
+				"(call print [(* c 2)])",
 			},
 		},
 		{
@@ -172,7 +172,7 @@ func TestParser_Parse(t *testing.T) {
 				"(let b 6)",
 				"(= a (+ 1 (* 2 b)))",
 				"(= b (- a 5))",
-				`(print (+ (+ a " ") b))`,
+				`(call print [(+ (+ a " ") b)])`,
 			},
 		},
 		{
@@ -191,9 +191,9 @@ func TestParser_Parse(t *testing.T) {
 			expectedStatements: []string{
 				"(let a 5)",
 				"(let b 6)",
-				`{(let a 8) (= b (+ b 1)) (print (+ (+ a " ") b))}`,
-				`(print " ")`,
-				`(print (+ (+ a " ") b))`,
+				`{(let a 8) (= b (+ b 1)) (call print [(+ (+ a " ") b)])}`,
+				`(call print [" "])`,
+				`(call print [(+ (+ a " ") b)])`,
 			},
 		},
 		{
@@ -208,7 +208,7 @@ func TestParser_Parse(t *testing.T) {
 				}
 			`,
 			expectedStatements: []string{
-				`(if (> (+ 1 2) 0) {(print "first true") (if (> (* 3 4) 1) {(print " | second true")})})`,
+				`(if (> (+ 1 2) 0) {(call print ["first true"]) (if (> (* 3 4) 1) {(call print [" | second true"])})})`,
 			},
 		},
 		{
@@ -227,7 +227,7 @@ func TestParser_Parse(t *testing.T) {
 				}
 			`,
 			expectedStatements: []string{
-				`(if (> (+ 1 2) 0) {(print "first true") (if (< (* 3 4) 1) {(print " | second true")} else {(print " | second false")})} else {(print "first false")})`,
+				`(if (> (+ 1 2) 0) {(call print ["first true"]) (if (< (* 3 4) 1) {(call print [" | second true"])} else {(call print [" | second false"])})} else {(call print ["first false"])})`,
 			},
 		},
 		{
@@ -243,7 +243,7 @@ func TestParser_Parse(t *testing.T) {
 `,
 			expectedStatements: []string{
 				"(let a 0)",
-				`(while (< a 5) {(print a) (= a (+ a 1))})`,
+				`(while (< a 5) {(call print [a]) (= a (+ a 1))})`,
 				"a",
 			},
 		},
@@ -256,7 +256,7 @@ func TestParser_Parse(t *testing.T) {
 				}
 			`,
 			expectedStatements: []string{
-				`{(let i 0) (while (< i 5) {{(let num (* i 2)) (print num)} (= i (+ i 1))})}`,
+				`{(let i 0) (while (< i 5) {{(let num (* i 2)) (call print [num])} (= i (+ i 1))})}`,
 			},
 		},
 		{
@@ -274,7 +274,7 @@ func TestParser_Parse(t *testing.T) {
 			`,
 			expectedStatements: []string{
 				"(let a 0)",
-				`(while true {(if (>= a 5) {(break)}) (print a) (= a (+ a 1))})`,
+				`(while true {(if (>= a 5) {(break)}) (call print [a]) (= a (+ a 1))})`,
 			},
 		},
 		{
@@ -290,7 +290,67 @@ func TestParser_Parse(t *testing.T) {
 				}
 			`,
 			expectedStatements: []string{
-				`{(let i 0) (while true {{(if (>= i 5) {(break)}) (let num (* i 2)) (print num)} (= i (+ i 1))})}`,
+				`{(let i 0) (while true {{(if (>= i 5) {(break)}) (let num (* i 2)) (call print [num])} (= i (+ i 1))})}`,
+			},
+		},
+		{
+			name: "call native function",
+			source: `
+				now();
+			`,
+			expectedStatements: []string{
+				"(call now [])",
+			},
+		},
+		{
+			name: "define and call function",
+			source: `
+				hello()(1);
+				add(5, 6);
+
+				func hello() {
+					print("Hello world!");
+				}
+
+				func add(a, b) {
+					let c = 10;
+					return a + b + c;
+				}
+			`,
+			expectedStatements: []string{
+				"(call (call hello []) [1])",
+				"(call add [5 6])",
+				`(func hello [] {(call print ["Hello world!"])})`,
+				`(func add [a b] {(let c 10) (return (+ (+ a b) c))})`,
+			},
+		},
+		{
+			name: "define and call lambda",
+			source: `
+				func printNums(calc) {
+		            for (let i = 0; i < 5; i = i + 1) {
+		                print(calc(i));
+		            }
+				}
+
+				printNums(func (num) {
+					return num * 2;
+				});
+			`,
+			expectedStatements: []string{
+				`(func printNums [calc] {{(let i 0) (while (< i 5) {{(call print [(call calc [i])])} (= i (+ i 1))})}})`,
+				`(call printNums [(lambda [num] {(return (* num 2))})])`,
+			},
+		},
+		{
+			name: "define lambda as expression statement",
+			source: `
+				func (num) {
+					print(num * 2);
+				}(10);
+			`,
+			expectedStatements: []string{
+				`(call (lambda [num] {(call print [(* num 2)])}) [10])`,
 			},
 		},
 	}

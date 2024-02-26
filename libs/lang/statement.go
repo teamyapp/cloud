@@ -9,13 +9,14 @@ type StatementType string
 
 const (
 	ExpressionStatementType StatementType = "Expression"
-	PrintStatementType      StatementType = "Print"
 	LetStatementType        StatementType = "Let"
 	BlockStatementType      StatementType = "Block"
 	IfStatementType         StatementType = "If"
 	WhileStatementType      StatementType = "While"
 	BreakStatementType      StatementType = "Break"
 	ContinueStatementType   StatementType = "Continue"
+	CallableStatementType   StatementType = "Callable"
+	ReturnStatementType     StatementType = "Return"
 )
 
 type Statement struct {
@@ -33,6 +34,10 @@ type Statement struct {
 	IfFalseBranchStatement   *Statement
 	WhileConditionExpression *Expression
 	WhileBodyStatement       *Statement
+	CallableName             *Token
+	CallableParameters       []Token
+	CallableBody             *Statement
+	ReturnValueExpression    *Expression
 }
 
 var _ fmt.Stringer = (*Statement)(nil)
@@ -41,8 +46,6 @@ func (s Statement) String() string {
 	switch s.Type {
 	case ExpressionStatementType:
 		return s.StatementExpression.String()
-	case PrintStatementType:
-		return fmt.Sprintf("(print %s)", s.PrintArgExpression)
 	case LetStatementType:
 		return fmt.Sprintf("(let %v %s)", s.LetIdentifier.Lexeme, s.LetInitializerExpression)
 	case BlockStatementType:
@@ -64,7 +67,20 @@ func (s Statement) String() string {
 		return "(break)"
 	case ContinueStatementType:
 		return "(continue)"
+	case CallableStatementType:
+		var parameters []string
+		for _, parameter := range s.CallableParameters {
+			parameters = append(parameters, parameter.Lexeme)
+		}
+
+		return fmt.Sprintf("(func %v [%s] %s)", s.CallableName.Lexeme, strings.Join(parameters, " "), s.CallableBody)
+	case ReturnStatementType:
+		if s.ReturnValueExpression == nil {
+			return "(return)"
+		}
+
+		return fmt.Sprintf("(return %s)", s.ReturnValueExpression)
 	}
 
-	return "unknown statement type"
+	return fmt.Sprintf("[unknown statement type: %v]", s.Type)
 }

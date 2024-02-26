@@ -2,7 +2,6 @@ package lang
 
 import (
 	"fmt"
-	"io"
 )
 
 type DataType string
@@ -14,7 +13,6 @@ type Value struct {
 
 type Executor struct {
 	environment *Environment
-	output      io.Writer
 }
 
 func (e *Executor) Execute(statements []Statement) ([]any, *Err) {
@@ -35,6 +33,13 @@ func (e *Executor) Execute(statements []Statement) ([]any, *Err) {
 		case ContinueSignalType:
 			return values, &Err{
 				Message:           "continue must appear inside loop",
+				Line:              signal.Line,
+				Column:            signal.Column,
+				FromGeneratedCode: signal.IsGenerated,
+			}
+		case ReturnSignalType:
+			return values, &Err{
+				Message:           "return must appear inside callable",
 				Line:              signal.Line,
 				Column:            signal.Column,
 				FromGeneratedCode: signal.IsGenerated,
@@ -67,8 +72,6 @@ func (e *Executor) executeStatements(statements []Statement) ([]any, *Signal, *E
 
 func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Signal, *Err) {
 	switch statement.Type {
-	case PrintStatementType:
-		return nil, false, nil, e.executePrintStatement(statement)
 	case ExpressionStatementType:
 		value, err := e.evaluateExpressionStatement(statement)
 		if err != nil {
@@ -79,13 +82,14 @@ func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Sign
 	case LetStatementType:
 		return nil, false, nil, e.executeLetStatement(statement)
 	case BlockStatementType:
-		signal, err := e.executeBlockStatement(statement)
+		signal, err := e.executeBlockStatement(statement, nil)
 		return nil, false, signal, err
 	case IfStatementType:
 		signal, err := e.executeIfStatement(statement)
 		return nil, false, signal, err
 	case WhileStatementType:
-		return nil, false, nil, e.executeWhileStatement(statement)
+		signal, err := e.executeWhileStatement(statement)
+		return nil, false, signal, err
 	case BreakStatementType:
 		return nil, false, &Signal{
 			Type:        BreakSignalType,
@@ -100,6 +104,26 @@ func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Sign
 			Column:      statement.Column,
 			IsGenerated: statement.IsGenerated,
 		}, nil
+	case CallableStatementType:
+		e.executeCallableStatement(statement)
+		return nil, false, nil, nil
+	case ReturnStatementType:
+		var value any
+		if statement.ReturnValueExpression != nil {
+			var err *Err
+			value, err = e.evaluateExpression(*statement.ReturnValueExpression)
+			if err != nil {
+				return nil, false, nil, err
+			}
+		}
+
+		return nil, false, &Signal{
+			Type:        ReturnSignalType,
+			Value:       value,
+			Line:        statement.Line,
+			Column:      statement.Column,
+			IsGenerated: statement.IsGenerated,
+		}, nil
 	}
 
 	return nil, false, nil, &Err{
@@ -110,11 +134,45 @@ func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Sign
 	}
 }
 
-func (e *Executor) executeWhileStatement(statement Statement) *Err {
+func (e *Executor) executeCallableStatement(statement Statement) {
+	name := statement.CallableName.Value.(string)
+	callable := e.newCallable(name, false, statement.CallableParameters, *statement.CallableBody)
+	e.environment.DefineWithInitializer(*statement.CallableName, callable)
+}
+
+func (e *Executor) newCallable(name string, isAnonymous bool, parameters []Token, body Statement) Callable {
+	return Callable{
+		Name:        name,
+		IsAnonymous: isAnonymous,
+		Closure:     e.environment,
+		Arity:       len(parameters),
+		Execute: func(closure *Environment, arguments ...any) (any, *Err) {
+			environment := closure.NewInnerEnvironment()
+			for index, parameter := range parameters {
+				environment.DefineWithInitializer(parameter, arguments[index])
+			}
+
+			signal, err := e.executeBlockStatement(body, environment)
+			if err != nil {
+				return nil, err
+			}
+
+			if signal != nil {
+				if signal.Type == ReturnSignalType {
+					return signal.Value, nil
+				}
+			}
+
+			return nil, nil
+		},
+	}
+}
+
+func (e *Executor) executeWhileStatement(statement Statement) (*Signal, *Err) {
 	for {
 		conditionVal, err := e.evaluateExpression(*statement.WhileConditionExpression)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		conditionBool, err := toBoolean(
@@ -123,7 +181,7 @@ func (e *Executor) executeWhileStatement(statement Statement) *Err {
 			statement.WhileConditionExpression.Column,
 			statement.WhileConditionExpression.IsGenerated)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if !conditionBool {
@@ -131,20 +189,22 @@ func (e *Executor) executeWhileStatement(statement Statement) *Err {
 		}
 		_, _, signal, err := e.executeSingleStatement(*statement.WhileBodyStatement)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if signal != nil {
 			switch signal.Type {
 			case BreakSignalType:
-				return nil
+				return nil, nil
 			case ContinueSignalType:
 				continue
+			case ReturnSignalType:
+				return signal, nil
 			}
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (e *Executor) executeIfStatement(statement Statement) (*Signal, *Err) {
@@ -175,9 +235,15 @@ func (e *Executor) executeIfStatement(statement Statement) (*Signal, *Err) {
 	return nil, nil
 }
 
-func (e *Executor) executeBlockStatement(statement Statement) (*Signal, *Err) {
+func (e *Executor) executeBlockStatement(statement Statement, environment *Environment) (*Signal, *Err) {
 	prevEnvironment := e.environment
-	e.environment = e.environment.NewInnerEnvironment()
+
+	if environment == nil {
+		e.environment = e.environment.NewInnerEnvironment()
+	} else {
+		e.environment = environment
+	}
+
 	_, signal, err := e.executeStatements(statement.BlockInnerStatements)
 	e.environment = prevEnvironment
 	return signal, err
@@ -197,16 +263,6 @@ func (e *Executor) executeLetStatement(statement Statement) *Err {
 	}
 
 	e.environment.Define(*statement.LetIdentifier)
-	return nil
-}
-
-func (e *Executor) executePrintStatement(statement Statement) *Err {
-	value, err := e.evaluateExpression(*statement.PrintArgExpression)
-	if err != nil {
-		return err
-	}
-
-	_, _ = fmt.Fprint(e.output, toString(value))
 	return nil
 }
 
@@ -232,6 +288,10 @@ func (e *Executor) evaluateExpression(expression Expression) (any, *Err) {
 		return e.evaluateIdentifierExpression(expression)
 	case AssignmentExpressionType:
 		return e.evaluateAssignmentExpression(expression)
+	case CallExpressionType:
+		return e.evaluateCallExpression(expression)
+	case LambdaExpressionType:
+		return e.evaluateLambdaExpression(expression)
 	}
 
 	return nil, &Err{
@@ -240,6 +300,55 @@ func (e *Executor) evaluateExpression(expression Expression) (any, *Err) {
 		Column:            expression.Column,
 		FromGeneratedCode: expression.IsGenerated,
 	}
+}
+
+func (e *Executor) evaluateLambdaExpression(expression Expression) (any, *Err) {
+	return e.newCallable(
+			"lambda",
+			true,
+			expression.LambdaParameters,
+			expression.LambdaBody),
+		nil
+}
+
+func (e *Executor) evaluateCallExpression(expression Expression) (any, *Err) {
+	callableVal, err := e.evaluateExpression(*expression.CallableExpression)
+	if err != nil {
+		return nil, err
+	}
+
+	callable, ok := callableVal.(Callable)
+	if !ok {
+		return nil, &Err{
+			Message:           fmt.Sprintf("can only call callable"),
+			Line:              expression.CallableExpression.Line,
+			Column:            expression.CallableExpression.Column,
+			FromGeneratedCode: expression.CallableExpression.IsGenerated,
+		}
+	}
+
+	if len(expression.CallArgumentExpressions) != callable.Arity {
+		return nil, &Err{
+			Message: fmt.Sprintf("expected %d arguments but got %d",
+				callable.Arity,
+				len(expression.CallArgumentExpressions)),
+			Line:              expression.CallableExpression.Line,
+			Column:            expression.CallableExpression.Column,
+			FromGeneratedCode: expression.CallableExpression.IsGenerated,
+		}
+	}
+
+	var arguments []any
+	for _, argExpr := range expression.CallArgumentExpressions {
+		argument, err := e.evaluateExpression(argExpr)
+		if err != nil {
+			return nil, err
+		}
+
+		arguments = append(arguments, argument)
+	}
+
+	return callable.Execute(callable.Closure, arguments...)
 }
 
 func (e *Executor) evaluateAssignmentExpression(expression Expression) (any, *Err) {
@@ -819,11 +928,59 @@ func toString(value any) string {
 }
 
 func NewExecutor(
+	runtime *Runtime,
 	environment *Environment,
-	output io.Writer,
 ) *Executor {
+	globalEnvironment := newGlobalEnvironment(runtime)
+	environment.AttachOuterEnvironment(globalEnvironment)
 	return &Executor{
 		environment: environment,
-		output:      output,
 	}
+}
+
+func newGlobalEnvironment(runtime *Runtime) *Environment {
+	environment := NewEnvironment()
+	environment.DefineWithInitializer(
+		Token{
+			Type:        IdentifierTokenType,
+			Lexeme:      "now",
+			Value:       "now",
+			IsGenerated: true,
+		},
+		Callable{
+			Name: "now",
+			Execute: func(closure *Environment, args ...any) (any, *Err) {
+				return runtime.Now().UnixNano(), nil
+			},
+		})
+	environment.DefineWithInitializer(
+		Token{
+			Type:        IdentifierTokenType,
+			Lexeme:      "print",
+			Value:       "print",
+			IsGenerated: true,
+		},
+		Callable{
+			Name:  "print",
+			Arity: 1,
+			Execute: func(closure *Environment, args ...any) (any, *Err) {
+				fmt.Fprint(runtime.Output, toString(args[0]))
+				return nil, nil
+			},
+		})
+	if runtime.CustomNativeFunctions != nil {
+		for funcName, callable := range runtime.CustomNativeFunctions {
+			environment.DefineWithInitializer(
+				Token{
+					Type:        IdentifierTokenType,
+					Lexeme:      funcName,
+					Value:       funcName,
+					IsGenerated: true,
+				},
+				callable,
+			)
+		}
+	}
+
+	return environment
 }

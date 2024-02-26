@@ -3,14 +3,17 @@ package lang
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestEvaluate(t *testing.T) {
+	now := time.Now().UTC()
 	testCases := []struct {
 		name           string
 		source         string
+		runtime        *Runtime
 		expectedValues []any
 		expectedOutput string
 		expectHasErr   bool
@@ -181,6 +184,7 @@ func TestEvaluate(t *testing.T) {
 				print(a + " " + b);
 			`,
 			expectedOutput: "8 7 | 5 7",
+			expectedValues: []any{nil, nil},
 		},
 		{
 			name: "access uninitialized variables",
@@ -316,6 +320,120 @@ func TestEvaluate(t *testing.T) {
 `,
 			expectedOutput: "135(0)135(1)135(2)135(3)135(4)",
 		},
+		{
+			name: "call native function",
+			source: `
+				now();
+			`,
+			runtime: &Runtime{
+				Now: func() time.Time {
+					return now
+				},
+			},
+			expectedValues: []any{now.UnixNano()},
+		},
+		{
+			name: "define and call function",
+			source: `
+				func hello() {
+					print("Hello world!");
+				}
+
+				func add(a, b) {
+					let c = 10;
+					return a + b + c;
+				}
+
+				hello();
+				add(5, 6);
+			`,
+			expectedOutput: "Hello world!",
+			expectedValues: []any{nil, int64(21)},
+		},
+		{
+			name: "recursive function",
+			source: `
+				func fib(n) {
+				  if (n <= 1) return n;
+				  return fib(n - 2) + fib(n - 1);
+				}
+				
+				for (let i = 0; i < 10; i = i + 1) {
+				  print(fib(i));
+				}
+			`,
+			expectedOutput: "0112358132134",
+		},
+		{
+			name: "function with closure",
+			source: `
+				func makeCounter() {
+				  let i = 0;
+				  func count() {
+					i = i + 1;
+					print(i);
+				  }
+				
+				  return count;
+				}
+				
+				let counter = makeCounter();
+				counter();
+				print(" | ");
+				counter();
+				print(" | ");
+				counter();
+			`,
+			expectedOutput: "1 | 2 | 3",
+			expectedValues: []any{nil, nil, nil, nil, nil},
+		},
+		{
+			name: "define and call lambda",
+			source: `
+				func printNums(calc) {
+		            for (let i = 0; i < 5; i = i + 1) {
+		                print(calc(i));
+		            }
+				}
+
+				printNums(func (num) {
+					return num * 2;
+				});
+			`,
+			expectedOutput: "02468",
+			expectedValues: []any{nil},
+		},
+		{
+			name: "define lambda as expression statement",
+			source: `
+				func (num) {
+					print(num * 2);
+				}(10);
+			`,
+			expectedOutput: "20",
+			expectedValues: []any{nil},
+		},
+		{
+			name: "lambda with closure",
+			source: `
+				func makeCounter() {
+				  let i = 0;
+				  return func () {
+					i = i + 1;
+					print(i);
+				  };
+				}
+				
+				let counter = makeCounter();
+				counter();
+				print(" | ");
+				counter();
+				print(" | ");
+				counter();
+			`,
+			expectedOutput: "1 | 2 | 3",
+			expectedValues: []any{nil, nil, nil, nil, nil},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -330,7 +448,14 @@ func TestEvaluate(t *testing.T) {
 
 			environment := NewEnvironment()
 			var outputBuf bytes.Buffer
-			executor := NewExecutor(environment, &outputBuf)
+
+			runtime := DefaultRuntime()
+			runtime.Output = &outputBuf
+			if tc.runtime != nil {
+				runtime.Now = tc.runtime.Now
+			}
+
+			executor := NewExecutor(runtime, environment)
 			values, err := executor.Execute(statements)
 			if tc.expectHasErr {
 				require.NotNil(t, err)

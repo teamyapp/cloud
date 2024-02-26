@@ -71,6 +71,10 @@ func (e *Environment) NewInnerEnvironment() *Environment {
 	return innerEnvironment
 }
 
+func (e *Environment) AttachOuterEnvironment(outerEnvironment *Environment) {
+	e.outerEnvironment = outerEnvironment
+}
+
 func NewEnvironment() *Environment {
 	return &Environment{
 		identifierToValue: make(map[string]any),
