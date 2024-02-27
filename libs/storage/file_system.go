@@ -34,7 +34,7 @@ func (f *FileSystem) Get(ct context.Context, key string) (io.Reader, *errs.Error
 	return bytes.NewReader(buf), nil
 }
 
-func (f *FileSystem) Put(ct context.Context, key string, data io.Reader) *errs.Error {
+func (f *FileSystem) Put(ct context.Context, key string, data io.Reader, objectMetadataInput ObjectMetadataInput) *errs.Error {
 	filePath := path.Join(f.rootDir, key)
 	dir := filepath.Dir(filePath)
 	err := os.MkdirAll(dir, os.ModePerm)
