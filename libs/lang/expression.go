@@ -21,12 +21,14 @@ const (
 )
 
 type Expression struct {
+	NodeID                     uint64
 	Type                       ExpressionType
 	Line                       int
 	Column                     int
 	IsGenerated                bool
 	Literal                    Token
 	Operator                   Token
+	Identifier                 Token
 	UnaryExpression            *Expression
 	BinaryLeftExpression       *Expression
 	BinaryRightExpression      *Expression
@@ -35,7 +37,7 @@ type Expression struct {
 	TernaryFalseExpression     *Expression
 	GroupInnerExpression       *Expression
 	ExpressionList             []Expression
-	Identifier                 Token
+	AssignmentIdentifier       Token
 	AssignmentValueExpression  *Expression
 	CallableExpression         *Expression
 	CallArgumentExpressions    []Expression
@@ -67,7 +69,7 @@ func (e Expression) String() string {
 	case IdentifierExpressionType:
 		return fmt.Sprintf("%s", e.Identifier.Lexeme)
 	case AssignmentExpressionType:
-		return fmt.Sprintf("(= %s %s)", e.Identifier.Lexeme, e.AssignmentValueExpression)
+		return fmt.Sprintf("(= %s %s)", e.AssignmentIdentifier.Lexeme, e.AssignmentValueExpression)
 	case CallExpressionType:
 		args := make([]string, 0)
 		for _, argExpr := range e.CallArgumentExpressions {

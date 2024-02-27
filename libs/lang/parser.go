@@ -8,12 +8,14 @@ type ParametersAndBody struct {
 }
 
 type Parser struct {
+	nextNodeID     uint64
 	tokens         []Token
 	nextTokenIndex int
 	errs           []Err
 }
 
 func (p *Parser) Parse(tokens []Token) ([]Statement, []Err) {
+	p.nextNodeID = 1
 	p.tokens = tokens
 	p.nextTokenIndex = 0
 	statements := make([]Statement, 0)
@@ -76,6 +78,7 @@ func (p *Parser) scanCallableDeclaration(startToken Token) (Statement, *Err) {
 	}
 
 	return Statement{
+		NodeID:             p.newNodeID(),
 		Type:               CallableStatementType,
 		CallableName:       &identifier,
 		CallableParameters: parametersAndBody.Parameters,
@@ -192,6 +195,7 @@ func (p *Parser) scanLetDeclaration(startToken Token) (Statement, *Err) {
 		p.nextTokenIndex++
 
 		return Statement{
+			NodeID:                   p.newNodeID(),
 			Type:                     LetStatementType,
 			LetIdentifier:            &identifierToken,
 			LetInitializerExpression: initializer,
@@ -275,6 +279,7 @@ func (p *Parser) scanReturnStatement(startToken Token) (Statement, *Err) {
 
 	p.nextTokenIndex++
 	return Statement{
+		NodeID:                p.newNodeID(),
 		Type:                  ReturnStatementType,
 		ReturnValueExpression: expr,
 		Line:                  startToken.Line,
@@ -295,6 +300,7 @@ func (p *Parser) scanContinueStatement(startToken Token) (Statement, *Err) {
 	p.nextTokenIndex++
 
 	return Statement{
+		NodeID: p.newNodeID(),
 		Type:   ContinueStatementType,
 		Line:   startToken.Line,
 		Column: startToken.Column,
@@ -314,6 +320,7 @@ func (p *Parser) scanBreakStatement(startToken Token) (Statement, *Err) {
 	p.nextTokenIndex++
 
 	return Statement{
+		NodeID: p.newNodeID(),
 		Type:   BreakStatementType,
 		Line:   startToken.Line,
 		Column: startToken.Column,
@@ -402,10 +409,12 @@ func (p *Parser) scanForStatement(startToken Token) (Statement, *Err) {
 
 	if increment != nil {
 		body = Statement{
-			Type: BlockStatementType,
+			NodeID: p.newNodeID(),
+			Type:   BlockStatementType,
 			BlockInnerStatements: []Statement{
 				body,
 				{
+					NodeID:              p.newNodeID(),
 					Type:                ExpressionStatementType,
 					StatementExpression: increment,
 					IsGenerated:         true,
@@ -417,7 +426,8 @@ func (p *Parser) scanForStatement(startToken Token) (Statement, *Err) {
 
 	if condition == nil {
 		condition = &Expression{
-			Type: LiteralExpressionType,
+			NodeID: p.newNodeID(),
+			Type:   LiteralExpressionType,
 			Literal: Token{
 				Type:        BoolTokenType,
 				Lexeme:      "true",
@@ -429,6 +439,7 @@ func (p *Parser) scanForStatement(startToken Token) (Statement, *Err) {
 	}
 
 	statement := Statement{
+		NodeID:                   p.newNodeID(),
 		Type:                     WhileStatementType,
 		WhileConditionExpression: condition,
 		WhileBodyStatement:       &body,
@@ -438,7 +449,8 @@ func (p *Parser) scanForStatement(startToken Token) (Statement, *Err) {
 
 	if initializer != nil {
 		statement = Statement{
-			Type: BlockStatementType,
+			NodeID: p.newNodeID(),
+			Type:   BlockStatementType,
 			BlockInnerStatements: []Statement{
 				*initializer,
 				statement,
@@ -484,6 +496,7 @@ func (p *Parser) scanWhileStatement(startToken Token) (Statement, *Err) {
 	}
 
 	return Statement{
+		NodeID:                   p.newNodeID(),
 		Type:                     WhileStatementType,
 		WhileConditionExpression: &conditionExpr,
 		WhileBodyStatement:       &bodyStmt,
@@ -537,6 +550,7 @@ func (p *Parser) scanIfStatement(startToken Token) (Statement, *Err) {
 	}
 
 	return Statement{
+		NodeID:                 p.newNodeID(),
 		Type:                   IfStatementType,
 		IfConditionExpression:  &conditionExpr,
 		IfTrueBranchStatement:  &trueBranchStmt,
@@ -578,6 +592,7 @@ func (p *Parser) scanBlockStatement(startToken Token) (Statement, *Err) {
 
 	p.nextTokenIndex++
 	return Statement{
+		NodeID:               p.newNodeID(),
 		Type:                 BlockStatementType,
 		BlockInnerStatements: statements,
 		Line:                 startToken.Line,
@@ -604,6 +619,7 @@ func (p *Parser) scanExpressionStatement() (Statement, *Err) {
 
 	p.nextTokenIndex++
 	return Statement{
+		NodeID:              p.newNodeID(),
 		Type:                ExpressionStatementType,
 		StatementExpression: &expr,
 		Line:                expr.Line,
@@ -633,6 +649,7 @@ func (p *Parser) scanExpressionList() (Expression, *Err) {
 
 	if foundComma {
 		return Expression{
+			NodeID:         p.newNodeID(),
 			Type:           ExpressionListExpressionType,
 			ExpressionList: expressionList,
 			Line:           expr.Line,
@@ -664,10 +681,11 @@ func (p *Parser) scanAssignment() (Expression, *Err) {
 			}
 
 			return Expression{
+				NodeID:                    p.newNodeID(),
 				Type:                      AssignmentExpressionType,
 				Line:                      expr.Line,
 				Column:                    expr.Column,
-				Identifier:                expr.Identifier,
+				AssignmentIdentifier:      expr.Identifier,
 				AssignmentValueExpression: &valueExpr,
 			}, nil
 		}
@@ -705,6 +723,7 @@ func (p *Parser) scanConditional() (Expression, *Err) {
 			p.errs = append(p.errs, colonErr)
 			return Expression{}, err
 		}
+
 		p.nextTokenIndex++
 
 		tempConditionExpr := conditionExpr
@@ -714,6 +733,7 @@ func (p *Parser) scanConditional() (Expression, *Err) {
 		}
 
 		return Expression{
+			NodeID:                     p.newNodeID(),
 			Type:                       TernaryExpressionType,
 			TernaryConditionExpression: &tempConditionExpr,
 			TernaryTrueExpression:      &trueExpression,
@@ -786,6 +806,7 @@ func (p *Parser) scanUnary() (Expression, *Err) {
 		}
 
 		return Expression{
+			NodeID:          p.newNodeID(),
 			Type:            UnaryExpressionType,
 			Operator:        operator,
 			UnaryExpression: &unaryExpr,
@@ -828,6 +849,7 @@ func (p *Parser) scanCall() (Expression, *Err) {
 		p.nextTokenIndex++
 		tmpExpr := expr
 		expr = Expression{
+			NodeID:                  p.newNodeID(),
 			Type:                    CallExpressionType,
 			Line:                    startToken.Line,
 			Column:                  startToken.Column,
@@ -881,6 +903,7 @@ func (p *Parser) scanPrimary() (Expression, *Err) {
 		token := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
 		return Expression{
+			NodeID:  p.newNodeID(),
 			Type:    LiteralExpressionType,
 			Literal: token,
 			Line:    token.Line,
@@ -911,6 +934,7 @@ func (p *Parser) scanPrimary() (Expression, *Err) {
 
 		p.nextTokenIndex++
 		return Expression{
+			NodeID:               p.newNodeID(),
 			Type:                 GroupingExpressionType,
 			GroupInnerExpression: &innerExpr,
 			Line:                 token.Line,
@@ -922,6 +946,7 @@ func (p *Parser) scanPrimary() (Expression, *Err) {
 		identifierToken := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
 		return Expression{
+			NodeID:     p.newNodeID(),
 			Type:       IdentifierExpressionType,
 			Identifier: identifierToken,
 			Line:       identifierToken.Line,
@@ -937,6 +962,7 @@ func (p *Parser) scanPrimary() (Expression, *Err) {
 		}
 
 		return Expression{
+			NodeID:           p.newNodeID(),
 			Type:             LambdaExpressionType,
 			LambdaParameters: parametersAndBody.Parameters,
 			LambdaBody:       parametersAndBody.Body,
@@ -997,6 +1023,7 @@ func (p *Parser) scanBinaryExpression(
 
 		tempExpr := leftExpr
 		leftExpr = Expression{
+			NodeID:                p.newNodeID(),
 			Type:                  BinaryExpressionType,
 			Operator:              operator,
 			BinaryLeftExpression:  &tempExpr,
@@ -1022,6 +1049,12 @@ func (p *Parser) matchTokenType(expectedTokenTypes []TokenType, lookAhead int) b
 	}
 
 	return false
+}
+
+func (p *Parser) newNodeID() uint64 {
+	nodeID := p.nextNodeID
+	p.nextNodeID++
+	return nodeID
 }
 
 func NewParser() *Parser {

@@ -356,7 +356,9 @@ func TestParser_Parse(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			tokens, errs := NewScanner().ScanTokens(tc.source)
 			require.Equal(t, 0, len(errs))
 

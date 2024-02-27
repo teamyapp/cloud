@@ -20,6 +20,7 @@ const (
 )
 
 type Statement struct {
+	NodeID                   uint64
 	Type                     StatementType
 	Line                     int
 	Column                   int

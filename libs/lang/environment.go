@@ -45,6 +45,24 @@ func (e *Environment) Get(identifierToken Token) (any, *Err) {
 	return value, nil
 }
 
+func (e *Environment) GetAt(identifierToken Token, distance int) (any, *Err) {
+	ancestor := e.ancestorAt(distance)
+	if ancestor == nil {
+		return nil, nil
+	}
+
+	return e.ancestorAt(distance).Get(identifierToken)
+}
+
+func (e *Environment) ancestorAt(distance int) *Environment {
+	environment := e
+	for index := 0; index < distance; index++ {
+		environment = environment.outerEnvironment
+	}
+
+	return environment
+}
+
 func (e *Environment) Assign(identifierToken Token, value any) *Err {
 	identifier := identifierToken.Value.(string)
 	_, ok := e.identifierToValue[identifier]

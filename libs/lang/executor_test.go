@@ -11,12 +11,12 @@ import (
 func TestEvaluate(t *testing.T) {
 	now := time.Now().UTC()
 	testCases := []struct {
-		name           string
-		source         string
-		runtime        *Runtime
-		expectedValues []any
-		expectedOutput string
-		expectHasErr   bool
+		name                  string
+		source                string
+		runtime               *Runtime
+		expectedValues        []any
+		expectedOutput        string
+		expectHasEvaluatorErr bool
 	}{
 		{
 			name:           "simple nil",
@@ -196,8 +196,8 @@ func TestEvaluate(t *testing.T) {
 				c;
 				a;
 			`,
-			expectHasErr:   true,
-			expectedValues: []any{int64(10), int64(1)},
+			expectHasEvaluatorErr: true,
+			expectedValues:        []any{int64(10), int64(1)},
 		},
 		{
 			name: "if without else",
@@ -299,7 +299,7 @@ func TestEvaluate(t *testing.T) {
 					break;
 				}
 			`,
-			expectHasErr: true,
+			expectHasEvaluatorErr: true,
 		},
 		{
 			name: "while loop with continue",
@@ -434,10 +434,28 @@ func TestEvaluate(t *testing.T) {
 			expectedOutput: "1 | 2 | 3",
 			expectedValues: []any{nil, nil, nil, nil, nil},
 		},
+		{
+			name: "closure static scope",
+			source: `
+				let text = "global";
+				{
+				  func showText() {
+					print(text);
+				  }
+				
+				  showText();
+				  let text = "block";
+				  showText();
+				}
+			`,
+			expectedOutput: "globalglobal",
+		},
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			scanner := NewScanner()
 			tokens, errs := scanner.ScanTokens(tc.source)
 			require.Equal(t, 0, len(errs))
@@ -445,6 +463,10 @@ func TestEvaluate(t *testing.T) {
 			parser := NewParser()
 			statements, errs := parser.Parse(tokens)
 			require.Equal(t, 0, len(errs))
+
+			scopeResolver := NewStaticAnalyzer()
+			err := scopeResolver.Analyze(statements)
+			require.Nil(t, err)
 
 			environment := NewEnvironment()
 			var outputBuf bytes.Buffer
@@ -456,9 +478,10 @@ func TestEvaluate(t *testing.T) {
 			}
 
 			executor := NewExecutor(runtime, environment)
-			values, err := executor.Execute(statements)
-			if tc.expectHasErr {
+			values, err := executor.Execute(scopeResolver, statements)
+			if tc.expectHasEvaluatorErr {
 				require.NotNil(t, err)
+				return
 			} else {
 				require.Nil(t, err)
 			}

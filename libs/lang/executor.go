@@ -12,10 +12,16 @@ type Value struct {
 }
 
 type Executor struct {
-	environment *Environment
+	globalEnvironment  *Environment
+	currentEnvironment *Environment
+	staticAnalyzer     *StaticAnalyzer
 }
 
-func (e *Executor) Execute(statements []Statement) ([]any, *Err) {
+func (e *Executor) Execute(
+	staticAnalyzer *StaticAnalyzer,
+	statements []Statement,
+) ([]any, *Err) {
+	e.staticAnalyzer = staticAnalyzer
 	values, signal, err := e.executeStatements(statements)
 	if err != nil {
 		return values, err
@@ -137,14 +143,14 @@ func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Sign
 func (e *Executor) executeCallableStatement(statement Statement) {
 	name := statement.CallableName.Value.(string)
 	callable := e.newCallable(name, false, statement.CallableParameters, *statement.CallableBody)
-	e.environment.DefineWithInitializer(*statement.CallableName, callable)
+	e.currentEnvironment.DefineWithInitializer(*statement.CallableName, callable)
 }
 
 func (e *Executor) newCallable(name string, isAnonymous bool, parameters []Token, body Statement) Callable {
 	return Callable{
 		Name:        name,
 		IsAnonymous: isAnonymous,
-		Closure:     e.environment,
+		Closure:     e.currentEnvironment,
 		Arity:       len(parameters),
 		Execute: func(closure *Environment, arguments ...any) (any, *Err) {
 			environment := closure.NewInnerEnvironment()
@@ -152,6 +158,7 @@ func (e *Executor) newCallable(name string, isAnonymous bool, parameters []Token
 				environment.DefineWithInitializer(parameter, arguments[index])
 			}
 
+			// skip extra block scope
 			signal, err := e.executeBlockStatement(body, environment)
 			if err != nil {
 				return nil, err
@@ -236,16 +243,15 @@ func (e *Executor) executeIfStatement(statement Statement) (*Signal, *Err) {
 }
 
 func (e *Executor) executeBlockStatement(statement Statement, environment *Environment) (*Signal, *Err) {
-	prevEnvironment := e.environment
-
+	prevEnvironment := e.currentEnvironment
 	if environment == nil {
-		e.environment = e.environment.NewInnerEnvironment()
+		e.currentEnvironment = e.currentEnvironment.NewInnerEnvironment()
 	} else {
-		e.environment = environment
+		e.currentEnvironment = environment
 	}
 
 	_, signal, err := e.executeStatements(statement.BlockInnerStatements)
-	e.environment = prevEnvironment
+	e.currentEnvironment = prevEnvironment
 	return signal, err
 }
 
@@ -258,11 +264,11 @@ func (e *Executor) executeLetStatement(statement Statement) *Err {
 			return err
 		}
 
-		e.environment.DefineWithInitializer(*statement.LetIdentifier, value)
+		e.currentEnvironment.DefineWithInitializer(*statement.LetIdentifier, value)
 		return nil
 	}
 
-	e.environment.Define(*statement.LetIdentifier)
+	e.currentEnvironment.Define(*statement.LetIdentifier)
 	return nil
 }
 
@@ -357,12 +363,17 @@ func (e *Executor) evaluateAssignmentExpression(expression Expression) (any, *Er
 		return nil, err
 	}
 
-	err = e.environment.Assign(expression.Identifier, value)
+	err = e.currentEnvironment.Assign(expression.AssignmentIdentifier, value)
 	return value, err
 }
 
 func (e *Executor) evaluateIdentifierExpression(expression Expression) (any, *Err) {
-	return e.environment.Get(expression.Identifier)
+	distance, ok := e.staticAnalyzer.GetLocalScopeDistance(expression.NodeID)
+	if !ok {
+		return e.globalEnvironment.Get(expression.Identifier)
+	}
+
+	return e.currentEnvironment.GetAt(expression.Identifier, distance)
 }
 
 func (e *Executor) evaluateTernaryExpression(expression Expression) (any, *Err) {
@@ -850,6 +861,88 @@ func (e *Executor) evaluateUnaryExpression(expression Expression) (any, *Err) {
 	}
 }
 
+func (e *Executor) evaluateGroupingExpression(expression Expression) (any, *Err) {
+	return e.evaluateExpression(*expression.GroupInnerExpression)
+}
+
+func (e *Executor) evaluateExpressionListExpression(expression Expression) (any, *Err) {
+	var result any
+	for _, expr := range expression.ExpressionList {
+		var err *Err
+		result, err = e.evaluateExpression(expr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
+func NewExecutor(
+	runtime *Runtime,
+	environment *Environment,
+) *Executor {
+	globalEnvironment := newGlobalEnvironment(runtime)
+	environment.AttachOuterEnvironment(globalEnvironment)
+	return &Executor{
+		globalEnvironment:  globalEnvironment,
+		currentEnvironment: environment,
+	}
+}
+
+func newGlobalEnvironment(
+	runtime *Runtime,
+) *Environment {
+	environment := NewEnvironment()
+	environment.DefineWithInitializer(
+		Token{
+			Type:        IdentifierTokenType,
+			Lexeme:      "now",
+			Value:       "now",
+			IsGenerated: true,
+		},
+		Callable{
+			Name: "now",
+			Execute: func(closure *Environment, args ...any) (any, *Err) {
+				return runtime.Now().UnixNano(), nil
+			},
+		})
+	environment.DefineWithInitializer(
+		Token{
+			Type:        IdentifierTokenType,
+			Lexeme:      "print",
+			Value:       "print",
+			IsGenerated: true,
+		},
+		Callable{
+			Name:  "print",
+			Arity: 1,
+			Execute: func(closure *Environment, args ...any) (any, *Err) {
+				fmt.Fprint(runtime.Output, toString(args[0]))
+				return nil, nil
+			},
+		})
+	if runtime.CustomNativeFunctions != nil {
+		for funcName, callable := range runtime.CustomNativeFunctions {
+			environment.DefineWithInitializer(
+				Token{
+					Type:        IdentifierTokenType,
+					Lexeme:      funcName,
+					Value:       funcName,
+					IsGenerated: true,
+				},
+				callable,
+			)
+		}
+	}
+
+	return environment
+}
+
+func evaluateLiteralExpression(expression Expression) any {
+	return expression.Literal.Value
+}
+
 func consumeNumbers[Result any](
 	val1 any,
 	val2 any,
@@ -898,89 +991,10 @@ func toBoolean(value any, line int, column int, isGenerated bool) (bool, *Err) {
 	}
 }
 
-func evaluateLiteralExpression(expression Expression) any {
-	return expression.Literal.Value
-}
-
-func (e *Executor) evaluateGroupingExpression(expression Expression) (any, *Err) {
-	return e.evaluateExpression(*expression.GroupInnerExpression)
-}
-
-func (e *Executor) evaluateExpressionListExpression(expression Expression) (any, *Err) {
-	var result any
-	for _, expr := range expression.ExpressionList {
-		var err *Err
-		result, err = e.evaluateExpression(expr)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return result, nil
-}
-
 func toString(value any) string {
 	if value == nil {
 		return "nil"
 	}
 
 	return fmt.Sprintf("%v", value)
-}
-
-func NewExecutor(
-	runtime *Runtime,
-	environment *Environment,
-) *Executor {
-	globalEnvironment := newGlobalEnvironment(runtime)
-	environment.AttachOuterEnvironment(globalEnvironment)
-	return &Executor{
-		environment: environment,
-	}
-}
-
-func newGlobalEnvironment(runtime *Runtime) *Environment {
-	environment := NewEnvironment()
-	environment.DefineWithInitializer(
-		Token{
-			Type:        IdentifierTokenType,
-			Lexeme:      "now",
-			Value:       "now",
-			IsGenerated: true,
-		},
-		Callable{
-			Name: "now",
-			Execute: func(closure *Environment, args ...any) (any, *Err) {
-				return runtime.Now().UnixNano(), nil
-			},
-		})
-	environment.DefineWithInitializer(
-		Token{
-			Type:        IdentifierTokenType,
-			Lexeme:      "print",
-			Value:       "print",
-			IsGenerated: true,
-		},
-		Callable{
-			Name:  "print",
-			Arity: 1,
-			Execute: func(closure *Environment, args ...any) (any, *Err) {
-				fmt.Fprint(runtime.Output, toString(args[0]))
-				return nil, nil
-			},
-		})
-	if runtime.CustomNativeFunctions != nil {
-		for funcName, callable := range runtime.CustomNativeFunctions {
-			environment.DefineWithInitializer(
-				Token{
-					Type:        IdentifierTokenType,
-					Lexeme:      funcName,
-					Value:       funcName,
-					IsGenerated: true,
-				},
-				callable,
-			)
-		}
-	}
-
-	return environment
 }
