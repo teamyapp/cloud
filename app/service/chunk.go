@@ -67,5 +67,7 @@ func newChunksIterator(
 func saveChunk(ct context.Context, objectStore storage.ObjectStore, chunkID uint64, data io.Reader) *errs.Error {
 	chunkIDPath := strconv.FormatUint(chunkID, 10)
 	fullPath := path.Join(chunkKeyPrefix, chunkIDPath)
-	return objectStore.Put(ct, fullPath, data)
+	return objectStore.Put(ct, fullPath, data, storage.ObjectMetadataInput{
+		ContentType: "application/octet-stream",
+	})
 }

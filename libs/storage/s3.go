@@ -83,9 +83,11 @@ func (s *S3Bucket) Get(ct context.Context, key string) (io.Reader, *errs.Error) 
 	return obj, nil
 }
 
-func (s *S3Bucket) Put(ct context.Context, key string, data io.Reader) *errs.Error {
+func (s *S3Bucket) Put(ct context.Context, key string, data io.Reader, objectMetadataInput ObjectMetadataInput) *errs.Error {
 	fullPath := path.Join(string(s.env), key)
-	_, err := s.client.PutObject(ct, s.bucketName, fullPath, data, -1, minio.PutObjectOptions{})
+	_, err := s.client.PutObject(ct, s.bucketName, fullPath, data, -1, minio.PutObjectOptions{
+		ContentType: objectMetadataInput.ContentType,
+	})
 	if err != nil {
 		return errs.NewError(errs.Unknown, err.Error())
 	}
@@ -107,8 +109,8 @@ func (s *S3Bucket) HandleGet(ct context.Context, key string) (io.Reader, *errs.E
 	return s.Get(ct, key)
 }
 
-func (s *S3Bucket) HandlePut(ct context.Context, key string, data io.Reader) *errs.Error {
-	return s.Put(ct, key, data)
+func (s *S3Bucket) HandlePut(ct context.Context, key string, data io.Reader, objectMetadataInput ObjectMetadataInput) *errs.Error {
+	return s.Put(ct, key, data, objectMetadataInput)
 }
 
 func (s *S3Bucket) HandleDelete(ct context.Context, key string) *errs.Error {

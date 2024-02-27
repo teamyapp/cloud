@@ -33,7 +33,7 @@ func (i *InMemoryMap) Get(ct context.Context, key string) (io.Reader, *errs.Erro
 	return bytes.NewReader(value), nil
 }
 
-func (i *InMemoryMap) Put(ct context.Context, key string, data io.Reader) *errs.Error {
+func (i *InMemoryMap) Put(ct context.Context, key string, data io.Reader, objectMetadataInput storage.ObjectMetadataInput) *errs.Error {
 	reader, err := io.ReadAll(data)
 
 	if err != nil {

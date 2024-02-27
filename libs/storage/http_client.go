@@ -45,7 +45,7 @@ func (c *HTTPClient) Get(ct context.Context, key string) (io.Reader, *errs.Error
 	return res.Body, nil
 }
 
-func (c *HTTPClient) Put(ct context.Context, key string, value io.Reader) *errs.Error {
+func (c *HTTPClient) Put(ct context.Context, key string, value io.Reader, objectMetadataInput ObjectMetadataInput) *errs.Error {
 	url, err := getUploadFileURL(c.mapServerURL, key)
 	if err != nil {
 		return err

@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"io"
+	"mime"
+	"path/filepath"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
@@ -22,7 +24,11 @@ func (s Stream) GetFileMetadata(ct context.Context, fileID uint64) (entity.FileM
 }
 
 func (s Stream) AddFile(ct context.Context, fileName string, fileData io.Reader) *errs.Error {
-	return s.objectStore.Put(ct, fileName, fileData)
+	ext := filepath.Ext(fileName)
+	mimeType := mime.TypeByExtension(ext)
+	return s.objectStore.Put(ct, fileName, fileData, storage.ObjectMetadataInput{
+		ContentType: mimeType,
+	})
 }
 
 func (s Stream) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Error) {
