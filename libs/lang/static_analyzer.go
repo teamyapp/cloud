@@ -2,8 +2,21 @@ package lang
 
 import "fmt"
 
+type IdentifierStatus string
+
+const (
+	DeclaredIdentifierStatus IdentifierStatus = "declared"
+	DefinedIdentifierStatus  IdentifierStatus = "defined"
+	UsedIdentifierStatus     IdentifierStatus = "used"
+)
+
+type Declaration struct {
+	Identifier Token
+	Status     IdentifierStatus
+}
+
 type StaticAnalyzer struct {
-	scopes         []map[string]bool
+	scopes         [][]*Declaration
 	localDistances map[uint64]int
 	isInCallable   bool
 }
@@ -16,8 +29,7 @@ func (s *StaticAnalyzer) Analyze(statements []Statement) *Err {
 		return err
 	}
 
-	s.endScope()
-	return nil
+	return s.endScope()
 }
 
 func (s *StaticAnalyzer) resolve(statements []Statement) *Err {
@@ -120,7 +132,7 @@ func (s *StaticAnalyzer) resolveCallableStatement(statement Statement) *Err {
 		return err
 	}
 
-	s.define(statement.CallableName.Value.(string))
+	s.define(*statement.CallableName)
 
 	isInCallable := s.isInCallable
 	s.isInCallable = true
@@ -131,7 +143,7 @@ func (s *StaticAnalyzer) resolveCallableStatement(statement Statement) *Err {
 			return err
 		}
 
-		s.define(param.Value.(string))
+		s.define(param)
 	}
 
 	err = s.resolveBlockStatement(*statement.CallableBody, false)
@@ -139,7 +151,11 @@ func (s *StaticAnalyzer) resolveCallableStatement(statement Statement) *Err {
 		return err
 	}
 
-	s.endScope()
+	err = s.endScope()
+	if err != nil {
+		return err
+	}
+
 	s.isInCallable = isInCallable
 	return nil
 }
@@ -157,7 +173,7 @@ func (s *StaticAnalyzer) resolveLetStatement(statement Statement) *Err {
 		}
 	}
 
-	s.define(statement.LetIdentifier.Value.(string))
+	s.define(*statement.LetIdentifier)
 	return nil
 }
 
@@ -172,7 +188,7 @@ func (s *StaticAnalyzer) resolveBlockStatement(statement Statement, createNewSco
 	}
 
 	if createNewScope {
-		s.endScope()
+		return s.endScope()
 	}
 
 	return nil
@@ -220,7 +236,7 @@ func (s *StaticAnalyzer) resolveLambdaExpression(expression Expression) *Err {
 			return err
 		}
 
-		s.define(param.Value.(string))
+		s.define(param)
 	}
 
 	err := s.resolveBlockStatement(expression.LambdaBody, false)
@@ -228,7 +244,11 @@ func (s *StaticAnalyzer) resolveLambdaExpression(expression Expression) *Err {
 		return err
 	}
 
-	s.endScope()
+	err = s.endScope()
+	if err != nil {
+		return err
+	}
+
 	s.isInCallable = isInCallable
 	return nil
 }
@@ -255,26 +275,11 @@ func (s *StaticAnalyzer) resolveAssignmentExpression(expression Expression) *Err
 		return err
 	}
 
-	s.resolveLocal(expression.NodeID, expression.AssignmentIdentifier)
-	return nil
+	return s.resolveLocal(expression.NodeID, expression.AssignmentIdentifier)
 }
 
 func (s *StaticAnalyzer) resolveIdentifierExpression(expression Expression) *Err {
-	name := expression.Identifier.Value.(string)
-	initialized, ok := s.scopes[len(s.scopes)-1][name]
-	if ok {
-		if !initialized {
-			return &Err{
-				Message:           fmt.Sprintf("Reading uninitialized variable '%s'", name),
-				Line:              expression.Identifier.Line,
-				Column:            expression.Identifier.Column,
-				FromGeneratedCode: expression.IsGenerated,
-			}
-		}
-	}
-
-	s.resolveLocal(expression.NodeID, expression.Identifier)
-	return nil
+	return s.resolveLocal(expression.NodeID, expression.Identifier)
 }
 
 func (s *StaticAnalyzer) resolveExpressionList(expression Expression) *Err {
@@ -315,49 +320,99 @@ func (s *StaticAnalyzer) resolveTernaryExpression(expression Expression) *Err {
 	return s.resolveExpression(*expression.TernaryFalseExpression)
 }
 
-func (s *StaticAnalyzer) resolveLocal(nodeID uint64, token Token) {
+func (s *StaticAnalyzer) resolveLocal(nodeID uint64, token Token) *Err {
+	name := token.Value.(string)
 	for index := len(s.scopes) - 1; index >= 0; index-- {
 		scope := s.scopes[index]
-		initialized, ok := scope[token.Value.(string)]
-		if ok && initialized {
+		declaration, _, ok := findDeclaration(scope, token)
+		if ok {
+			if declaration.Status == DeclaredIdentifierStatus {
+				return &Err{
+					Message:           fmt.Sprintf("Reading uninitialized variable '%s'", name),
+					Line:              declaration.Identifier.Line,
+					Column:            declaration.Identifier.Column,
+					FromGeneratedCode: declaration.Identifier.IsGenerated,
+				}
+			}
+
+			declaration.Status = UsedIdentifierStatus
 			s.localDistances[nodeID] = len(s.scopes) - 1 - index
-			return
+			return nil
 		}
+	}
+
+	return &Err{
+		Message:           fmt.Sprintf("Undefined variable '%s'", name),
+		Line:              token.Line,
+		Column:            token.Column,
+		FromGeneratedCode: token.IsGenerated,
 	}
 }
 
 func (s *StaticAnalyzer) beginScope() {
-	s.scopes = append(s.scopes, make(map[string]bool))
+	s.scopes = append(s.scopes, make([]*Declaration, 0))
 }
 
-func (s *StaticAnalyzer) endScope() {
+func (s *StaticAnalyzer) endScope() *Err {
+	scope := s.scopes[len(s.scopes)-1]
+	for _, declaration := range scope {
+		if declaration.Status != UsedIdentifierStatus {
+			return &Err{
+				Message:           fmt.Sprintf("Local variable '%s' is never used", declaration.Identifier.Value.(string)),
+				Line:              declaration.Identifier.Line,
+				Column:            declaration.Identifier.Column,
+				FromGeneratedCode: declaration.Identifier.IsGenerated,
+			}
+		}
+	}
+
 	s.scopes = s.scopes[:len(s.scopes)-1]
+	return nil
 }
 
 func (s *StaticAnalyzer) declare(identifier Token) *Err {
 	scope := s.scopes[len(s.scopes)-1]
-	name := identifier.Value.(string)
-	if _, ok := scope[name]; ok {
+	_, _, ok := findDeclaration(scope, identifier)
+	if ok {
 		return &Err{
-			Message:           fmt.Sprintf("name '%s' already declared in this scope", name),
+			Message:           fmt.Sprintf("name '%s' already declared in this scope", identifier.Value.(string)),
 			Line:              identifier.Line,
 			Column:            identifier.Column,
 			FromGeneratedCode: identifier.IsGenerated,
 		}
 	}
 
-	scope[name] = false
+	declaration := &Declaration{
+		Identifier: identifier,
+		Status:     DeclaredIdentifierStatus,
+	}
+	scope = append(scope, declaration)
+	s.scopes[len(s.scopes)-1] = scope
 	return nil
 }
 
-func (s *StaticAnalyzer) define(name string) {
+func (s *StaticAnalyzer) define(identifier Token) {
 	scope := s.scopes[len(s.scopes)-1]
-	scope[name] = true
+	_, index, ok := findDeclaration(scope, identifier)
+	if ok {
+		scope[index].Status = DefinedIdentifierStatus
+	}
 }
 
 func NewStaticAnalyzer() *StaticAnalyzer {
 	return &StaticAnalyzer{
-		scopes:         []map[string]bool{},
+		scopes:         [][]*Declaration{},
 		localDistances: map[uint64]int{},
 	}
+}
+
+func findDeclaration(scope []*Declaration, token Token) (*Declaration, int, bool) {
+	name := token.Value.(string)
+	for index, declaration := range scope {
+		if declaration.Identifier.Value.(string) == name {
+			return declaration, index, true
+		}
+	}
+
+	return nil, 0, false
 }

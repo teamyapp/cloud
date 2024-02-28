@@ -38,12 +38,15 @@ func TestStaticAnalyzer_Analyze(t *testing.T) {
 			name: "error: local variable is never used",
 			source: `
 				func bad() {
-				  let name = "first";
+				  let declared = "first";
+				  let defined;
+				  let used = 1;
+				  used = used + 1;
 				}
 			`,
 			expectHasErr:    true,
 			expectErrLine:   3,
-			expectErrColumn: 7,
+			expectErrColumn: 11,
 		},
 	}
 
