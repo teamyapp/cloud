@@ -1,6 +1,7 @@
 package lang
 
 type Class struct {
-	Name    string
-	Methods []Callable
+	Name        string
+	Methods     []Callable
+	IsGenerated bool
 }

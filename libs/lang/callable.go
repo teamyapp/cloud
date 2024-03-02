@@ -17,6 +17,7 @@ type Callable struct {
 	Execute     func(closure *Environment, arguments ...any) (any, *Err)
 	Line        int
 	Column      int
+	IsGenerated bool
 }
 
 var _ fmt.Stringer = (*Callable)(nil)

@@ -148,7 +148,15 @@ func (e *Executor) executeClassStatement(statement Statement) {
 	methods := make([]Callable, 0)
 	for _, methodDeclaration := range statement.ClassMethodDeclarations {
 		methodName := methodDeclaration.CallableName.Value.(string)
-		method := e.newCallable(methodName, false, methodDeclaration.CallableParameters, *methodDeclaration.CallableBody)
+		method := e.newCallable(
+			methodName,
+			false,
+			methodDeclaration.CallableParameters,
+			*methodDeclaration.CallableBody,
+			methodDeclaration.Line,
+			methodDeclaration.Column,
+			methodDeclaration.IsGenerated,
+		)
 		methods = append(methods, method)
 	}
 
@@ -161,11 +169,25 @@ func (e *Executor) executeClassStatement(statement Statement) {
 
 func (e *Executor) executeCallableStatement(statement Statement) {
 	name := statement.CallableName.Value.(string)
-	callable := e.newCallable(name, false, statement.CallableParameters, *statement.CallableBody)
+	callable := e.newCallable(
+		name,
+		false,
+		statement.CallableParameters,
+		*statement.CallableBody,
+		statement.Line,
+		statement.Column,
+		statement.IsGenerated)
 	e.currentEnvironment.DefineWithInitializer(*statement.CallableName, callable)
 }
 
-func (e *Executor) newCallable(name string, isAnonymous bool, parameters []Token, body Statement) Callable {
+func (e *Executor) newCallable(
+	name string,
+	isAnonymous bool,
+	parameters []Token,
+	body Statement,
+	line int,
+	column int,
+	isGenerated bool) Callable {
 	return Callable{
 		Name:        name,
 		IsAnonymous: isAnonymous,
@@ -191,6 +213,9 @@ func (e *Executor) newCallable(name string, isAnonymous bool, parameters []Token
 
 			return nil, nil
 		},
+		Line:        line,
+		Column:      column,
+		IsGenerated: isGenerated,
 	}
 }
 
@@ -332,7 +357,10 @@ func (e *Executor) evaluateLambdaExpression(expression Expression) (any, *Err) {
 			"lambda",
 			true,
 			expression.LambdaParameters,
-			expression.LambdaBody),
+			expression.LambdaBody,
+			expression.Line,
+			expression.Column,
+			expression.IsGenerated),
 		nil
 }
 
@@ -930,6 +958,7 @@ func newGlobalEnvironment(
 			Execute: func(closure *Environment, args ...any) (any, *Err) {
 				return runtime.Now().UnixNano(), nil
 			},
+			IsGenerated: true,
 		})
 	environment.DefineWithInitializer(
 		Token{
@@ -945,6 +974,7 @@ func newGlobalEnvironment(
 				fmt.Fprint(runtime.Output, toString(args[0]))
 				return nil, nil
 			},
+			IsGenerated: true,
 		})
 	if runtime.CustomNativeGlobals != nil {
 		for identifier, global := range runtime.CustomNativeGlobals {
