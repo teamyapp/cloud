@@ -444,8 +444,9 @@ func TestEvaluate(t *testing.T) {
 				  }
 				
 				  showText();
-				  let text = "block";
+				  let text = "block1";
 				  showText();
+				  text = "block2";
 				}
 			`,
 			expectedOutput: "globalglobal",
@@ -468,7 +469,6 @@ func TestEvaluate(t *testing.T) {
 			err := scopeResolver.Analyze(statements)
 			require.Nil(t, err)
 
-			environment := NewEnvironment()
 			var outputBuf bytes.Buffer
 
 			runtime := DefaultRuntime()
@@ -477,7 +477,7 @@ func TestEvaluate(t *testing.T) {
 				runtime.Now = tc.runtime.Now
 			}
 
-			executor := NewExecutor(runtime, environment)
+			executor := NewExecutor(runtime)
 			values, err := executor.Execute(scopeResolver, statements)
 			if tc.expectHasEvaluatorErr {
 				require.NotNil(t, err)

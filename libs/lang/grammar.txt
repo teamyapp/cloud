@@ -1,10 +1,12 @@
 program -> declaration* EOF;
 declaration ->
+    classDeclaration |
     funcDeclaration |
     letDeclaration |
     statement;
 letDeclaration -> "let" IDENTIFIER ("=" expressions)? ";";
 funcDeclaration -> "func" callable;
+classDeclaration -> "class" IDENTIFIER "{" callable* "}";
 callable -> IDENTIFIER parametersAndBody;
 lambdaExpression -> "func" parametersAndBody;
 parametersAndBody -> "(" parameters? ")" blockStatement;
@@ -40,8 +42,9 @@ bitwiseAnd -> term ("&" term)*;
 shift -> term (("<<"|">>") term)*;
 term -> factor (("+"|"-") factor)*;
 factor -> unary (("*"|"/") unary)*;
-unary -> ("!"|"-"|"~") unary | call;
-call -> primary ("(" arguments? ")")*;
+unary -> ("!"|"-"|"~") unary | instance;
+new -> "new" IDENTIFIER "(" arguments? ")" | callAndPropAccess;
+callAndPropAccess -> primary ("(" arguments? ")" | "." IDENTIFIER)*;
 arguments -> expression ("," expression)*;
 primary ->
     NUMBER |

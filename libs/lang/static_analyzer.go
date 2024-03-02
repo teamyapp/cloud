@@ -16,9 +16,9 @@ type Declaration struct {
 }
 
 type StaticAnalyzer struct {
-	scopes         [][]*Declaration
-	localDistances map[uint64]int
-	isInCallable   bool
+	scopes       [][]*Declaration
+	localRefs    map[uint64]*Reference
+	isInCallable bool
 }
 
 func (s *StaticAnalyzer) Analyze(statements []Statement) *Err {
@@ -43,9 +43,9 @@ func (s *StaticAnalyzer) resolve(statements []Statement) *Err {
 	return nil
 }
 
-func (s *StaticAnalyzer) GetLocalScopeDistance(nodeID uint64) (int, bool) {
-	distance, ok := s.localDistances[nodeID]
-	return distance, ok
+func (s *StaticAnalyzer) GetLocalRef(nodeID uint64) (*Reference, bool) {
+	ref, ok := s.localRefs[nodeID]
+	return ref, ok
 }
 
 func (s *StaticAnalyzer) resolveStatement(statement Statement) *Err {
@@ -68,6 +68,8 @@ func (s *StaticAnalyzer) resolveStatement(statement Statement) *Err {
 		return s.resolveCallableStatement(statement)
 	case ReturnStatementType:
 		return s.resolveReturnStatement(statement)
+	case ClassStatementType:
+		return s.resolveClassStatement(statement)
 	default:
 		return &Err{
 			Message:           fmt.Sprintf("Unknown statement type: %v", statement.Type),
@@ -76,6 +78,16 @@ func (s *StaticAnalyzer) resolveStatement(statement Statement) *Err {
 			FromGeneratedCode: statement.IsGenerated,
 		}
 	}
+}
+
+func (s *StaticAnalyzer) resolveClassStatement(statement Statement) *Err {
+	err := s.declare(*statement.ClassIdentifier)
+	if err != nil {
+		return err
+	}
+
+	s.define(*statement.ClassIdentifier)
+	return nil
 }
 
 func (s *StaticAnalyzer) resolveExpressionStatement(statement Statement) *Err {
@@ -324,7 +336,7 @@ func (s *StaticAnalyzer) resolveLocal(nodeID uint64, token Token) *Err {
 	name := token.Value.(string)
 	for index := len(s.scopes) - 1; index >= 0; index-- {
 		scope := s.scopes[index]
-		declaration, _, ok := findDeclaration(scope, token)
+		declaration, stackIndex, ok := findDeclaration(scope, token)
 		if ok {
 			if declaration.Status == DeclaredIdentifierStatus {
 				return &Err{
@@ -336,17 +348,15 @@ func (s *StaticAnalyzer) resolveLocal(nodeID uint64, token Token) *Err {
 			}
 
 			declaration.Status = UsedIdentifierStatus
-			s.localDistances[nodeID] = len(s.scopes) - 1 - index
+			s.localRefs[nodeID] = &Reference{
+				EnvironmentDistance: len(s.scopes) - 1 - index,
+				StackIndex:          stackIndex,
+			}
 			return nil
 		}
 	}
 
-	return &Err{
-		Message:           fmt.Sprintf("Undefined variable '%s'", name),
-		Line:              token.Line,
-		Column:            token.Column,
-		FromGeneratedCode: token.IsGenerated,
-	}
+	return nil
 }
 
 func (s *StaticAnalyzer) beginScope() {
@@ -401,16 +411,16 @@ func (s *StaticAnalyzer) define(identifier Token) {
 
 func NewStaticAnalyzer() *StaticAnalyzer {
 	return &StaticAnalyzer{
-		scopes:         [][]*Declaration{},
-		localDistances: map[uint64]int{},
+		scopes:    [][]*Declaration{},
+		localRefs: map[uint64]*Reference{},
 	}
 }
 
 func findDeclaration(scope []*Declaration, token Token) (*Declaration, int, bool) {
 	name := token.Value.(string)
-	for index, declaration := range scope {
+	for stackIndex, declaration := range scope {
 		if declaration.Identifier.Value.(string) == name {
-			return declaration, index, true
+			return declaration, stackIndex, true
 		}
 	}
 

@@ -17,6 +17,7 @@ const (
 	ContinueStatementType   StatementType = "Continue"
 	CallableStatementType   StatementType = "Callable"
 	ReturnStatementType     StatementType = "Return"
+	ClassStatementType      StatementType = "Class"
 )
 
 type Statement struct {
@@ -39,6 +40,8 @@ type Statement struct {
 	CallableParameters       []Token
 	CallableBody             *Statement
 	ReturnValueExpression    *Expression
+	ClassIdentifier          *Token
+	ClassMethodDeclarations  []Statement
 }
 
 var _ fmt.Stringer = (*Statement)(nil)
@@ -81,6 +84,13 @@ func (s Statement) String() string {
 		}
 
 		return fmt.Sprintf("(return %s)", s.ReturnValueExpression)
+	case ClassStatementType:
+		var methodDeclarations []string
+		for _, methodDeclaration := range s.ClassMethodDeclarations {
+			methodDeclarations = append(methodDeclarations, methodDeclaration.String())
+		}
+
+		return fmt.Sprintf("(class %v %s)", s.ClassIdentifier.Value, strings.Join(methodDeclarations, " "))
 	}
 
 	return fmt.Sprintf("[unknown statement type: %v]", s.Type)

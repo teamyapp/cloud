@@ -59,6 +59,18 @@ func (p *Parser) scanDeclaration() *Statement {
 		}
 	}
 
+	if p.matchTokenType([]TokenType{ClassKeywordTokenType}, 0) {
+		classToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		statement, err := p.scanClassDeclaration(classToken)
+		if err != nil {
+			p.synchronize()
+			return nil
+		}
+
+		return statement
+	}
+
 	statement, err := p.scanStatement()
 	if err != nil {
 		p.synchronize()
@@ -66,6 +78,64 @@ func (p *Parser) scanDeclaration() *Statement {
 	}
 
 	return &statement
+}
+
+func (p *Parser) scanClassDeclaration(startToken Token) (*Statement, *Err) {
+	if !p.matchTokenType([]TokenType{IdentifierTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return nil, &Err{
+			Message:           fmt.Sprintf("expect identifier, got %v", token.Lexeme),
+			Line:              token.Line,
+			Column:            token.Column,
+			FromGeneratedCode: token.IsGenerated,
+		}
+	}
+
+	classIdentifier := p.tokens[p.nextTokenIndex]
+	p.nextTokenIndex++
+
+	if !p.matchTokenType([]TokenType{LeftBraceTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return nil, &Err{
+			Message:           fmt.Sprintf("expect '{', got %v", token.Lexeme),
+			Line:              token.Line,
+			Column:            token.Column,
+			FromGeneratedCode: token.IsGenerated,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	var classMethodDeclarations []Statement
+	for p.nextTokenIndex < len(p.tokens) &&
+		!p.matchTokenType([]TokenType{RightBraceTokenType}, 0) {
+		callableStartToken := p.tokens[p.nextTokenIndex]
+		methodDeclaration, err := p.scanCallableDeclaration(callableStartToken)
+		if err != nil {
+			return nil, err
+		}
+
+		classMethodDeclarations = append(classMethodDeclarations, methodDeclaration)
+	}
+
+	if !p.matchTokenType([]TokenType{RightBraceTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return nil, &Err{
+			Message:           fmt.Sprintf("expect '}', got %v", token.Lexeme),
+			Line:              token.Line,
+			Column:            token.Column,
+			FromGeneratedCode: token.IsGenerated,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	return &Statement{
+		NodeID:                  p.newNodeID(),
+		Type:                    ClassStatementType,
+		ClassIdentifier:         &classIdentifier,
+		ClassMethodDeclarations: classMethodDeclarations,
+	}, nil
 }
 
 func (p *Parser) scanCallableDeclaration(startToken Token) (Statement, *Err) {
@@ -812,6 +882,62 @@ func (p *Parser) scanUnary() (Expression, *Err) {
 			UnaryExpression: &unaryExpr,
 			Line:            operator.Line,
 			Column:          operator.Column,
+		}, nil
+	}
+
+	return p.scanNew()
+}
+
+func (p *Parser) scanNew() (Expression, *Err) {
+	if p.matchTokenType([]TokenType{NewKeywordTokenType}, 0) {
+		p.nextTokenIndex++
+
+		if !p.matchTokenType([]TokenType{IdentifierTokenType}, 0) {
+			token := p.tokens[p.nextTokenIndex]
+			return Expression{}, &Err{
+				Message:           fmt.Sprintf("expect identifier, got %v", token.Lexeme),
+				Line:              token.Line,
+				Column:            token.Column,
+				FromGeneratedCode: token.IsGenerated,
+			}
+		}
+
+		identifierToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+
+		if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}, 0) {
+			token := p.tokens[p.nextTokenIndex]
+			return Expression{}, &Err{
+				Message:           fmt.Sprintf("expect '(', got '%v'", token.Lexeme),
+				Line:              token.Line,
+				Column:            token.Column,
+				FromGeneratedCode: token.IsGenerated,
+			}
+		}
+
+		p.nextTokenIndex++
+
+		args, err := p.scanArguments()
+		if err != nil {
+			return Expression{}, err
+		}
+
+		if !p.matchTokenType([]TokenType{RightParenthesisTokenType}, 0) {
+			token := p.tokens[p.nextTokenIndex]
+			return Expression{}, &Err{
+				Message:           fmt.Sprintf("expect ')', got '%v'", token.Lexeme),
+				Line:              token.Line,
+				Column:            token.Column,
+				FromGeneratedCode: token.IsGenerated,
+			}
+		}
+
+		p.nextTokenIndex++
+		return Expression{
+			NodeID:                     p.newNodeID(),
+			Type:                       NewInstanceExpressionType,
+			NewInstanceClassIdentifier: identifierToken,
+			NewInstanceConstructorArgumentExpressions: args,
 		}, nil
 	}
 

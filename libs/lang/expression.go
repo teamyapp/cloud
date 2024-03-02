@@ -18,31 +18,34 @@ const (
 	AssignmentExpressionType     ExpressionType = "Assignment"
 	CallExpressionType           ExpressionType = "Call"
 	LambdaExpressionType         ExpressionType = "Lambda"
+	NewInstanceExpressionType    ExpressionType = "NewInstance"
 )
 
 type Expression struct {
-	NodeID                     uint64
-	Type                       ExpressionType
-	Line                       int
-	Column                     int
-	IsGenerated                bool
-	Literal                    Token
-	Operator                   Token
-	Identifier                 Token
-	UnaryExpression            *Expression
-	BinaryLeftExpression       *Expression
-	BinaryRightExpression      *Expression
-	TernaryConditionExpression *Expression
-	TernaryTrueExpression      *Expression
-	TernaryFalseExpression     *Expression
-	GroupInnerExpression       *Expression
-	ExpressionList             []Expression
-	AssignmentIdentifier       Token
-	AssignmentValueExpression  *Expression
-	CallableExpression         *Expression
-	CallArgumentExpressions    []Expression
-	LambdaParameters           []Token
-	LambdaBody                 Statement
+	NodeID                                    uint64
+	Type                                      ExpressionType
+	Line                                      int
+	Column                                    int
+	IsGenerated                               bool
+	Literal                                   Token
+	Operator                                  Token
+	Identifier                                Token
+	UnaryExpression                           *Expression
+	BinaryLeftExpression                      *Expression
+	BinaryRightExpression                     *Expression
+	TernaryConditionExpression                *Expression
+	TernaryTrueExpression                     *Expression
+	TernaryFalseExpression                    *Expression
+	GroupInnerExpression                      *Expression
+	ExpressionList                            []Expression
+	AssignmentIdentifier                      Token
+	AssignmentValueExpression                 *Expression
+	CallableExpression                        *Expression
+	CallArgumentExpressions                   []Expression
+	LambdaParameters                          []Token
+	LambdaBody                                Statement
+	NewInstanceClassIdentifier                Token
+	NewInstanceConstructorArgumentExpressions []Expression
 }
 
 var _ fmt.Stringer = (*Expression)(nil)
@@ -84,6 +87,13 @@ func (e Expression) String() string {
 		}
 
 		return fmt.Sprintf("(lambda [%v] %s)", strings.Join(parameters, " "), e.LambdaBody)
+	case NewInstanceExpressionType:
+		args := make([]string, 0)
+		for _, argExpr := range e.NewInstanceConstructorArgumentExpressions {
+			args = append(args, argExpr.String())
+		}
+
+		return fmt.Sprintf("(new %s [%v])", e.NewInstanceClassIdentifier.Lexeme, strings.Join(args, " "))
 	}
 
 	return fmt.Sprintf("[unknown expression type: %s]", e.Type)

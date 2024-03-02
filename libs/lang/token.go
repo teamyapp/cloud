@@ -19,6 +19,7 @@ const (
 	ThisKeywordTokenType     TokenType = "ThisKeyword"
 	LetKeywordTokenType      TokenType = "LetKeyword"
 	ClassKeywordTokenType    TokenType = "ClassKeyword"
+	NewKeywordTokenType      TokenType = "NewKeyword"
 
 	LeftParenthesisTokenType  TokenType = "LeftParenthesis"
 	RightParenthesisTokenType TokenType = "RightParenthesis"
@@ -89,6 +90,7 @@ var keywords = map[string]TokenType{
 	"this":     ThisKeywordTokenType,
 	"let":      LetKeywordTokenType,
 	"class":    ClassKeywordTokenType,
+	"new":      NewKeywordTokenType,
 }
 
 type Token struct {

@@ -2,85 +2,112 @@ package lang
 
 import "fmt"
 
+type IdentifierAndValue struct {
+	Identifier    string
+	Value         any
+	IsInitialized bool
+}
+
 type Environment struct {
-	outerEnvironment  *Environment
-	identifierToValue map[string]any
-	isInitialized     map[string]bool
+	outerEnvironment    *Environment
+	IdentifierAndValues []IdentifierAndValue
 }
 
 func (e *Environment) Define(identifierToken Token) {
 	identifier := identifierToken.Value.(string)
-	e.identifierToValue[identifier] = nil
+	e.IdentifierAndValues = append(e.IdentifierAndValues, IdentifierAndValue{
+		Identifier:    identifier,
+		IsInitialized: false,
+	})
 }
 
 func (e *Environment) DefineWithInitializer(identifierToken Token, value any) {
 	identifier := identifierToken.Value.(string)
-	e.identifierToValue[identifier] = value
-	e.isInitialized[identifier] = true
+	e.IdentifierAndValues = append(e.IdentifierAndValues, IdentifierAndValue{
+		Identifier:    identifier,
+		Value:         value,
+		IsInitialized: true,
+	})
 }
 
 func (e *Environment) Get(identifierToken Token) (any, *Err) {
 	identifier := identifierToken.Value.(string)
-	value, ok := e.identifierToValue[identifier]
-	if !ok {
-		if e.outerEnvironment != nil {
-			return e.outerEnvironment.Get(identifierToken)
-		}
+	for index := len(e.IdentifierAndValues) - 1; index >= 0; index-- {
+		identifierAndValue := e.IdentifierAndValues[index]
+		if identifierAndValue.Identifier == identifier {
+			if !identifierAndValue.IsInitialized {
+				return nil, &Err{
+					Message:           fmt.Sprintf("uninitialized identifier: %v", identifier),
+					Line:              identifierToken.Line,
+					Column:            identifierToken.Column,
+					FromGeneratedCode: identifierToken.IsGenerated,
+				}
+			}
 
-		return nil, &Err{
-			Message: fmt.Sprintf("undefined identifier: %v", identifier),
-			Line:    identifierToken.Line,
-			Column:  identifierToken.Column,
-		}
-	}
-
-	if !e.isInitialized[identifier] {
-		return nil, &Err{
-			Message: fmt.Sprintf("uninitialized identifier: %v", identifier),
-			Line:    identifierToken.Line,
-			Column:  identifierToken.Column,
+			return identifierAndValue.Value, nil
 		}
 	}
 
-	return value, nil
+	if e.outerEnvironment != nil {
+		return e.outerEnvironment.Get(identifierToken)
+	}
+
+	return nil, &Err{
+		Message:           fmt.Sprintf("undefined identifier: %v", identifier),
+		Line:              identifierToken.Line,
+		Column:            identifierToken.Column,
+		FromGeneratedCode: identifierToken.IsGenerated,
+	}
 }
 
-func (e *Environment) GetAt(identifierToken Token, distance int) (any, *Err) {
-	ancestor := e.ancestorAt(distance)
+func (e *Environment) GetAt(identifier Token, ref *Reference) (any, *Err) {
+	ancestor := e.ancestorAt(ref.EnvironmentDistance)
 	if ancestor == nil {
 		return nil, nil
 	}
 
-	return e.ancestorAt(distance).Get(identifierToken)
-}
-
-func (e *Environment) ancestorAt(distance int) *Environment {
-	environment := e
-	for index := 0; index < distance; index++ {
-		environment = environment.outerEnvironment
-	}
-
-	return environment
+	return ancestor.getAtStackIndex(identifier, ref.StackIndex)
 }
 
 func (e *Environment) Assign(identifierToken Token, value any) *Err {
 	identifier := identifierToken.Value.(string)
-	_, ok := e.identifierToValue[identifier]
-	if !ok {
-		if e.outerEnvironment != nil {
-			return e.outerEnvironment.Assign(identifierToken, value)
-		}
+	for index := len(e.IdentifierAndValues) - 1; index >= 0; index-- {
+		identifierAndValue := e.IdentifierAndValues[index]
+		if identifierAndValue.Identifier == identifier {
+			if !identifierAndValue.IsInitialized {
+				return &Err{
+					Message:           fmt.Sprintf("uninitialized identifier: %v", identifier),
+					Line:              identifierToken.Line,
+					Column:            identifierToken.Column,
+					FromGeneratedCode: identifierToken.IsGenerated,
+				}
+			}
 
-		return &Err{
-			Message: fmt.Sprintf("undefined identifier: %v", identifier),
-			Line:    identifierToken.Line,
-			Column:  identifierToken.Column,
+			identifierAndValue.Value = value
+			e.IdentifierAndValues[index] = identifierAndValue
+			return nil
 		}
 	}
 
-	e.identifierToValue[identifier] = value
-	e.isInitialized[identifier] = true
-	return nil
+	if e.outerEnvironment != nil {
+		return e.outerEnvironment.Assign(identifierToken, value)
+	}
+
+	return &Err{
+		Message:           fmt.Sprintf("undefined identifier: %v", identifier),
+		Line:              identifierToken.Line,
+		Column:            identifierToken.Column,
+		FromGeneratedCode: identifierToken.IsGenerated,
+	}
+}
+
+func (e *Environment) AssignAt(identifierToken Token, ref *Reference, value any) *Err {
+	ancestor := e.ancestorAt(ref.EnvironmentDistance)
+	if ancestor == nil {
+		return nil
+	}
+
+	return ancestor.assignAtStackIndex(identifierToken, ref.StackIndex, value)
 }
 
 func (e *Environment) NewInnerEnvironment() *Environment {
@@ -93,9 +120,57 @@ func (e *Environment) AttachOuterEnvironment(outerEnvironment *Environment) {
 	e.outerEnvironment = outerEnvironment
 }
 
+func (e *Environment) getAtStackIndex(identifier Token, stackIndex int) (any, *Err) {
+	if stackIndex < 0 || stackIndex >= len(e.IdentifierAndValues) {
+		return nil, &Err{
+			Message:           "invalid identifier index",
+			Line:              identifier.Line,
+			Column:            identifier.Column,
+			FromGeneratedCode: identifier.IsGenerated,
+		}
+	}
+
+	identifierAndValue := e.IdentifierAndValues[stackIndex]
+	if !identifierAndValue.IsInitialized {
+		return nil, &Err{
+			Message:           fmt.Sprintf("uninitialized identifier: %v", identifierAndValue.Identifier),
+			Line:              identifier.Line,
+			Column:            identifier.Column,
+			FromGeneratedCode: identifier.IsGenerated,
+		}
+	}
+
+	return identifierAndValue.Value, nil
+}
+
+func (e *Environment) ancestorAt(environmentDistance int) *Environment {
+	environment := e
+	for index := 0; index < environmentDistance; index++ {
+		environment = environment.outerEnvironment
+	}
+
+	return environment
+}
+
+func (e *Environment) assignAtStackIndex(identifier Token, stackIndex int, value any) *Err {
+	if stackIndex < 0 || stackIndex >= len(e.IdentifierAndValues) {
+		return &Err{
+			Message:           "invalid identifier index",
+			Line:              identifier.Line,
+			Column:            identifier.Column,
+			FromGeneratedCode: identifier.IsGenerated,
+		}
+	}
+
+	identifierAndValue := e.IdentifierAndValues[stackIndex]
+	identifierAndValue.Value = value
+	identifierAndValue.IsInitialized = true
+	e.IdentifierAndValues[stackIndex] = identifierAndValue
+	return nil
+}
+
 func NewEnvironment() *Environment {
 	return &Environment{
-		identifierToValue: make(map[string]any),
-		isInitialized:     make(map[string]bool),
+		IdentifierAndValues: []IdentifierAndValue{},
 	}
 }

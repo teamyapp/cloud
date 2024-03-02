@@ -6,9 +6,9 @@ import (
 )
 
 type Runtime struct {
-	Now                   func() time.Time
-	Output                io.Writer
-	CustomNativeFunctions map[string]Callable
+	Now                 func() time.Time
+	Output              io.Writer
+	CustomNativeGlobals map[string]any
 }
 
 func DefaultRuntime() *Runtime {

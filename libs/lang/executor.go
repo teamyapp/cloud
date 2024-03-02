@@ -130,6 +130,9 @@ func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Sign
 			Column:      statement.Column,
 			IsGenerated: statement.IsGenerated,
 		}, nil
+	case ClassStatementType:
+		e.executeClassStatement(statement)
+		return nil, false, nil, nil
 	}
 
 	return nil, false, nil, &Err{
@@ -138,6 +141,22 @@ func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Sign
 		Column:            statement.Column,
 		FromGeneratedCode: statement.IsGenerated,
 	}
+}
+
+func (e *Executor) executeClassStatement(statement Statement) {
+	name := statement.ClassIdentifier.Value.(string)
+	methods := make([]Callable, 0)
+	for _, methodDeclaration := range statement.ClassMethodDeclarations {
+		methodName := methodDeclaration.CallableName.Value.(string)
+		method := e.newCallable(methodName, false, methodDeclaration.CallableParameters, *methodDeclaration.CallableBody)
+		methods = append(methods, method)
+	}
+
+	class := Class{
+		Name:    name,
+		Methods: methods,
+	}
+	e.currentEnvironment.DefineWithInitializer(*statement.ClassIdentifier, class)
 }
 
 func (e *Executor) executeCallableStatement(statement Statement) {
@@ -363,17 +382,22 @@ func (e *Executor) evaluateAssignmentExpression(expression Expression) (any, *Er
 		return nil, err
 	}
 
-	err = e.currentEnvironment.Assign(expression.AssignmentIdentifier, value)
+	ref, ok := e.staticAnalyzer.GetLocalRef(expression.NodeID)
+	if !ok {
+		return value, e.globalEnvironment.Assign(expression.Identifier, value)
+	}
+
+	err = e.currentEnvironment.AssignAt(expression.AssignmentIdentifier, ref, value)
 	return value, err
 }
 
 func (e *Executor) evaluateIdentifierExpression(expression Expression) (any, *Err) {
-	distance, ok := e.staticAnalyzer.GetLocalScopeDistance(expression.NodeID)
+	ref, ok := e.staticAnalyzer.GetLocalRef(expression.NodeID)
 	if !ok {
 		return e.globalEnvironment.Get(expression.Identifier)
 	}
 
-	return e.currentEnvironment.GetAt(expression.Identifier, distance)
+	return e.currentEnvironment.GetAt(expression.Identifier, ref)
 }
 
 func (e *Executor) evaluateTernaryExpression(expression Expression) (any, *Err) {
@@ -880,9 +904,9 @@ func (e *Executor) evaluateExpressionListExpression(expression Expression) (any,
 
 func NewExecutor(
 	runtime *Runtime,
-	environment *Environment,
 ) *Executor {
 	globalEnvironment := newGlobalEnvironment(runtime)
+	environment := NewEnvironment()
 	environment.AttachOuterEnvironment(globalEnvironment)
 	return &Executor{
 		globalEnvironment:  globalEnvironment,
@@ -922,16 +946,16 @@ func newGlobalEnvironment(
 				return nil, nil
 			},
 		})
-	if runtime.CustomNativeFunctions != nil {
-		for funcName, callable := range runtime.CustomNativeFunctions {
+	if runtime.CustomNativeGlobals != nil {
+		for identifier, global := range runtime.CustomNativeGlobals {
 			environment.DefineWithInitializer(
 				Token{
 					Type:        IdentifierTokenType,
-					Lexeme:      funcName,
-					Value:       funcName,
+					Lexeme:      identifier,
+					Value:       identifier,
 					IsGenerated: true,
 				},
-				callable,
+				global,
 			)
 		}
 	}

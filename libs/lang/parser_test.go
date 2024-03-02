@@ -353,6 +353,34 @@ func TestParser_Parse(t *testing.T) {
 				`(call (lambda [num] {(call print [(* num 2)])}) [10])`,
 			},
 		},
+		{
+			name: "define class",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						count = initialCount;
+						print(initialCount);
+					}
+
+					increment() {
+						count = count + 1;
+					}
+
+					decrement() {
+						count = count - 1;
+					}
+
+					getCount() {
+						return count;
+					}
+				}
+				
+				let counter = new Counter(10);`,
+			expectedStatements: []string{
+				"(class Counter (func constructor [initialCount] {(= count initialCount) (call print [initialCount])}) (func increment [] {(= count (+ count 1))}) (func decrement [] {(= count (- count 1))}) (func getCount [] {(return count)}))",
+				"(let counter (new Counter [10]))",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
