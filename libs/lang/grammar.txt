@@ -1,0 +1,57 @@
+program -> declaration* EOF;
+declaration ->
+    classDeclaration |
+    funcDeclaration |
+    letDeclaration |
+    statement;
+letDeclaration -> "let" IDENTIFIER ("=" expressions)? ";";
+funcDeclaration -> "func" callable;
+classDeclaration -> "class" IDENTIFIER "{" callable* "}";
+callable -> IDENTIFIER parametersAndBody;
+lambdaExpression -> "func" parametersAndBody;
+parametersAndBody -> "(" parameters? ")" blockStatement;
+parameters -> IDENTIFIER ("," IDENTIFIER)*;
+statement ->
+    expressionStatement |
+    blockStatement |
+    ifStatement |
+    whileStatement |
+    forStatement |
+    breakStatement |
+    continueStatement;
+ifStatement -> "if" "(" expressions ")" statement ("else" statement)?;
+whileStatement -> "while" "(" expressions ")" statement;
+forStatement -> "for" "(" (letDeclaration | expressionStatement | ";") expressions? ";" expressions? ")"
+    statement;
+breakStatement -> "break" ";";
+continueStatement -> "continue" ";";
+returnStatement -> "return" expressions? ";";
+expressionStatement -> expressions ";";
+blockStatement -> "{" declaration* "}";
+expressions -> expression ("," expression)*;
+expression -> conditional;
+assignment -> IDENTIFIER "=" assignment | conditional;
+conditional -> equality ("?" equality ":" conditional)*;
+equality -> logical (("=="|"!=") logical)*;
+logicalOr -> logicalAnd ("||" logicalAnd)*;
+logicalAnd -> comparison ("&&" comparison)*;
+comparison -> bitwiseOr ((">"|"<"|">="|"<=") bitwiseOr)*;
+bitwiseOr -> bitwiseXor ("|" bitwiseXor)*;
+bitwiseXor -> bitwiseAnd ("^" bitwiseAnd)*;
+bitwiseAnd -> term ("&" term)*;
+shift -> term (("<<"|">>") term)*;
+term -> factor (("+"|"-") factor)*;
+factor -> unary (("*"|"/") unary)*;
+unary -> ("!"|"-"|"~") unary | instance;
+new -> "new" IDENTIFIER "(" arguments? ")" | callAndPropAccess;
+callAndPropAccess -> primary ("(" arguments? ")" | "." IDENTIFIER)*;
+arguments -> expression ("," expression)*;
+primary ->
+    NUMBER |
+    STRING |
+    "true" |
+    "false" |
+    "nil" |
+    "(" expression ")" |
+    IDENTIFIER |
+    lambdaExpression;

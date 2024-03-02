@@ -5,19 +5,21 @@ type TokenType string
 const (
 	IdentifierTokenType TokenType = "Identifier"
 
-	IfKeywordTokenType     TokenType = "IfKeyword"
-	ElseKeywordTokenType   TokenType = "ElseKeyword"
-	ForKeywordTokenType    TokenType = "ForKeyword"
-	WhileKeywordTokenType  TokenType = "WhileKeyword"
-	BreakKeywordTokenType  TokenType = "BreakKeyword"
-	SwitchKeywordTokenType TokenType = "SwitchKeyword"
-	CaseKeywordTokenType   TokenType = "CaseKeyword"
-	ReturnKeywordTokenType TokenType = "ReturnKeyword"
-	FuncKeywordTokenType   TokenType = "FuncKeyword"
-	SuperKeywordTokenType  TokenType = "SuperKeyword"
-	ThisKeywordTokenType   TokenType = "ThisKeyword"
-	LetKeywordTokenType    TokenType = "LetKeyword"
-	ClassKeywordTokenType  TokenType = "ClassKeyword"
+	IfKeywordTokenType       TokenType = "IfKeyword"
+	ElseKeywordTokenType     TokenType = "ElseKeyword"
+	ForKeywordTokenType      TokenType = "ForKeyword"
+	WhileKeywordTokenType    TokenType = "WhileKeyword"
+	BreakKeywordTokenType    TokenType = "BreakKeyword"
+	ContinueKeywordTokenType TokenType = "ContinueKeyword"
+	SwitchKeywordTokenType   TokenType = "SwitchKeyword"
+	CaseKeywordTokenType     TokenType = "CaseKeyword"
+	ReturnKeywordTokenType   TokenType = "ReturnKeyword"
+	FuncKeywordTokenType     TokenType = "FuncKeyword"
+	SuperKeywordTokenType    TokenType = "SuperKeyword"
+	ThisKeywordTokenType     TokenType = "ThisKeyword"
+	LetKeywordTokenType      TokenType = "LetKeyword"
+	ClassKeywordTokenType    TokenType = "ClassKeyword"
+	NewKeywordTokenType      TokenType = "NewKeyword"
 
 	LeftParenthesisTokenType  TokenType = "LeftParenthesis"
 	RightParenthesisTokenType TokenType = "RightParenthesis"
@@ -62,12 +64,11 @@ const (
 	BitwiseLeftShiftTokenType   TokenType = "BitwiseLeftShift"
 	BitwiseRightShiftTokenType  TokenType = "BitwiseRightShift"
 
-	IntTokenType      TokenType = "IntToken"
-	DecimalTokenType  TokenType = "DecimalToken"
-	BoolTokenType     TokenType = "BoolToken"
-	StringTokenType   TokenType = "StringToken"
-	DatetimeTokenType TokenType = "DatetimeToken"
-	NilTokenType      TokenType = "NilToken"
+	IntTokenType     TokenType = "IntToken"
+	DecimalTokenType TokenType = "DecimalToken"
+	BoolTokenType    TokenType = "BoolToken"
+	StringTokenType  TokenType = "StringToken"
+	NilTokenType     TokenType = "NilToken"
 
 	WhitespaceTokenType TokenType = "Whitespace"
 	CommentTokenType    TokenType = "Comment"
@@ -75,25 +76,28 @@ const (
 )
 
 var keywords = map[string]TokenType{
-	"if":     IfKeywordTokenType,
-	"else":   ElseKeywordTokenType,
-	"for":    ForKeywordTokenType,
-	"while":  WhileKeywordTokenType,
-	"break":  BreakKeywordTokenType,
-	"switch": SwitchKeywordTokenType,
-	"case":   CaseKeywordTokenType,
-	"return": ReturnKeywordTokenType,
-	"func":   FuncKeywordTokenType,
-	"super":  SuperKeywordTokenType,
-	"this":   ThisKeywordTokenType,
-	"let":    LetKeywordTokenType,
-	"class":  ClassKeywordTokenType,
+	"if":       IfKeywordTokenType,
+	"else":     ElseKeywordTokenType,
+	"for":      ForKeywordTokenType,
+	"while":    WhileKeywordTokenType,
+	"break":    BreakKeywordTokenType,
+	"continue": ContinueKeywordTokenType,
+	"switch":   SwitchKeywordTokenType,
+	"case":     CaseKeywordTokenType,
+	"return":   ReturnKeywordTokenType,
+	"func":     FuncKeywordTokenType,
+	"super":    SuperKeywordTokenType,
+	"this":     ThisKeywordTokenType,
+	"let":      LetKeywordTokenType,
+	"class":    ClassKeywordTokenType,
+	"new":      NewKeywordTokenType,
 }
 
 type Token struct {
-	Type   TokenType
-	Lexeme string
-	Value  any
-	Line   int
-	Column int
+	Type        TokenType
+	Lexeme      string
+	Value       any
+	Line        int
+	Column      int
+	IsGenerated bool
 }

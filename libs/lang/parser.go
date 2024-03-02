@@ -2,35 +2,699 @@ package lang
 
 import "fmt"
 
-/*
-Grammar:
-	expressions -> expression ("," expression)*
-	expression -> conditional
-	conditional -> equality ("?" equality ":" equality)*
-	equality -> logical (("=="|"!=") logical)*
-	logicalOr -> logicalAnd ("||" logicalAnd)*
-	logicalAnd -> comparison ("&&" comparison)*
-	comparison -> bitwiseOr ((">"|"<"|">="|"<=") bitwiseOr)*
-	bitwiseOr -> bitwiseXor ("|" bitwiseXor)*
-	bitwiseXor -> bitwiseAnd ("^" bitwiseAnd)*
-	bitwiseAnd -> term ("&" term)*
-	shift -> term (("<<"|">>") term)*
-	term -> factor (("+"|"-") factor)*
-	factor -> unary (("*"|"/") unary)*
-	unary -> ("!"|"-"|"~") unary | primary
-	primary -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")"
-*/
+type ParametersAndBody struct {
+	Parameters []Token
+	Body       Statement
+}
 
 type Parser struct {
+	nextNodeID     uint64
 	tokens         []Token
 	nextTokenIndex int
 	errs           []Err
 }
 
-func (p *Parser) parse(tokens []Token) (Expression, *Err) {
+func (p *Parser) Parse(tokens []Token) ([]Statement, []Err) {
+	p.nextNodeID = 1
 	p.tokens = tokens
 	p.nextTokenIndex = 0
-	return p.scanExpressionList()
+	statements := make([]Statement, 0)
+	for p.nextTokenIndex < len(tokens) &&
+		tokens[p.nextTokenIndex].Type != EOFTokenType {
+		statement := p.scanDeclaration()
+		if statement == nil {
+			continue
+		}
+
+		statements = append(statements, *statement)
+	}
+
+	return statements, p.errs
+}
+
+func (p *Parser) scanDeclaration() *Statement {
+	if p.matchTokenType([]TokenType{LetKeywordTokenType}, 0) {
+		letToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		statement, err := p.scanLetDeclaration(letToken)
+		if err != nil {
+			p.synchronize()
+			return nil
+		}
+
+		return &statement
+	}
+
+	if p.matchTokenType([]TokenType{FuncKeywordTokenType}, 0) {
+		if p.matchTokenType([]TokenType{IdentifierTokenType}, 1) {
+			funcToken := p.tokens[p.nextTokenIndex]
+			p.nextTokenIndex++
+			statement, err := p.scanCallableDeclaration(funcToken)
+			if err != nil {
+				p.synchronize()
+				return nil
+			}
+
+			return &statement
+		}
+	}
+
+	if p.matchTokenType([]TokenType{ClassKeywordTokenType}, 0) {
+		classToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		statement, err := p.scanClassDeclaration(classToken)
+		if err != nil {
+			p.synchronize()
+			return nil
+		}
+
+		return statement
+	}
+
+	statement, err := p.scanStatement()
+	if err != nil {
+		p.synchronize()
+		return nil
+	}
+
+	return &statement
+}
+
+func (p *Parser) scanClassDeclaration(startToken Token) (*Statement, *Err) {
+	if !p.matchTokenType([]TokenType{IdentifierTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return nil, &Err{
+			Message:           fmt.Sprintf("expect identifier, got %v", token.Lexeme),
+			Line:              token.Line,
+			Column:            token.Column,
+			FromGeneratedCode: token.IsGenerated,
+		}
+	}
+
+	classIdentifier := p.tokens[p.nextTokenIndex]
+	p.nextTokenIndex++
+
+	if !p.matchTokenType([]TokenType{LeftBraceTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return nil, &Err{
+			Message:           fmt.Sprintf("expect '{', got %v", token.Lexeme),
+			Line:              token.Line,
+			Column:            token.Column,
+			FromGeneratedCode: token.IsGenerated,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	var classMethodDeclarations []Statement
+	for p.nextTokenIndex < len(p.tokens) &&
+		!p.matchTokenType([]TokenType{RightBraceTokenType}, 0) {
+		callableStartToken := p.tokens[p.nextTokenIndex]
+		methodDeclaration, err := p.scanCallableDeclaration(callableStartToken)
+		if err != nil {
+			return nil, err
+		}
+
+		classMethodDeclarations = append(classMethodDeclarations, methodDeclaration)
+	}
+
+	if !p.matchTokenType([]TokenType{RightBraceTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return nil, &Err{
+			Message:           fmt.Sprintf("expect '}', got %v", token.Lexeme),
+			Line:              token.Line,
+			Column:            token.Column,
+			FromGeneratedCode: token.IsGenerated,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	return &Statement{
+		NodeID:                  p.newNodeID(),
+		Type:                    ClassStatementType,
+		ClassIdentifier:         &classIdentifier,
+		ClassMethodDeclarations: classMethodDeclarations,
+	}, nil
+}
+
+func (p *Parser) scanCallableDeclaration(startToken Token) (Statement, *Err) {
+	identifier := p.tokens[p.nextTokenIndex]
+	p.nextTokenIndex++
+
+	parametersAndBody, err := p.scanParametersAndBody()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	return Statement{
+		NodeID:             p.newNodeID(),
+		Type:               CallableStatementType,
+		CallableName:       &identifier,
+		CallableParameters: parametersAndBody.Parameters,
+		CallableBody:       &parametersAndBody.Body,
+		Line:               startToken.Line,
+		Column:             startToken.Column,
+	}, nil
+}
+
+func (p *Parser) scanParametersAndBody() (ParametersAndBody, *Err) {
+	if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return ParametersAndBody{}, &Err{
+			Message: fmt.Sprintf("expect '(', got %v", token.Lexeme),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	parameters, err := p.scanParameters()
+	if err != nil {
+		return ParametersAndBody{}, err
+	}
+
+	if !p.matchTokenType([]TokenType{RightParenthesisTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return ParametersAndBody{}, &Err{
+			Message:           fmt.Sprintf("expect ')' but got %s", token.Lexeme),
+			Line:              token.Line,
+			Column:            token.Column,
+			FromGeneratedCode: false,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	if !p.matchTokenType([]TokenType{LeftBraceTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return ParametersAndBody{}, &Err{
+			Message:           fmt.Sprintf("expect '{' but got %s", token.Lexeme),
+			Line:              token.Line,
+			Column:            token.Column,
+			FromGeneratedCode: false,
+		}
+	}
+
+	token := p.tokens[p.nextTokenIndex]
+	p.nextTokenIndex++
+	body, err := p.scanBlockStatement(token)
+	if err != nil {
+		return ParametersAndBody{}, err
+	}
+
+	return ParametersAndBody{
+		Parameters: parameters,
+		Body:       body,
+	}, nil
+}
+
+func (p *Parser) scanParameters() ([]Token, *Err) {
+	var parameters []Token
+	if !p.matchTokenType([]TokenType{RightParenthesisTokenType}, 0) {
+		for {
+			token := p.tokens[p.nextTokenIndex]
+			p.nextTokenIndex++
+			if len(parameters) >= 255 {
+				err := &Err{
+					Message: fmt.Sprintf("cannot have more than 255 parameters"),
+					Line:    token.Line,
+					Column:  token.Column,
+				}
+				p.errs = append(p.errs, *err)
+			}
+
+			parameters = append(parameters, token)
+			if !p.matchTokenType([]TokenType{CommaTokenType}, 0) {
+				break
+			}
+
+			p.nextTokenIndex++
+		}
+	}
+
+	return parameters, nil
+}
+
+func (p *Parser) scanLetDeclaration(startToken Token) (Statement, *Err) {
+	if p.matchTokenType([]TokenType{IdentifierTokenType}, 0) {
+		identifierToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+
+		var initializer *Expression
+		if p.matchTokenType([]TokenType{AssignTokenType}, 0) {
+			p.nextTokenIndex++
+			tmpInitializer, err := p.scanExpressionList()
+			if err != nil {
+				return Statement{}, err
+			}
+
+			initializer = &tmpInitializer
+		}
+
+		if !p.matchTokenType([]TokenType{SemicolonTokenType}, 0) {
+			token := p.tokens[p.nextTokenIndex]
+			return Statement{}, &Err{
+				Message: fmt.Sprintf("expect ';', got %v", token.Lexeme),
+				Line:    token.Line,
+				Column:  token.Column,
+			}
+		}
+
+		p.nextTokenIndex++
+
+		return Statement{
+			NodeID:                   p.newNodeID(),
+			Type:                     LetStatementType,
+			LetIdentifier:            &identifierToken,
+			LetInitializerExpression: initializer,
+			Line:                     startToken.Line,
+			Column:                   startToken.Column,
+		}, nil
+	}
+
+	return Statement{}, &Err{
+		Message: "expect identifier",
+		Line:    startToken.Line,
+		Column:  startToken.Column,
+	}
+}
+
+func (p *Parser) scanStatement() (Statement, *Err) {
+	if p.matchTokenType([]TokenType{LeftBraceTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return p.scanBlockStatement(token)
+	}
+
+	if p.matchTokenType([]TokenType{IfKeywordTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return p.scanIfStatement(token)
+	}
+
+	if p.matchTokenType([]TokenType{WhileKeywordTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return p.scanWhileStatement(token)
+	}
+
+	if p.matchTokenType([]TokenType{ForKeywordTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return p.scanForStatement(token)
+	}
+
+	if p.matchTokenType([]TokenType{BreakKeywordTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return p.scanBreakStatement(token)
+	}
+
+	if p.matchTokenType([]TokenType{ContinueKeywordTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return p.scanContinueStatement(token)
+	}
+
+	if p.matchTokenType([]TokenType{ReturnKeywordTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return p.scanReturnStatement(token)
+	}
+
+	return p.scanExpressionStatement()
+}
+
+func (p *Parser) scanReturnStatement(startToken Token) (Statement, *Err) {
+	var expr *Expression
+	if !p.matchTokenType([]TokenType{SemicolonTokenType}, 0) {
+		tmpExpr, err := p.scanExpressionList()
+		if err != nil {
+			return Statement{}, err
+		}
+
+		expr = &tmpExpr
+	}
+
+	if !p.matchTokenType([]TokenType{SemicolonTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect ';', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+	return Statement{
+		NodeID:                p.newNodeID(),
+		Type:                  ReturnStatementType,
+		ReturnValueExpression: expr,
+		Line:                  startToken.Line,
+		Column:                startToken.Column,
+	}, nil
+}
+
+func (p *Parser) scanContinueStatement(startToken Token) (Statement, *Err) {
+	if !p.matchTokenType([]TokenType{SemicolonTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect ';', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	return Statement{
+		NodeID: p.newNodeID(),
+		Type:   ContinueStatementType,
+		Line:   startToken.Line,
+		Column: startToken.Column,
+	}, nil
+}
+
+func (p *Parser) scanBreakStatement(startToken Token) (Statement, *Err) {
+	if !p.matchTokenType([]TokenType{SemicolonTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect ';', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	return Statement{
+		NodeID: p.newNodeID(),
+		Type:   BreakStatementType,
+		Line:   startToken.Line,
+		Column: startToken.Column,
+	}, nil
+}
+
+func (p *Parser) scanForStatement(startToken Token) (Statement, *Err) {
+	if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect '(', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	var initializer *Statement
+	if p.matchTokenType([]TokenType{SemicolonTokenType}, 0) {
+		p.nextTokenIndex++
+	} else if p.matchTokenType([]TokenType{LetKeywordTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		tmpInitializer, err := p.scanLetDeclaration(token)
+		if err != nil {
+			return Statement{}, err
+		}
+
+		initializer = &tmpInitializer
+	} else {
+		tmpInitializer, err := p.scanExpressionStatement()
+		if err != nil {
+			return Statement{}, err
+		}
+
+		initializer = &tmpInitializer
+	}
+
+	var condition *Expression
+	if !p.matchTokenType([]TokenType{SemicolonTokenType}, 0) {
+		tmpCondition, err := p.scanExpressionList()
+		if err != nil {
+			return Statement{}, err
+		}
+
+		condition = &tmpCondition
+	}
+
+	if !p.matchTokenType([]TokenType{SemicolonTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect ';', but got '%v'", token.Lexeme),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	var increment *Expression
+	if !p.matchTokenType([]TokenType{RightParenthesisTokenType}, 0) {
+		tmpIncrement, err := p.scanExpressionList()
+		if err != nil {
+			return Statement{}, err
+		}
+
+		increment = &tmpIncrement
+	}
+
+	if !p.matchTokenType([]TokenType{RightParenthesisTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect ')', but got '%v'", token.Lexeme),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	body, err := p.scanStatement()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	if increment != nil {
+		body = Statement{
+			NodeID: p.newNodeID(),
+			Type:   BlockStatementType,
+			BlockInnerStatements: []Statement{
+				body,
+				{
+					NodeID:              p.newNodeID(),
+					Type:                ExpressionStatementType,
+					StatementExpression: increment,
+					IsGenerated:         true,
+				},
+			},
+			IsGenerated: true,
+		}
+	}
+
+	if condition == nil {
+		condition = &Expression{
+			NodeID: p.newNodeID(),
+			Type:   LiteralExpressionType,
+			Literal: Token{
+				Type:        BoolTokenType,
+				Lexeme:      "true",
+				Value:       true,
+				IsGenerated: true,
+			},
+			IsGenerated: true,
+		}
+	}
+
+	statement := Statement{
+		NodeID:                   p.newNodeID(),
+		Type:                     WhileStatementType,
+		WhileConditionExpression: condition,
+		WhileBodyStatement:       &body,
+		Line:                     startToken.Line,
+		Column:                   startToken.Column,
+	}
+
+	if initializer != nil {
+		statement = Statement{
+			NodeID: p.newNodeID(),
+			Type:   BlockStatementType,
+			BlockInnerStatements: []Statement{
+				*initializer,
+				statement,
+			},
+			IsGenerated: true,
+		}
+	}
+
+	return statement, nil
+}
+
+func (p *Parser) scanWhileStatement(startToken Token) (Statement, *Err) {
+	if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect '(', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	conditionExpr, err := p.scanExpressionList()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	if !p.matchTokenType([]TokenType{RightParenthesisTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect ')', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	bodyStmt, err := p.scanStatement()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	return Statement{
+		NodeID:                   p.newNodeID(),
+		Type:                     WhileStatementType,
+		WhileConditionExpression: &conditionExpr,
+		WhileBodyStatement:       &bodyStmt,
+		Line:                     startToken.Line,
+		Column:                   startToken.Column,
+	}, nil
+}
+
+func (p *Parser) scanIfStatement(startToken Token) (Statement, *Err) {
+	if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect '(', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	conditionExpr, err := p.scanExpressionList()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	if !p.matchTokenType([]TokenType{RightParenthesisTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect ')', found '%v'", token),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+
+	trueBranchStmt, err := p.scanStatement()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	var falseBranchStmt *Statement
+	if p.matchTokenType([]TokenType{ElseKeywordTokenType}, 0) {
+		p.nextTokenIndex++
+		falseTmpBranchStmt, err := p.scanStatement()
+		if err != nil {
+			return Statement{}, err
+		}
+
+		falseBranchStmt = &falseTmpBranchStmt
+	}
+
+	return Statement{
+		NodeID:                 p.newNodeID(),
+		Type:                   IfStatementType,
+		IfConditionExpression:  &conditionExpr,
+		IfTrueBranchStatement:  &trueBranchStmt,
+		IfFalseBranchStatement: falseBranchStmt,
+		Line:                   startToken.Line,
+		Column:                 startToken.Column,
+	}, nil
+}
+
+func (p *Parser) scanBlockStatement(startToken Token) (Statement, *Err) {
+	var statements []Statement
+	for p.nextTokenIndex < len(p.tokens) &&
+		!p.matchTokenType([]TokenType{RightBraceTokenType, EOFTokenType}, 0) {
+		statement := p.scanDeclaration()
+		if statement == nil {
+			continue
+		}
+
+		statements = append(statements, *statement)
+	}
+
+	if p.nextTokenIndex >= len(p.tokens) {
+		lastToken := p.tokens[len(p.tokens)-1]
+		return Statement{}, &Err{
+			Message: "'}' not found",
+			Line:    lastToken.Line,
+			Column:  lastToken.Column,
+		}
+	}
+
+	if !p.matchTokenType([]TokenType{RightBraceTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		return Statement{}, &Err{
+			Message: fmt.Sprintf("expect '}', got '%v'", token.Lexeme),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+	}
+
+	p.nextTokenIndex++
+	return Statement{
+		NodeID:               p.newNodeID(),
+		Type:                 BlockStatementType,
+		BlockInnerStatements: statements,
+		Line:                 startToken.Line,
+		Column:               startToken.Column,
+	}, nil
+}
+
+func (p *Parser) scanExpressionStatement() (Statement, *Err) {
+	expr, err := p.scanExpressionList()
+	if err != nil {
+		return Statement{}, err
+	}
+
+	if !p.matchTokenType([]TokenType{SemicolonTokenType}, 0) {
+		token := p.tokens[p.nextTokenIndex]
+		err = &Err{
+			Message: fmt.Sprintf("expect ';', but got %v", token.Lexeme),
+			Line:    token.Line,
+			Column:  token.Column,
+		}
+		p.errs = append(p.errs, *err)
+		return Statement{}, err
+	}
+
+	p.nextTokenIndex++
+	return Statement{
+		NodeID:              p.newNodeID(),
+		Type:                ExpressionStatementType,
+		StatementExpression: &expr,
+		Line:                expr.Line,
+		Column:              expr.Column,
+	}, nil
 }
 
 func (p *Parser) scanExpressionList() (Expression, *Err) {
@@ -41,7 +705,7 @@ func (p *Parser) scanExpressionList() (Expression, *Err) {
 
 	expressionList := []Expression{expr}
 	var foundComma bool
-	for p.matchTokenType([]TokenType{CommaTokenType}) {
+	for p.matchTokenType([]TokenType{CommaTokenType}, 0) {
 		foundComma = true
 		p.nextTokenIndex++
 
@@ -55,6 +719,7 @@ func (p *Parser) scanExpressionList() (Expression, *Err) {
 
 	if foundComma {
 		return Expression{
+			NodeID:         p.newNodeID(),
 			Type:           ExpressionListExpressionType,
 			ExpressionList: expressionList,
 			Line:           expr.Line,
@@ -66,25 +731,59 @@ func (p *Parser) scanExpressionList() (Expression, *Err) {
 }
 
 func (p *Parser) scanExpression() (Expression, *Err) {
-	return p.scanConditional()
+	return p.scanAssignment()
+}
+
+func (p *Parser) scanAssignment() (Expression, *Err) {
+	expr, err := p.scanConditional()
+	if err != nil {
+		return Expression{}, err
+	}
+
+	if p.matchTokenType([]TokenType{AssignTokenType}, 0) {
+		assignToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+
+		if expr.Type == IdentifierExpressionType {
+			valueExpr, err := p.scanAssignment()
+			if err != nil {
+				return Expression{}, err
+			}
+
+			return Expression{
+				NodeID:                    p.newNodeID(),
+				Type:                      AssignmentExpressionType,
+				Line:                      expr.Line,
+				Column:                    expr.Column,
+				AssignmentIdentifier:      expr.Identifier,
+				AssignmentValueExpression: &valueExpr,
+			}, nil
+		}
+
+		return Expression{}, &Err{
+			Message: fmt.Sprintf("assignment target must be identifier"),
+			Line:    assignToken.Line,
+			Column:  assignToken.Column,
+		}
+	}
+
+	return expr, nil
 }
 
 func (p *Parser) scanConditional() (Expression, *Err) {
-	ternaryExprDummyHead := Expression{}
-	ternaryExpr := &ternaryExprDummyHead
 	conditionExpr, err := p.scanEquality()
 	if err != nil {
 		return Expression{}, err
 	}
 
-	for p.matchTokenType([]TokenType{QuestionMarkTokenType}) {
+	for p.matchTokenType([]TokenType{QuestionMarkTokenType}, 0) {
 		p.nextTokenIndex++
 		trueExpression, err := p.scanEquality()
 		if err != nil {
 			return Expression{}, err
 		}
 
-		if !p.matchTokenType([]TokenType{ColonTokenType}) {
+		if !p.matchTokenType([]TokenType{ColonTokenType}, 0) {
 			token := p.tokens[p.nextTokenIndex]
 			colonErr := Err{
 				Message: fmt.Sprintf("expect ':' but got %s", token.Lexeme),
@@ -94,29 +793,27 @@ func (p *Parser) scanConditional() (Expression, *Err) {
 			p.errs = append(p.errs, colonErr)
 			return Expression{}, err
 		}
+
 		p.nextTokenIndex++
 
 		tempConditionExpr := conditionExpr
-		nextTernaryExpr := &Expression{
-			Type:                       TernaryExpressionType,
-			TernaryConditionExpression: &tempConditionExpr,
-			TernaryTrueExpression:      &trueExpression,
-			Line:                       conditionExpr.Line,
-			Column:                     conditionExpr.Column,
-		}
-		ternaryExpr.TernaryFalseExpression = nextTernaryExpr
-		ternaryExpr = nextTernaryExpr
-
-		falseExpression, err := p.scanEquality()
+		falseExpression, err := p.scanConditional()
 		if err != nil {
 			return Expression{}, err
 		}
 
-		conditionExpr = falseExpression
+		return Expression{
+			NodeID:                     p.newNodeID(),
+			Type:                       TernaryExpressionType,
+			TernaryConditionExpression: &tempConditionExpr,
+			TernaryTrueExpression:      &trueExpression,
+			TernaryFalseExpression:     &falseExpression,
+			Line:                       conditionExpr.Line,
+			Column:                     conditionExpr.Column,
+		}, nil
 	}
 
-	ternaryExpr.TernaryFalseExpression = &conditionExpr
-	return *ternaryExprDummyHead.TernaryFalseExpression, nil
+	return conditionExpr, nil
 }
 
 func (p *Parser) scanEquality() (Expression, *Err) {
@@ -169,7 +866,7 @@ func (p *Parser) scanUnary() (Expression, *Err) {
 		LogicalNotTokenType,
 		MinusTokenType,
 		BitwiseNotTokenType,
-	}) {
+	}, 0) {
 		operator := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
 
@@ -179,6 +876,7 @@ func (p *Parser) scanUnary() (Expression, *Err) {
 		}
 
 		return Expression{
+			NodeID:          p.newNodeID(),
 			Type:            UnaryExpressionType,
 			Operator:        operator,
 			UnaryExpression: &unaryExpr,
@@ -187,7 +885,137 @@ func (p *Parser) scanUnary() (Expression, *Err) {
 		}, nil
 	}
 
-	return p.scanPrimary()
+	return p.scanNew()
+}
+
+func (p *Parser) scanNew() (Expression, *Err) {
+	if p.matchTokenType([]TokenType{NewKeywordTokenType}, 0) {
+		p.nextTokenIndex++
+
+		if !p.matchTokenType([]TokenType{IdentifierTokenType}, 0) {
+			token := p.tokens[p.nextTokenIndex]
+			return Expression{}, &Err{
+				Message:           fmt.Sprintf("expect identifier, got %v", token.Lexeme),
+				Line:              token.Line,
+				Column:            token.Column,
+				FromGeneratedCode: token.IsGenerated,
+			}
+		}
+
+		identifierToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+
+		if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}, 0) {
+			token := p.tokens[p.nextTokenIndex]
+			return Expression{}, &Err{
+				Message:           fmt.Sprintf("expect '(', got '%v'", token.Lexeme),
+				Line:              token.Line,
+				Column:            token.Column,
+				FromGeneratedCode: token.IsGenerated,
+			}
+		}
+
+		p.nextTokenIndex++
+
+		args, err := p.scanArguments()
+		if err != nil {
+			return Expression{}, err
+		}
+
+		if !p.matchTokenType([]TokenType{RightParenthesisTokenType}, 0) {
+			token := p.tokens[p.nextTokenIndex]
+			return Expression{}, &Err{
+				Message:           fmt.Sprintf("expect ')', got '%v'", token.Lexeme),
+				Line:              token.Line,
+				Column:            token.Column,
+				FromGeneratedCode: token.IsGenerated,
+			}
+		}
+
+		p.nextTokenIndex++
+		return Expression{
+			NodeID:                     p.newNodeID(),
+			Type:                       NewInstanceExpressionType,
+			NewInstanceClassIdentifier: identifierToken,
+			NewInstanceConstructorArgumentExpressions: args,
+		}, nil
+	}
+
+	return p.scanCall()
+}
+
+func (p *Parser) scanCall() (Expression, *Err) {
+	expr, err := p.scanPrimary()
+	if err != nil {
+		return Expression{}, err
+	}
+
+	for {
+		if !p.matchTokenType([]TokenType{LeftParenthesisTokenType}, 0) {
+			break
+		}
+
+		startToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		args, err := p.scanArguments()
+		if err != nil {
+			return Expression{}, err
+		}
+
+		if !p.matchTokenType([]TokenType{RightParenthesisTokenType}, 0) {
+			token := p.tokens[p.nextTokenIndex]
+			return Expression{}, &Err{
+				Message:           fmt.Sprintf("expect ')' but got %s", token.Lexeme),
+				Line:              token.Line,
+				Column:            token.Column,
+				FromGeneratedCode: false,
+			}
+		}
+
+		p.nextTokenIndex++
+		tmpExpr := expr
+		expr = Expression{
+			NodeID:                  p.newNodeID(),
+			Type:                    CallExpressionType,
+			Line:                    startToken.Line,
+			Column:                  startToken.Column,
+			CallableExpression:      &tmpExpr,
+			CallArgumentExpressions: args,
+		}
+	}
+
+	return expr, nil
+}
+
+func (p *Parser) scanArguments() ([]Expression, *Err) {
+	var args []Expression
+	if !p.matchTokenType([]TokenType{RightParenthesisTokenType}, 0) {
+		for {
+			if len(args) >= 255 {
+				token := p.tokens[p.nextTokenIndex]
+				err := &Err{
+					Message: fmt.Sprintf("cannot have more than 255 arguments"),
+					Line:    token.Line,
+					Column:  token.Column,
+				}
+				p.errs = append(p.errs, *err)
+			}
+
+			arg, err := p.scanExpression()
+			if err != nil {
+				return nil, err
+			}
+
+			args = append(args, arg)
+			if !p.matchTokenType([]TokenType{CommaTokenType}, 0) {
+				break
+			}
+
+			p.nextTokenIndex++
+		}
+	}
+
+	return args, nil
 }
 
 func (p *Parser) scanPrimary() (Expression, *Err) {
@@ -197,10 +1025,11 @@ func (p *Parser) scanPrimary() (Expression, *Err) {
 		StringTokenType,
 		IntTokenType,
 		DecimalTokenType,
-	}) {
+	}, 0) {
 		token := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
 		return Expression{
+			NodeID:  p.newNodeID(),
 			Type:    LiteralExpressionType,
 			Literal: token,
 			Line:    token.Line,
@@ -208,7 +1037,7 @@ func (p *Parser) scanPrimary() (Expression, *Err) {
 		}, nil
 	}
 
-	if p.matchTokenType([]TokenType{LeftParenthesisTokenType}) {
+	if p.matchTokenType([]TokenType{LeftParenthesisTokenType}, 0) {
 		token := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
 		innerExpr, err := p.scanExpression()
@@ -216,7 +1045,7 @@ func (p *Parser) scanPrimary() (Expression, *Err) {
 			return Expression{}, err
 		}
 
-		if !p.matchTokenType([]TokenType{RightParenthesisTokenType}) {
+		if !p.matchTokenType([]TokenType{RightParenthesisTokenType}, 0) {
 			token := p.tokens[p.nextTokenIndex]
 			p.errs = append(p.errs, Err{
 				Message: fmt.Sprintf("expect ')' but got %s", token.Lexeme),
@@ -231,6 +1060,7 @@ func (p *Parser) scanPrimary() (Expression, *Err) {
 
 		p.nextTokenIndex++
 		return Expression{
+			NodeID:               p.newNodeID(),
 			Type:                 GroupingExpressionType,
 			GroupInnerExpression: &innerExpr,
 			Line:                 token.Line,
@@ -238,9 +1068,37 @@ func (p *Parser) scanPrimary() (Expression, *Err) {
 		}, nil
 	}
 
+	if p.matchTokenType([]TokenType{IdentifierTokenType}, 0) {
+		identifierToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return Expression{
+			NodeID:     p.newNodeID(),
+			Type:       IdentifierExpressionType,
+			Identifier: identifierToken,
+			Line:       identifierToken.Line,
+			Column:     identifierToken.Column,
+		}, nil
+	}
+
+	if p.matchTokenType([]TokenType{FuncKeywordTokenType}, 0) {
+		p.nextTokenIndex++
+		parametersAndBody, err := p.scanParametersAndBody()
+		if err != nil {
+			return Expression{}, err
+		}
+
+		return Expression{
+			NodeID:           p.newNodeID(),
+			Type:             LambdaExpressionType,
+			LambdaParameters: parametersAndBody.Parameters,
+			LambdaBody:       parametersAndBody.Body,
+		}, nil
+	}
+
 	token := p.tokens[p.nextTokenIndex]
+	p.nextTokenIndex++
 	err := &Err{
-		Message: "expect expression",
+		Message: fmt.Sprintf("expect expression, got %v", token.Lexeme),
 		Line:    token.Line,
 		Column:  token.Column,
 	}
@@ -280,7 +1138,7 @@ func (p *Parser) scanBinaryExpression(
 		return Expression{}, err
 	}
 
-	for p.matchTokenType(operatorTokenTypes) {
+	for p.matchTokenType(operatorTokenTypes, 0) {
 		operator := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
 
@@ -291,6 +1149,7 @@ func (p *Parser) scanBinaryExpression(
 
 		tempExpr := leftExpr
 		leftExpr = Expression{
+			NodeID:                p.newNodeID(),
 			Type:                  BinaryExpressionType,
 			Operator:              operator,
 			BinaryLeftExpression:  &tempExpr,
@@ -303,9 +1162,13 @@ func (p *Parser) scanBinaryExpression(
 	return leftExpr, nil
 }
 
-func (p *Parser) matchTokenType(expectedTokenTypes []TokenType) bool {
+func (p *Parser) matchTokenType(expectedTokenTypes []TokenType, lookAhead int) bool {
 	for _, expectedTokenType := range expectedTokenTypes {
-		currToken := p.tokens[p.nextTokenIndex]
+		if p.nextTokenIndex+lookAhead >= len(p.tokens) {
+			return false
+		}
+
+		currToken := p.tokens[p.nextTokenIndex+lookAhead]
 		if currToken.Type == expectedTokenType {
 			return true
 		}
@@ -314,8 +1177,10 @@ func (p *Parser) matchTokenType(expectedTokenTypes []TokenType) bool {
 	return false
 }
 
-func (p *Parser) GetErrors() []Err {
-	return p.errs
+func (p *Parser) newNodeID() uint64 {
+	nodeID := p.nextNodeID
+	p.nextNodeID++
+	return nodeID
 }
 
 func NewParser() *Parser {
