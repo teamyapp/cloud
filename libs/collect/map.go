@@ -1,10 +1,15 @@
 package collect
 
-func Map[From any, To any](items []From, transform func(fromItem From, index int) To) []To {
+func Map[From any, To any, Err any](items []From, transform func(fromItem From, index int) (To, *Err)) ([]To, *Err) {
 	newItems := make([]To, 0)
 	for index, item := range items {
-		newItems = append(newItems, transform(item, index))
+		newItem, err := transform(item, index)
+		if err != nil {
+			return nil, err
+		}
+
+		newItems = append(newItems, newItem)
 	}
 
-	return newItems
+	return newItems, nil
 }
