@@ -996,14 +996,14 @@ func (p *Parser) scanAssignment() (Expression, *Err) {
 }
 
 func (p *Parser) scanConditional() (Expression, *Err) {
-	conditionExpr, err := p.scanEquality()
+	conditionExpr, err := p.scanLogicalOr()
 	if err != nil {
 		return Expression{}, err
 	}
 
 	for p.matchTokenType([]TokenType{QuestionMarkTokenType}, 0) {
 		p.nextTokenIndex++
-		trueExpression, err := p.scanEquality()
+		trueExpression, err := p.scanLogicalOr()
 		if err != nil {
 			return Expression{}, err
 		}
@@ -1041,16 +1041,16 @@ func (p *Parser) scanConditional() (Expression, *Err) {
 	return conditionExpr, nil
 }
 
-func (p *Parser) scanEquality() (Expression, *Err) {
-	return p.scanBinaryExpression(p.scanLogicalOr, []TokenType{LogicalEqualTokenType, LogicalNotEqualTokenType})
-}
-
 func (p *Parser) scanLogicalOr() (Expression, *Err) {
 	return p.scanBinaryExpression(p.scanLogicalAnd, []TokenType{LogicalOrTokenType})
 }
 
 func (p *Parser) scanLogicalAnd() (Expression, *Err) {
-	return p.scanBinaryExpression(p.scanComparison, []TokenType{LogicalAndTokenType})
+	return p.scanBinaryExpression(p.scanEquality, []TokenType{LogicalAndTokenType})
+}
+
+func (p *Parser) scanEquality() (Expression, *Err) {
+	return p.scanBinaryExpression(p.scanComparison, []TokenType{LogicalEqualTokenType, LogicalNotEqualTokenType})
 }
 
 func (p *Parser) scanComparison() (Expression, *Err) {

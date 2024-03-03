@@ -112,7 +112,7 @@ func (s *StaticAnalyzer) resolveClassStatement(statement Statement) *Err {
 		s.define(thisIdentifier)
 
 		callableType := MethodCallableType
-		if classMethodDeclaration.CallableName.Value.(string) == constructorMethodName {
+		if classMethodDeclaration.CallableName.Value.(string) == ConstructorMethodName {
 			callableType = ConstructorCallableType
 		}
 

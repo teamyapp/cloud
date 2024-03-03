@@ -1,8 +1,9 @@
 package lang
 
 import "C"
+import "fmt"
 
-const constructorMethodName = "constructor"
+const ConstructorMethodName = "constructor"
 
 var thisIdentifier = Token{
 	Type:        IdentifierTokenType,
@@ -87,6 +88,30 @@ func NewClass(
 	staticSetters map[string]Callable,
 	isGenerated bool,
 ) *Class {
+	if instanceMethods == nil {
+		instanceMethods = make(map[string]Callable)
+	}
+
+	if instanceGetters == nil {
+		instanceGetters = make(map[string]Callable)
+	}
+
+	if instanceSetters == nil {
+		instanceSetters = make(map[string]Callable)
+	}
+
+	if staticMethods == nil {
+		staticMethods = make(map[string]Callable)
+	}
+
+	if staticGetters == nil {
+		staticGetters = make(map[string]Callable)
+	}
+
+	if staticSetters == nil {
+		staticSetters = make(map[string]Callable)
+	}
+
 	return &Class{
 		name:            name,
 		instanceMethods: instanceMethods,
@@ -153,7 +178,7 @@ func NewInstance(class *Class, constructorArgs []any, isGenerated bool) *Instanc
 	}
 
 	if class != nil {
-		constructor, ok := class.GetInstanceMethod(constructorMethodName)
+		constructor, ok := class.GetInstanceMethod(ConstructorMethodName)
 		if ok {
 			constructor = bindMethodToInstance(instance, constructor)
 			constructor.Execute(&constructor, constructorArgs...)
@@ -163,8 +188,44 @@ func NewInstance(class *Class, constructorArgs []any, isGenerated bool) *Instanc
 	return instance
 }
 
+func NewConstructorWithFields(fields map[string]any) Callable {
+	return Callable{
+		Name:          ConstructorMethodName,
+		IsConstructor: true,
+		Arity:         0,
+		Execute: func(callable *Callable, args ...any) (any, *Err) {
+			instanceVal, err := callable.Closure.Get(thisIdentifier)
+			if err != nil {
+				return nil, err
+			}
+
+			instance, ok := instanceVal.(*Instance)
+			if !ok {
+				return nil, &Err{
+					Message:           fmt.Sprintf("Internal error: '%s' is not an instance", thisIdentifier.Value),
+					FromGeneratedCode: true,
+				}
+			}
+
+			instance.fields = make(map[string]any)
+			for fieldName, fieldValue := range fields {
+				instance.fields[fieldName] = ToInternalValue(fieldValue)
+			}
+
+			return nil, nil
+		},
+		IsGenerated: true,
+	}
+}
+
 func bindMethodToInstance(instance *Instance, method Callable) Callable {
-	environment := method.Closure.NewInnerEnvironment()
+	var environment *Environment
+	if method.Closure != nil {
+		environment = method.Closure.NewInnerEnvironment()
+	} else {
+		environment = NewEnvironment()
+	}
+
 	environment.DefineWithInitializer(thisIdentifier, instance)
 	method = method.Copy()
 	method.Closure = environment

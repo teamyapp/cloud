@@ -148,7 +148,7 @@ func (e *Executor) executeClassStatement(statement Statement) {
 	instanceMethods := make(map[string]Callable)
 	for _, methodDeclaration := range statement.ClassInstanceMethodDeclarations {
 		methodName := methodDeclaration.CallableName.Value.(string)
-		isConstructor := methodName == constructorMethodName
+		isConstructor := methodName == ConstructorMethodName
 		method := e.newCallable(
 			methodName,
 			false,
