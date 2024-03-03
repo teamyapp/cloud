@@ -21,27 +21,32 @@ const (
 )
 
 type Statement struct {
-	NodeID                   uint64
-	Type                     StatementType
-	Line                     int
-	Column                   int
-	IsGenerated              bool
-	PrintArgExpression       *Expression
-	StatementExpression      *Expression
-	LetIdentifier            *Token
-	LetInitializerExpression *Expression
-	BlockInnerStatements     []Statement
-	IfConditionExpression    *Expression
-	IfTrueBranchStatement    *Statement
-	IfFalseBranchStatement   *Statement
-	WhileConditionExpression *Expression
-	WhileBodyStatement       *Statement
-	CallableName             *Token
-	CallableParameters       []Token
-	CallableBody             *Statement
-	ReturnValueExpression    *Expression
-	ClassIdentifier          *Token
-	ClassMethodDeclarations  []Statement
+	NodeID                          uint64
+	Type                            StatementType
+	Line                            int
+	Column                          int
+	IsGenerated                     bool
+	PrintArgExpression              *Expression
+	StatementExpression             *Expression
+	LetIdentifier                   *Token
+	LetInitializerExpression        *Expression
+	BlockInnerStatements            []Statement
+	IfConditionExpression           *Expression
+	IfTrueBranchStatement           *Statement
+	IfFalseBranchStatement          *Statement
+	WhileConditionExpression        *Expression
+	WhileBodyStatement              *Statement
+	CallableName                    *Token
+	CallableParameters              []Token
+	CallableBody                    *Statement
+	ReturnValueExpression           *Expression
+	ClassIdentifier                 *Token
+	ClassInstanceMethodDeclarations []Statement
+	ClassStaticMethodDeclarations   []Statement
+	ClassInstanceGetterDeclarations []Statement
+	ClassInstanceSetterDeclarations []Statement
+	ClassStaticGetterDeclarations   []Statement
+	ClassStaticSetterDeclarations   []Statement
 }
 
 var _ fmt.Stringer = (*Statement)(nil)
@@ -85,12 +90,44 @@ func (s Statement) String() string {
 
 		return fmt.Sprintf("(return %s)", s.ReturnValueExpression)
 	case ClassStatementType:
-		var methodDeclarations []string
-		for _, methodDeclaration := range s.ClassMethodDeclarations {
-			methodDeclarations = append(methodDeclarations, methodDeclaration.String())
+		var instanceMethods []string
+		for _, methodDeclaration := range s.ClassInstanceMethodDeclarations {
+			instanceMethods = append(instanceMethods, methodDeclaration.String())
 		}
 
-		return fmt.Sprintf("(class %v %s)", s.ClassIdentifier.Value, strings.Join(methodDeclarations, " "))
+		var staticMethods []string
+		for _, methodDeclaration := range s.ClassStaticMethodDeclarations {
+			staticMethods = append(staticMethods, methodDeclaration.String())
+		}
+
+		var instanceGetters []string
+		for _, getterDeclaration := range s.ClassInstanceGetterDeclarations {
+			instanceGetters = append(instanceGetters, getterDeclaration.String())
+		}
+
+		var instanceSetters []string
+		for _, setterDeclaration := range s.ClassInstanceSetterDeclarations {
+			instanceSetters = append(instanceSetters, setterDeclaration.String())
+		}
+
+		var staticGetters []string
+		for _, getterDeclaration := range s.ClassStaticGetterDeclarations {
+			staticGetters = append(staticGetters, getterDeclaration.String())
+		}
+
+		var staticSetters []string
+		for _, setterDeclaration := range s.ClassStaticSetterDeclarations {
+			staticSetters = append(staticSetters, setterDeclaration.String())
+		}
+
+		return fmt.Sprintf("(class %s [instance (methods %s) (getters %s) (setters %s)] [static (methods %s) (getters %s) (setters %s)])",
+			s.ClassIdentifier.Lexeme,
+			strings.Join(instanceMethods, " "),
+			strings.Join(instanceGetters, " "),
+			strings.Join(instanceSetters, " "),
+			strings.Join(staticMethods, " "),
+			strings.Join(staticGetters, " "),
+			strings.Join(staticSetters, " "))
 	}
 
 	return fmt.Sprintf("[unknown statement type: %v]", s.Type)

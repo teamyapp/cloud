@@ -48,6 +48,30 @@ func TestStaticAnalyzer_Analyze(t *testing.T) {
 			expectErrLine:   3,
 			expectErrColumn: 11,
 		},
+		{
+			name: "error: use this outside of class",
+			source: `
+				func bad() {
+				  this;
+				}
+			`,
+			expectHasErr:    true,
+			expectErrLine:   3,
+			expectErrColumn: 7,
+		},
+		{
+			name: "error: return value inside constructor",
+			source: `
+				class Bad {
+				  constructor() {
+					return 5;
+				  }
+				}
+			`,
+			expectHasErr:    true,
+			expectErrLine:   4,
+			expectErrColumn: 6,
+		},
 	}
 
 	for _, tc := range testCases {

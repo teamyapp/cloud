@@ -358,27 +358,148 @@ func TestParser_Parse(t *testing.T) {
 			source: `
 				class Counter {
 					constructor(initialCount) {
-						count = initialCount;
+						this.count = initialCount;
 						print(initialCount);
 					}
 
 					increment() {
-						count = count + 1;
+						this.count = this.count + 1;
 					}
 
 					decrement() {
-						count = count - 1;
+						this.count = this.count - 1;
 					}
 
 					getCount() {
-						return count;
+						return this.count;
 					}
 				}
 				
 				let counter = new Counter(10);`,
 			expectedStatements: []string{
-				"(class Counter (func constructor [initialCount] {(= count initialCount) (call print [initialCount])}) (func increment [] {(= count (+ count 1))}) (func decrement [] {(= count (- count 1))}) (func getCount [] {(return count)}))",
+				"(class Counter [instance (methods (func constructor [initialCount] {(set (this) count initialCount) (call print [initialCount])}) (func increment [] {(set (this) count (+ (get (this) count) 1))}) (func decrement [] {(set (this) count (- (get (this) count) 1))}) (func getCount [] {(return (get (this) count))})) (getters ) (setters )] [static (methods ) (getters ) (setters )])",
 				"(let counter (new Counter [10]))",
+			},
+		},
+		{
+			name: "get object field",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+				}
+
+				class CounterBox {
+					constructor(initialCounter) {
+						this.counter = initialCounter;
+					}
+				}
+				
+				let counter = new Counter(10);
+				let counterBox = new CounterBox(counter);
+				counterBox.counter.count;
+			`,
+			expectedStatements: []string{
+				"(class Counter [instance (methods (func constructor [initialCount] {(set (this) count initialCount)}) (func increment [] {(set (this) count (+ (get (this) count) 1))})) (getters ) (setters )] [static (methods ) (getters ) (setters )])",
+				"(class CounterBox [instance (methods (func constructor [initialCounter] {(set (this) counter initialCounter)})) (getters ) (setters )] [static (methods ) (getters ) (setters )])",
+				"(let counter (new Counter [10]))",
+				"(let counterBox (new CounterBox [counter]))",
+				"(get (get counterBox counter) count)",
+			},
+		},
+		{
+			name: "set object field",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+				}
+
+				class CounterBox {
+					constructor(initialCounter) {
+						this.counter = initialCounter;
+					}
+				}
+				
+				let counter = new Counter(10);
+				let counterBox = new CounterBox(counter);
+				counterBox.counter.count = 20;
+			`,
+			expectedStatements: []string{
+				"(class Counter [instance (methods (func constructor [initialCount] {(set (this) count initialCount)}) (func increment [] {(set (this) count (+ (get (this) count) 1))})) (getters ) (setters )] [static (methods ) (getters ) (setters )])",
+				"(class CounterBox [instance (methods (func constructor [initialCounter] {(set (this) counter initialCounter)})) (getters ) (setters )] [static (methods ) (getters ) (setters )])",
+				"(let counter (new Counter [10]))",
+				"(let counterBox (new CounterBox [counter]))",
+				"(set (get counterBox counter) count 20)",
+			},
+		},
+		{
+			name: "define and call static method in class",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+
+					static getClassName() {
+						return "Counter";
+					}
+				}
+
+				Counter.getClassName();
+			`,
+			expectedStatements: []string{
+				"(class Counter [instance (methods (func constructor [initialCount] {(set (this) count initialCount)}) (func increment [] {(set (this) count (+ (get (this) count) 1))})) (getters ) (setters )] [static (methods (func getClassName [] {(return \"Counter\")})) (getters ) (setters )])",
+				"(call (get Counter getClassName) [])",
+			},
+		},
+		{
+			name: "define and call getters and setters in class",
+			source: `
+				class Rectangle3D {
+					constructor(width, height) {
+						this.width = width;
+						this.height = height;
+					}
+
+					get area {
+						return this.width * this.height;
+					}
+
+					get volume {
+						return this.width * this.height * this.depth;
+					}
+
+					set depth(value) {
+						this.depth = value;
+					}
+				}
+
+				let rectangle = new Rectangle3D(5, 6);
+				rectangle.area;
+				rectangle.depth = 10;
+				rectangle.volume;
+			`,
+			expectedStatements: []string{
+				"(class Rectangle3D [instance (methods (func constructor [width height] {(set (this) width width) (set (this) height height)}) (func area [] {(return (* (get (this) width) (get (this) height)))}) (func volume [] {(return (* (* (get (this) width) (get (this) height)) (get (this) depth)))}) (func depth [value] {(set (this) depth value)})) (getters ) (setters )] [static (methods ) (getters ) (setters )])",
+				"(let rectangle (new Rectangle3D [5 6]))",
+				"(get rectangle area)",
+				"(set rectangle depth 10)",
+				"(get rectangle volume)",
 			},
 		},
 	}

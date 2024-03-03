@@ -20,6 +20,9 @@ const (
 	LetKeywordTokenType      TokenType = "LetKeyword"
 	ClassKeywordTokenType    TokenType = "ClassKeyword"
 	NewKeywordTokenType      TokenType = "NewKeyword"
+	StaticKeywordTokenType   TokenType = "StaticKeyword"
+	GetKeywordTokenType      TokenType = "GetKeyword"
+	SetKeywordTokenType      TokenType = "SetKeyword"
 
 	LeftParenthesisTokenType  TokenType = "LeftParenthesis"
 	RightParenthesisTokenType TokenType = "RightParenthesis"
@@ -91,6 +94,9 @@ var keywords = map[string]TokenType{
 	"let":      LetKeywordTokenType,
 	"class":    ClassKeywordTokenType,
 	"new":      NewKeywordTokenType,
+	"static":   StaticKeywordTokenType,
+	"get":      GetKeywordTokenType,
+	"set":      SetKeywordTokenType,
 }
 
 type Token struct {

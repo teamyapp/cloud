@@ -19,6 +19,9 @@ const (
 	CallExpressionType           ExpressionType = "Call"
 	LambdaExpressionType         ExpressionType = "Lambda"
 	NewInstanceExpressionType    ExpressionType = "NewInstance"
+	GetExpressionType            ExpressionType = "Get"
+	SetExpressionType            ExpressionType = "Set"
+	ThisExpressionType           ExpressionType = "This"
 )
 
 type Expression struct {
@@ -44,8 +47,14 @@ type Expression struct {
 	CallArgumentExpressions                   []Expression
 	LambdaParameters                          []Token
 	LambdaBody                                Statement
-	NewInstanceClassIdentifier                Token
+	NewInstanceClassExpression                *Expression
 	NewInstanceConstructorArgumentExpressions []Expression
+	GetObjectExpression                       *Expression
+	GetFieldName                              Token
+	SetObjectExpression                       *Expression
+	SetFieldName                              Token
+	SetValueExpression                        *Expression
+	ThisIdentifier                            Token
 }
 
 var _ fmt.Stringer = (*Expression)(nil)
@@ -93,7 +102,13 @@ func (e Expression) String() string {
 			args = append(args, argExpr.String())
 		}
 
-		return fmt.Sprintf("(new %s [%v])", e.NewInstanceClassIdentifier.Lexeme, strings.Join(args, " "))
+		return fmt.Sprintf("(new %s [%v])", e.NewInstanceClassExpression, strings.Join(args, " "))
+	case GetExpressionType:
+		return fmt.Sprintf("(get %s %s)", e.GetObjectExpression, e.GetFieldName.Lexeme)
+	case SetExpressionType:
+		return fmt.Sprintf("(set %s %s %s)", e.SetObjectExpression, e.SetFieldName.Lexeme, e.SetValueExpression)
+	case ThisExpressionType:
+		return fmt.Sprintf("(%v)", e.ThisIdentifier.Lexeme)
 	}
 
 	return fmt.Sprintf("[unknown expression type: %s]", e.Type)

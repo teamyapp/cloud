@@ -5,9 +5,13 @@ declaration ->
     letDeclaration |
     statement;
 letDeclaration -> "let" IDENTIFIER ("=" expressions)? ";";
-funcDeclaration -> "func" callable;
-classDeclaration -> "class" IDENTIFIER "{" callable* "}";
-callable -> IDENTIFIER parametersAndBody;
+funcDeclaration -> "func" callableDeclaration;
+classDeclaration -> "class" IDENTIFIER "{" classBody "}";
+classBodyDeclaration -> (callableDeclaration | staticCallableDeclaration | getterDeclaration | setterDeclaration)*;
+staticCallableDeclaration -> "static" callableDeclaration;
+getterDeclaration -> "get" IDENTIFIER "(" ")" blockStatement;
+setterDeclaration -> "set" IDENTIFIER "(" IDENTIFIER ")" blockStatement;
+callableDeclaration -> IDENTIFIER parametersAndBody;
 lambdaExpression -> "func" parametersAndBody;
 parametersAndBody -> "(" parameters? ")" blockStatement;
 parameters -> IDENTIFIER ("," IDENTIFIER)*;
@@ -30,7 +34,7 @@ expressionStatement -> expressions ";";
 blockStatement -> "{" declaration* "}";
 expressions -> expression ("," expression)*;
 expression -> conditional;
-assignment -> IDENTIFIER "=" assignment | conditional;
+assignment -> (newInstance ".")? IDENTIFIER "=" assignment | conditional;
 conditional -> equality ("?" equality ":" conditional)*;
 equality -> logical (("=="|"!=") logical)*;
 logicalOr -> logicalAnd ("||" logicalAnd)*;
@@ -42,9 +46,9 @@ bitwiseAnd -> term ("&" term)*;
 shift -> term (("<<"|">>") term)*;
 term -> factor (("+"|"-") factor)*;
 factor -> unary (("*"|"/") unary)*;
-unary -> ("!"|"-"|"~") unary | instance;
-new -> "new" IDENTIFIER "(" arguments? ")" | callAndPropAccess;
-callAndPropAccess -> primary ("(" arguments? ")" | "." IDENTIFIER)*;
+unary -> ("!"|"-"|"~") unary | newInstance;
+newInstance -> "new" primary "(" arguments? ")" | callAndGet;
+callAndGet -> primary ("(" arguments? ")" | "." IDENTIFIER)*;
 arguments -> expression ("," expression)*;
 primary ->
     NUMBER |
@@ -53,5 +57,6 @@ primary ->
     "false" |
     "nil" |
     "(" expression ")" |
+    this |
     IDENTIFIER |
     lambdaExpression;
