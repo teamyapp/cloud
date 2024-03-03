@@ -145,11 +145,29 @@ func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Sign
 
 func (e *Executor) executeClassStatement(statement Statement) {
 	name := statement.ClassIdentifier.Value.(string)
-	methods := make([]Callable, 0)
-	for _, methodDeclaration := range statement.ClassMethodDeclarations {
+	instanceMethods := make(map[string]Callable)
+	for _, methodDeclaration := range statement.ClassInstanceMethodDeclarations {
+		methodName := methodDeclaration.CallableName.Value.(string)
+		isConstructor := methodName == ConstructorMethodName
+		method := e.newCallable(
+			methodName,
+			false,
+			isConstructor,
+			methodDeclaration.CallableParameters,
+			*methodDeclaration.CallableBody,
+			methodDeclaration.Line,
+			methodDeclaration.Column,
+			methodDeclaration.IsGenerated,
+		)
+		instanceMethods[methodName] = method
+	}
+
+	staticMethods := make(map[string]Callable)
+	for _, methodDeclaration := range statement.ClassStaticMethodDeclarations {
 		methodName := methodDeclaration.CallableName.Value.(string)
 		method := e.newCallable(
 			methodName,
+			false,
 			false,
 			methodDeclaration.CallableParameters,
 			*methodDeclaration.CallableBody,
@@ -157,13 +175,82 @@ func (e *Executor) executeClassStatement(statement Statement) {
 			methodDeclaration.Column,
 			methodDeclaration.IsGenerated,
 		)
-		methods = append(methods, method)
+		staticMethods[methodName] = method
 	}
 
-	class := Class{
-		Name:    name,
-		Methods: methods,
+	instanceGetters := make(map[string]Callable)
+	for _, getterDeclaration := range statement.ClassInstanceGetterDeclarations {
+		getterName := getterDeclaration.CallableName.Value.(string)
+		getter := e.newCallable(
+			getterName,
+			false,
+			false,
+			nil,
+			*getterDeclaration.CallableBody,
+			getterDeclaration.Line,
+			getterDeclaration.Column,
+			getterDeclaration.IsGenerated,
+		)
+		instanceGetters[getterName] = getter
 	}
+
+	instanceSetters := make(map[string]Callable)
+	for _, setterDeclaration := range statement.ClassInstanceSetterDeclarations {
+		setterName := setterDeclaration.CallableName.Value.(string)
+		setter := e.newCallable(
+			setterName,
+			false,
+			false,
+			[]Token{setterDeclaration.CallableParameters[0]},
+			*setterDeclaration.CallableBody,
+			setterDeclaration.Line,
+			setterDeclaration.Column,
+			setterDeclaration.IsGenerated,
+		)
+		instanceSetters[setterName] = setter
+	}
+
+	staticGetters := make(map[string]Callable)
+	for _, getterDeclaration := range statement.ClassStaticGetterDeclarations {
+		getterName := getterDeclaration.CallableName.Value.(string)
+		getter := e.newCallable(
+			getterName,
+			false,
+			false,
+			nil,
+			*getterDeclaration.CallableBody,
+			getterDeclaration.Line,
+			getterDeclaration.Column,
+			getterDeclaration.IsGenerated,
+		)
+		staticGetters[getterName] = getter
+	}
+
+	staticSetters := make(map[string]Callable)
+	for _, setterDeclaration := range statement.ClassStaticSetterDeclarations {
+		setterName := setterDeclaration.CallableName.Value.(string)
+		setter := e.newCallable(
+			setterName,
+			false,
+			false,
+			[]Token{setterDeclaration.CallableParameters[0]},
+			*setterDeclaration.CallableBody,
+			setterDeclaration.Line,
+			setterDeclaration.Column,
+			setterDeclaration.IsGenerated,
+		)
+		staticSetters[setterName] = setter
+	}
+
+	class := NewClass(
+		name,
+		instanceMethods,
+		instanceGetters,
+		instanceSetters,
+		staticMethods,
+		staticGetters,
+		staticSetters,
+		statement.IsGenerated)
 	e.currentEnvironment.DefineWithInitializer(*statement.ClassIdentifier, class)
 }
 
@@ -171,6 +258,7 @@ func (e *Executor) executeCallableStatement(statement Statement) {
 	name := statement.CallableName.Value.(string)
 	callable := e.newCallable(
 		name,
+		false,
 		false,
 		statement.CallableParameters,
 		*statement.CallableBody,
@@ -183,18 +271,20 @@ func (e *Executor) executeCallableStatement(statement Statement) {
 func (e *Executor) newCallable(
 	name string,
 	isAnonymous bool,
+	isConstructor bool,
 	parameters []Token,
 	body Statement,
 	line int,
 	column int,
 	isGenerated bool) Callable {
 	return Callable{
-		Name:        name,
-		IsAnonymous: isAnonymous,
-		Closure:     e.currentEnvironment,
-		Arity:       len(parameters),
-		Execute: func(closure *Environment, arguments ...any) (any, *Err) {
-			environment := closure.NewInnerEnvironment()
+		Name:          name,
+		IsAnonymous:   isAnonymous,
+		IsConstructor: isConstructor,
+		Closure:       e.currentEnvironment,
+		Arity:         len(parameters),
+		Execute: func(callable *Callable, arguments ...any) (any, *Err) {
+			environment := callable.Closure.NewInnerEnvironment()
 			for index, parameter := range parameters {
 				environment.DefineWithInitializer(parameter, arguments[index])
 			}
@@ -207,8 +297,16 @@ func (e *Executor) newCallable(
 
 			if signal != nil {
 				if signal.Type == ReturnSignalType {
+					if isConstructor {
+						return environment.Get(thisIdentifier)
+					}
+
 					return signal.Value, nil
 				}
+			}
+
+			if isConstructor {
+				return environment.Get(thisIdentifier)
 			}
 
 			return nil, nil
@@ -342,6 +440,14 @@ func (e *Executor) evaluateExpression(expression Expression) (any, *Err) {
 		return e.evaluateCallExpression(expression)
 	case LambdaExpressionType:
 		return e.evaluateLambdaExpression(expression)
+	case NewInstanceExpressionType:
+		return e.evaluateNewInstanceExpression(expression)
+	case GetExpressionType:
+		return e.evaluateGetExpression(expression)
+	case SetExpressionType:
+		return e.evaluateSetExpression(expression)
+	case ThisExpressionType:
+		return e.evaluateThisExpression(expression)
 	}
 
 	return nil, &Err{
@@ -352,10 +458,126 @@ func (e *Executor) evaluateExpression(expression Expression) (any, *Err) {
 	}
 }
 
+func (e *Executor) evaluateThisExpression(expression Expression) (any, *Err) {
+	return e.lookupIdentifier(expression.NodeID, expression.ThisIdentifier)
+}
+
+func (e *Executor) evaluateSetExpression(expression Expression) (any, *Err) {
+	object, err := e.evaluateExpression(*expression.SetObjectExpression)
+	if err != nil {
+		return nil, err
+	}
+
+	switch typedObject := object.(type) {
+	case *Instance:
+		value, err := e.evaluateExpression(*expression.SetValueExpression)
+		if err != nil {
+			return nil, err
+		}
+
+		err = typedObject.Set(expression.SetFieldName.Value.(string), value)
+		return value, err
+	case *Class:
+		value, err := e.evaluateExpression(*expression.SetValueExpression)
+		if err != nil {
+			return nil, err
+		}
+
+		typedObject.SetStatic(expression.SetFieldName.Value.(string), value)
+		return value, nil
+	default:
+		return nil, &Err{
+			Message:           fmt.Sprintf("can only set field on instance or class"),
+			Line:              expression.SetObjectExpression.Line,
+			Column:            expression.SetObjectExpression.Column,
+			FromGeneratedCode: expression.SetObjectExpression.IsGenerated,
+		}
+	}
+}
+
+func (e *Executor) evaluateGetExpression(expression Expression) (any, *Err) {
+	object, err := e.evaluateExpression(*expression.GetObjectExpression)
+	if err != nil {
+		return nil, err
+	}
+
+	switch typedObject := object.(type) {
+	case *Instance:
+		prop, ok, err := typedObject.Get(expression.GetFieldName.Value.(string))
+		if err != nil {
+			return nil, err
+		}
+
+		if !ok {
+			return nil, &Err{
+				Message:           fmt.Sprintf("instance field not found: %v", expression.GetFieldName.Value),
+				Line:              expression.GetFieldName.Line,
+				Column:            expression.GetFieldName.Column,
+				FromGeneratedCode: expression.GetFieldName.IsGenerated,
+			}
+		}
+
+		return prop, nil
+	case *Class:
+		staticProp, ok, err := typedObject.GetStatic(expression.GetFieldName.Value.(string))
+		if err != nil {
+			return nil, err
+		}
+
+		if !ok {
+			return nil, &Err{
+				Message:           fmt.Sprintf("static field not found: %v", expression.GetFieldName.Value),
+				Line:              expression.GetFieldName.Line,
+				Column:            expression.GetFieldName.Column,
+				FromGeneratedCode: expression.GetFieldName.IsGenerated,
+			}
+		}
+
+		return staticProp, nil
+	default:
+		return nil, &Err{
+			Message:           fmt.Sprintf("can only get field from instance or class"),
+			Line:              expression.GetObjectExpression.Line,
+			Column:            expression.GetObjectExpression.Column,
+			FromGeneratedCode: expression.GetObjectExpression.IsGenerated,
+		}
+	}
+}
+
+func (e *Executor) evaluateNewInstanceExpression(expression Expression) (any, *Err) {
+	value, err := e.evaluateExpression(*expression.NewInstanceClassExpression)
+	if err != nil {
+		return nil, err
+	}
+
+	classValue, ok := value.(*Class)
+	if !ok {
+		return nil, &Err{
+			Message:           fmt.Sprintf("can only create instance from class"),
+			Line:              expression.NewInstanceClassExpression.Line,
+			Column:            expression.NewInstanceClassExpression.Column,
+			FromGeneratedCode: expression.NewInstanceClassExpression.IsGenerated,
+		}
+	}
+
+	constructorArgs := make([]any, 0)
+	for _, argExpr := range expression.NewInstanceConstructorArgumentExpressions {
+		argValue, err := e.evaluateExpression(argExpr)
+		if err != nil {
+			return nil, err
+		}
+
+		constructorArgs = append(constructorArgs, argValue)
+	}
+
+	return NewInstance(classValue, constructorArgs, expression.IsGenerated), nil
+}
+
 func (e *Executor) evaluateLambdaExpression(expression Expression) (any, *Err) {
 	return e.newCallable(
 			"lambda",
 			true,
+			false,
 			expression.LambdaParameters,
 			expression.LambdaBody,
 			expression.Line,
@@ -401,7 +623,7 @@ func (e *Executor) evaluateCallExpression(expression Expression) (any, *Err) {
 		arguments = append(arguments, argument)
 	}
 
-	return callable.Execute(callable.Closure, arguments...)
+	return callable.Execute(&callable, arguments...)
 }
 
 func (e *Executor) evaluateAssignmentExpression(expression Expression) (any, *Err) {
@@ -420,12 +642,16 @@ func (e *Executor) evaluateAssignmentExpression(expression Expression) (any, *Er
 }
 
 func (e *Executor) evaluateIdentifierExpression(expression Expression) (any, *Err) {
-	ref, ok := e.staticAnalyzer.GetLocalRef(expression.NodeID)
+	return e.lookupIdentifier(expression.NodeID, expression.Identifier)
+}
+
+func (e *Executor) lookupIdentifier(nodeID uint64, identifier Token) (any, *Err) {
+	ref, ok := e.staticAnalyzer.GetLocalRef(nodeID)
 	if !ok {
-		return e.globalEnvironment.Get(expression.Identifier)
+		return e.globalEnvironment.Get(identifier)
 	}
 
-	return e.currentEnvironment.GetAt(expression.Identifier, ref)
+	return e.currentEnvironment.GetAt(identifier, ref)
 }
 
 func (e *Executor) evaluateTernaryExpression(expression Expression) (any, *Err) {
@@ -955,7 +1181,7 @@ func newGlobalEnvironment(
 		},
 		Callable{
 			Name: "now",
-			Execute: func(closure *Environment, args ...any) (any, *Err) {
+			Execute: func(callable *Callable, args ...any) (any, *Err) {
 				return runtime.Now().UnixNano(), nil
 			},
 			IsGenerated: true,
@@ -970,7 +1196,7 @@ func newGlobalEnvironment(
 		Callable{
 			Name:  "print",
 			Arity: 1,
-			Execute: func(closure *Environment, args ...any) (any, *Err) {
+			Execute: func(callable *Callable, args ...any) (any, *Err) {
 				fmt.Fprint(runtime.Output, toString(args[0]))
 				return nil, nil
 			},

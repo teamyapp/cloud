@@ -451,6 +451,244 @@ func TestEvaluate(t *testing.T) {
 			`,
 			expectedOutput: "globalglobal",
 		},
+		{
+			name: "define class",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = count + 1;
+					}
+
+					decrement() {
+						this.count = count - 1;
+					}
+
+					getCount() {
+						return this.count;
+					}
+				}
+			`,
+		},
+		{
+			name: "initialize class and call method",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+				}
+				
+				let counter = new Counter(10);
+				counter.increment();
+				counter.count;
+			`,
+			expectedValues: []any{nil, int64(11)},
+		},
+		{
+			name: "initialize class and get field",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+				}
+
+				class CounterBox {
+					constructor(counter) {
+						this.counter = counter;
+					}
+				}
+				
+				let counter = new Counter(5);
+				let counterBox = new CounterBox(counter);
+				counterBox.counter.count;
+			`,
+			expectedValues: []any{int64(5)},
+		},
+		{
+			name: "initialize class and set field",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+				}
+
+				class CounterBox {
+					constructor(initialCounter) {
+						this.counter = initialCounter;
+					}
+				}
+				
+				let counter = new Counter(10);
+				let counterBox = new CounterBox(counter);
+				counterBox.counter.count = 20;
+				counterBox.counter.count;
+			`,
+			expectedValues: []any{int64(20), int64(20)},
+		},
+		{
+			name: "initialize class and call method with closure",
+			source: `
+				let name = "New Counter";
+				
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+
+					toString() {
+						return "[name=" + name + ", count=" + this.count + "]";
+					}
+				}
+
+				let counter = new Counter(10);
+				counter.increment();
+				counter.toString();
+			`,
+			expectedValues: []any{nil, "[name=New Counter, count=11]"},
+		},
+		{
+			name: "manually call instance constructor",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+
+					toString() {
+						return "[name=" + name + ", count=" + this.count + "]";
+					}
+				}
+
+				let counter = new Counter(10);
+				let manualCounter = counter.constructor(20);
+				counter == manualCounter;
+			`,
+			expectedValues: []any{true},
+		},
+		{
+			name: "constructor return with empty value",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						return;
+					}
+				}
+
+				let counter = new Counter(10);
+				counter == counter.constructor(20);
+			`,
+			expectedValues: []any{true},
+		},
+		{
+			name: "define and call static method and static field in class",
+			source: `
+				let external = "External";
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+
+					static getStaticName(num) {
+						return "StaticCounter" + " | " + num + " | " + external + " | static field " + Counter.instance.count;
+					}
+				}
+
+				(Counter.instance = new Counter(8)).count;
+				external = "External Updated";
+				Counter.instance.increment();
+				Counter.getStaticName(1 + 5);
+			`,
+			expectedValues: []any{
+				int64(8),
+				"External Updated",
+				nil,
+				"StaticCounter | 6 | External Updated | static field 9",
+			},
+		},
+		{
+			name: "define and access instance getters and setters in class",
+			source: `
+				class Rectangle3D {
+					constructor(width, height) {
+						this.width = width;
+						this.height = height;
+					}
+
+					get area {
+						return this.width * this.height;
+					}
+
+					get volume {
+						return this.width * this.height * this._depth;
+					}
+
+					set depth(value) {
+						this._depth = value;
+					}
+				}
+
+				let rectangle = new Rectangle3D(5, 6);
+				rectangle.area;
+				rectangle.depth = 10;
+				rectangle.volume;
+			`,
+			expectedValues: []any{int64(30), int64(10), int64(300)},
+		},
+		{
+			name: "define and access static getters and setters in class",
+			source: `
+				class Rectangle3D {
+					static get area {
+						return Rectangle3D.width * Rectangle3D.height;
+					}
+
+					static get volume {
+						return Rectangle3D.width * Rectangle3D.height * Rectangle3D._depth;
+					}
+
+					static set depth(value) {
+						Rectangle3D._depth = value;
+					}
+				}
+
+				Rectangle3D.width = 5;
+				Rectangle3D.height = 6;
+				Rectangle3D.area;
+				Rectangle3D.depth = 10;
+				Rectangle3D.volume;
+			`,
+			expectedValues: []any{int64(5), int64(6), int64(30), int64(10), int64(300)},
+		},
 	}
 
 	for _, tc := range testCases {
