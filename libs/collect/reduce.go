@@ -1,6 +1,19 @@
 package collect
 
-func Reduce[Item any, Value any, Err any](
+func Reduce[Item any, Value any](
+	items []Item,
+	accumulate func(accumulatedValue Value, item Item) Value,
+	initialValue Value,
+) Value {
+	accumulatedValue := initialValue
+	for _, item := range items {
+		accumulatedValue = accumulate(accumulatedValue, item)
+	}
+
+	return accumulatedValue
+}
+
+func ReduceWithErr[Item any, Value any, Err any](
 	items []Item,
 	accumulate func(accumulatedValue Value, item Item) (Value, *Err),
 	initialValue Value,
