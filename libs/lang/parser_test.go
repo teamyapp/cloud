@@ -495,7 +495,7 @@ func TestParser_Parse(t *testing.T) {
 				rectangle.volume;
 			`,
 			expectedStatements: []string{
-				"(class Rectangle3D [instance (methods (func constructor [width height] {(set (this) width width) (set (this) height height)}) (func area [] {(return (* (get (this) width) (get (this) height)))}) (func volume [] {(return (* (* (get (this) width) (get (this) height)) (get (this) depth)))}) (func depth [value] {(set (this) depth value)})) (getters ) (setters )] [static (methods ) (getters ) (setters )])",
+				"(class Rectangle3D [instance (methods (func constructor [width height] {(set (this) width width) (set (this) height height)})) (getters (func area [] {(return (* (get (this) width) (get (this) height)))}) (func volume [] {(return (* (* (get (this) width) (get (this) height)) (get (this) depth)))})) (setters (func depth [value] {(set (this) depth value)}))] [static (methods ) (getters ) (setters )])",
 				"(let rectangle (new Rectangle3D [5 6]))",
 				"(get rectangle area)",
 				"(set rectangle depth 10)",
