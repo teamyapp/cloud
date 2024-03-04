@@ -22,6 +22,7 @@ const (
 	GetExpressionType            ExpressionType = "Get"
 	SetExpressionType            ExpressionType = "Set"
 	ThisExpressionType           ExpressionType = "This"
+	SuperExpressionType          ExpressionType = "Super"
 )
 
 type Expression struct {
@@ -54,7 +55,9 @@ type Expression struct {
 	SetObjectExpression                       *Expression
 	SetFieldName                              Token
 	SetValueExpression                        *Expression
-	ThisIdentifier                            Token
+	ThisKeyword                               Token
+	SuperKeyword                              Token
+	SuperRefIdentifier                        Token
 }
 
 var _ fmt.Stringer = (*Expression)(nil)
@@ -102,13 +105,15 @@ func (e Expression) String() string {
 			args = append(args, argExpr.String())
 		}
 
-		return fmt.Sprintf("(new %s [%v])", e.NewInstanceClassExpression, strings.Join(args, " "))
+		return fmt.Sprintf("(new %s [%s])", e.NewInstanceClassExpression, strings.Join(args, " "))
 	case GetExpressionType:
 		return fmt.Sprintf("(get %s %s)", e.GetObjectExpression, e.GetFieldName.Lexeme)
 	case SetExpressionType:
 		return fmt.Sprintf("(set %s %s %s)", e.SetObjectExpression, e.SetFieldName.Lexeme, e.SetValueExpression)
 	case ThisExpressionType:
-		return fmt.Sprintf("(%v)", e.ThisIdentifier.Lexeme)
+		return fmt.Sprintf("(%s)", e.ThisKeyword.Lexeme)
+	case SuperExpressionType:
+		return fmt.Sprintf("(%s %s)", e.SuperKeyword.Lexeme, e.SuperRefIdentifier.Lexeme)
 	}
 
 	return fmt.Sprintf("[unknown expression type: %s]", e.Type)

@@ -131,8 +131,7 @@ func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Sign
 			IsGenerated: statement.IsGenerated,
 		}, nil
 	case ClassStatementType:
-		e.executeClassStatement(statement)
-		return nil, false, nil, nil
+		return nil, false, nil, e.executeClassStatement(statement)
 	}
 
 	return nil, false, nil, &Err{
@@ -143,7 +142,30 @@ func (e *Executor) executeSingleStatement(statement Statement) (any, bool, *Sign
 	}
 }
 
-func (e *Executor) executeClassStatement(statement Statement) {
+func (e *Executor) executeClassStatement(statement Statement) *Err {
+	var superClass *Class
+	environment := e.currentEnvironment
+	if statement.ClassSuperClassExpression != nil {
+		superClassValue, err := e.evaluateExpression(*statement.ClassSuperClassExpression)
+		if err != nil {
+			return err
+		}
+
+		typedSuperClassValue, ok := superClassValue.(*Class)
+		if !ok {
+			return &Err{
+				Message:           fmt.Sprintf("can only inherit from class"),
+				Line:              statement.ClassSuperClassExpression.Line,
+				Column:            statement.ClassSuperClassExpression.Column,
+				FromGeneratedCode: statement.ClassSuperClassExpression.IsGenerated,
+			}
+		}
+
+		superClass = typedSuperClassValue
+		e.currentEnvironment = e.currentEnvironment.NewInnerEnvironment()
+		e.currentEnvironment.DefineWithInitializer(superIdentifier, superClass)
+	}
+
 	name := statement.ClassIdentifier.Value.(string)
 	instanceMethods := make(map[string]Callable)
 	for _, methodDeclaration := range statement.ClassInstanceMethodDeclarations {
@@ -160,22 +182,6 @@ func (e *Executor) executeClassStatement(statement Statement) {
 			methodDeclaration.IsGenerated,
 		)
 		instanceMethods[methodName] = method
-	}
-
-	staticMethods := make(map[string]Callable)
-	for _, methodDeclaration := range statement.ClassStaticMethodDeclarations {
-		methodName := methodDeclaration.CallableName.Value.(string)
-		method := e.newCallable(
-			methodName,
-			false,
-			false,
-			methodDeclaration.CallableParameters,
-			*methodDeclaration.CallableBody,
-			methodDeclaration.Line,
-			methodDeclaration.Column,
-			methodDeclaration.IsGenerated,
-		)
-		staticMethods[methodName] = method
 	}
 
 	instanceGetters := make(map[string]Callable)
@@ -208,6 +214,22 @@ func (e *Executor) executeClassStatement(statement Statement) {
 			setterDeclaration.IsGenerated,
 		)
 		instanceSetters[setterName] = setter
+	}
+
+	staticMethods := make(map[string]Callable)
+	for _, methodDeclaration := range statement.ClassStaticMethodDeclarations {
+		methodName := methodDeclaration.CallableName.Value.(string)
+		method := e.newCallable(
+			methodName,
+			false,
+			false,
+			methodDeclaration.CallableParameters,
+			*methodDeclaration.CallableBody,
+			methodDeclaration.Line,
+			methodDeclaration.Column,
+			methodDeclaration.IsGenerated,
+		)
+		staticMethods[methodName] = method
 	}
 
 	staticGetters := make(map[string]Callable)
@@ -244,6 +266,7 @@ func (e *Executor) executeClassStatement(statement Statement) {
 
 	class := NewClass(
 		name,
+		superClass,
 		instanceMethods,
 		instanceGetters,
 		instanceSetters,
@@ -251,7 +274,13 @@ func (e *Executor) executeClassStatement(statement Statement) {
 		staticGetters,
 		staticSetters,
 		statement.IsGenerated)
+
+	if superClass != nil {
+		e.currentEnvironment = environment
+	}
+
 	e.currentEnvironment.DefineWithInitializer(*statement.ClassIdentifier, class)
+	return nil
 }
 
 func (e *Executor) executeCallableStatement(statement Statement) {
@@ -448,6 +477,8 @@ func (e *Executor) evaluateExpression(expression Expression) (any, *Err) {
 		return e.evaluateSetExpression(expression)
 	case ThisExpressionType:
 		return e.evaluateThisExpression(expression)
+	case SuperExpressionType:
+		return e.evaluateSuperExpression(expression)
 	}
 
 	return nil, &Err{
@@ -459,7 +490,52 @@ func (e *Executor) evaluateExpression(expression Expression) (any, *Err) {
 }
 
 func (e *Executor) evaluateThisExpression(expression Expression) (any, *Err) {
-	return e.lookupIdentifier(expression.NodeID, expression.ThisIdentifier)
+	return e.lookupIdentifier(expression.NodeID, newThisIdentifier(expression.Line, expression.Column, expression.IsGenerated))
+}
+
+func (e *Executor) evaluateSuperExpression(expression Expression) (any, *Err) {
+	superIdentifierToken := newSuperIdentifier(expression.Line, expression.Column, expression.IsGenerated)
+	superRef, _ := e.staticAnalyzer.GetLocalRef(expression.NodeID)
+	superClassVal, err := e.currentEnvironment.GetAt(superIdentifierToken, superRef)
+	if err != nil {
+		return nil, err
+	}
+
+	superClass, ok := superClassVal.(*Class)
+	if !ok {
+		return nil, &Err{
+			Message:           fmt.Sprintf("super is not a class: %s", superClassVal),
+			Line:              expression.Line,
+			Column:            expression.Column,
+			FromGeneratedCode: expression.IsGenerated,
+		}
+	}
+
+	refIdentifier := expression.SuperRefIdentifier.Value.(string)
+	callable, ok := superClass.GetInstanceMethod(refIdentifier)
+	if !ok {
+		return nil, &Err{
+			Message:           fmt.Sprintf("super method not found: %s", refIdentifier),
+			Line:              expression.SuperRefIdentifier.Line,
+			Column:            expression.SuperRefIdentifier.Column,
+			FromGeneratedCode: expression.SuperRefIdentifier.IsGenerated,
+		}
+	}
+
+	instanceVal, err := e.currentEnvironment.Get(thisIdentifier)
+	if err != nil {
+		return nil, err
+	}
+
+	instance, ok := instanceVal.(*Instance)
+	if !ok {
+		return nil, &Err{
+			Message:           fmt.Sprintf("Internal error: '%s' is not an instance", thisIdentifier.Value),
+			FromGeneratedCode: true,
+		}
+	}
+
+	return bindMethodToInstance(instance, callable), nil
 }
 
 func (e *Executor) evaluateSetExpression(expression Expression) (any, *Err) {

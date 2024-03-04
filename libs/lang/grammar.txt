@@ -6,7 +6,7 @@ declaration ->
     statement;
 letDeclaration -> "let" IDENTIFIER ("=" expressions)? ";";
 funcDeclaration -> "func" callableDeclaration;
-classDeclaration -> "class" IDENTIFIER "{" classBody "}";
+classDeclaration -> "class" IDENTIFIER (":" IDENTIFIER) "{" classBody "}";
 classBodyDeclaration -> (callableDeclaration | staticCallableDeclaration | getterDeclaration | setterDeclaration)*;
 staticCallableDeclaration -> "static" callableDeclaration;
 getterDeclaration -> "get" IDENTIFIER "(" ")" blockStatement;
@@ -57,6 +57,7 @@ primary ->
     "false" |
     "nil" |
     "(" expression ")" |
-    this |
+    "this" |
+    "super" "." IDENTIFIER |
     IDENTIFIER |
     lambdaExpression;

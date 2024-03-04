@@ -60,6 +60,30 @@ func TestStaticAnalyzer_Analyze(t *testing.T) {
 			expectErrColumn: 7,
 		},
 		{
+			name: "error: use super outside of class",
+			source: `
+				func bad() {
+				  super.cool();
+				}
+			`,
+			expectHasErr:    true,
+			expectErrLine:   3,
+			expectErrColumn: 7,
+		},
+		{
+			name: "error: use super outside of sub class",
+			source: `
+				class Bad {
+				  bad() {
+					super.cool();
+				  }
+				}
+			`,
+			expectHasErr:    true,
+			expectErrLine:   4,
+			expectErrColumn: 6,
+		},
+		{
 			name: "error: return value inside constructor",
 			source: `
 				class Bad {
@@ -71,6 +95,16 @@ func TestStaticAnalyzer_Analyze(t *testing.T) {
 			expectHasErr:    true,
 			expectErrLine:   4,
 			expectErrColumn: 6,
+		},
+		{
+			name: "error: class inherit itself",
+			source: `
+				class Bad : Bad {
+				}
+			`,
+			expectHasErr:    true,
+			expectErrLine:   2,
+			expectErrColumn: 17,
 		},
 	}
 

@@ -103,6 +103,32 @@ func (p *Parser) scanClassDeclaration(startToken Token) (*Statement, *Err) {
 	classIdentifier := p.tokens[p.nextTokenIndex]
 	p.nextTokenIndex++
 
+	var superClassExpression *Expression
+	if p.matchTokenType([]TokenType{ColonTokenType}, 0) {
+		p.nextTokenIndex++
+
+		if !p.matchTokenType([]TokenType{IdentifierTokenType}, 0) {
+			token := p.tokens[p.nextTokenIndex]
+			return nil, &Err{
+				Message:           fmt.Sprintf("expect identifier, got %v", token.Lexeme),
+				Line:              token.Line,
+				Column:            token.Column,
+				FromGeneratedCode: token.IsGenerated,
+			}
+		}
+
+		superClassIdentifier := p.tokens[p.nextTokenIndex]
+		superClassExpression = &Expression{
+			NodeID:      p.newNodeID(),
+			Type:        IdentifierExpressionType,
+			Identifier:  superClassIdentifier,
+			Line:        superClassIdentifier.Line,
+			Column:      superClassIdentifier.Column,
+			IsGenerated: superClassIdentifier.IsGenerated,
+		}
+		p.nextTokenIndex++
+	}
+
 	if !p.matchTokenType([]TokenType{LeftBraceTokenType}, 0) {
 		token := p.tokens[p.nextTokenIndex]
 		return nil, &Err{
@@ -131,11 +157,11 @@ func (p *Parser) scanClassDeclaration(startToken Token) (*Statement, *Err) {
 	}
 
 	p.nextTokenIndex++
-
 	return &Statement{
 		NodeID:                          p.newNodeID(),
 		Type:                            ClassStatementType,
 		ClassIdentifier:                 &classIdentifier,
+		ClassSuperClassExpression:       superClassExpression,
 		ClassInstanceMethodDeclarations: classBody.InstanceMethods,
 		ClassStaticMethodDeclarations:   classBody.StaticMethods,
 		ClassInstanceGetterDeclarations: classBody.InstanceGetters,
@@ -1316,12 +1342,51 @@ func (p *Parser) scanPrimary() (Expression, *Err) {
 		token := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
 		return Expression{
-			NodeID:         p.newNodeID(),
-			Type:           ThisExpressionType,
-			ThisIdentifier: thisIdentifier,
-			Line:           token.Line,
-			Column:         token.Column,
-			IsGenerated:    token.IsGenerated,
+			NodeID:      p.newNodeID(),
+			Type:        ThisExpressionType,
+			ThisKeyword: token,
+			Line:        token.Line,
+			Column:      token.Column,
+			IsGenerated: token.IsGenerated,
+		}, nil
+	}
+
+	if p.matchTokenType([]TokenType{SuperKeywordTokenType}, 0) {
+		superToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+
+		if !p.matchTokenType([]TokenType{DotTokenType}, 0) {
+			dotToken := p.tokens[p.nextTokenIndex]
+			return Expression{}, &Err{
+				Message:           fmt.Sprintf("expect '.', got '%v'", dotToken.Lexeme),
+				Line:              dotToken.Line,
+				Column:            dotToken.Column,
+				FromGeneratedCode: dotToken.IsGenerated,
+			}
+		}
+
+		p.nextTokenIndex++
+
+		if !p.matchTokenType([]TokenType{IdentifierTokenType}, 0) {
+			identifierToken := p.tokens[p.nextTokenIndex]
+			return Expression{}, &Err{
+				Message:           fmt.Sprintf("expect identifier, got '%v'", identifierToken.Lexeme),
+				Line:              identifierToken.Line,
+				Column:            identifierToken.Column,
+				FromGeneratedCode: identifierToken.IsGenerated,
+			}
+		}
+
+		identifierToken := p.tokens[p.nextTokenIndex]
+		p.nextTokenIndex++
+		return Expression{
+			NodeID:             p.newNodeID(),
+			Type:               SuperExpressionType,
+			SuperKeyword:       superToken,
+			SuperRefIdentifier: identifierToken,
+			Line:               superToken.Line,
+			Column:             superToken.Column,
+			IsGenerated:        superToken.IsGenerated,
 		}, nil
 	}
 
