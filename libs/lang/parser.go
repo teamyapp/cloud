@@ -1379,7 +1379,6 @@ func (p *Parser) scanPrimary() (Expression, *Err) {
 
 		identifierToken := p.tokens[p.nextTokenIndex]
 		p.nextTokenIndex++
-
 		return Expression{
 			NodeID:             p.newNodeID(),
 			Type:               SuperExpressionType,
