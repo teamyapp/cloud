@@ -502,6 +502,32 @@ func TestParser_Parse(t *testing.T) {
 				"(get rectangle volume)",
 			},
 		},
+		{
+			name: "inherit from super class",
+			source: `
+				class Shape {
+					getName() {
+						return "Shape";
+					}
+				}
+
+				class Rectangle : Shape {
+					getName() {
+						let name = super.getName();
+						return name + " " + "Rectangle";
+					}
+				}
+
+				let rectangle = new Rectangle();
+				rectangle.getName();
+			`,
+			expectedStatements: []string{
+				`(class Shape [instance (methods (func getName [] {(return "Shape")})) (getters ) (setters )] [static (methods ) (getters ) (setters )])`,
+				`(class Rectangle [super Shape] [instance (methods (func getName [] {(let name (call (super getName) [])) (return (+ (+ name " ") "Rectangle"))})) (getters ) (setters )] [static (methods ) (getters ) (setters )])`,
+				"(let rectangle (new Rectangle []))",
+				"(call (get rectangle getName) [])",
+			},
+		},
 	}
 
 	for _, tc := range testCases {

@@ -10,13 +10,21 @@ const (
 	UsedIdentifierStatus     IdentifierStatus = "used"
 )
 
-type CallableType string
+type CallableStatus string
 
 const (
-	NoneCallableType        CallableType = "None"
-	FunctionCallableType    CallableType = "Function"
-	MethodCallableType      CallableType = "Method"
-	ConstructorCallableType CallableType = "Constructor"
+	GlobalCallableStatus        CallableStatus = "Global"
+	InFunctionCallableStatus    CallableStatus = "InFunction"
+	InMethodCallableStatus      CallableStatus = "InMethod"
+	InConstructorCallableStatus CallableStatus = "InConstructor"
+)
+
+type ClassStatus string
+
+const (
+	GlobalClassStatus     ClassStatus = "Global"
+	InClassClassStatus    ClassStatus = "InClass"
+	InSubClassClassStatus ClassStatus = "InSubClass"
 )
 
 type Declaration struct {
@@ -26,14 +34,15 @@ type Declaration struct {
 }
 
 type StaticAnalyzer struct {
-	scopes              [][]*Declaration
-	localRefs           map[uint64]*Reference
-	isInClass           bool
-	currentCallableType CallableType
+	scopes                [][]*Declaration
+	localRefs             map[uint64]*Reference
+	currentCallableStatus CallableStatus
+	currentClassStatus    ClassStatus
 }
 
 func (s *StaticAnalyzer) Analyze(statements []Statement) *Err {
-	s.currentCallableType = NoneCallableType
+	s.currentCallableStatus = GlobalCallableStatus
+	s.currentClassStatus = GlobalClassStatus
 	s.beginScope()
 	err := s.resolve(statements)
 	if err != nil {
@@ -76,7 +85,7 @@ func (s *StaticAnalyzer) resolveStatement(statement Statement) *Err {
 	case ContinueStatementType:
 		return nil
 	case CallableStatementType:
-		return s.resolveCallableStatement(statement, FunctionCallableType)
+		return s.resolveCallableStatement(statement, InFunctionCallableStatus)
 	case ReturnStatementType:
 		return s.resolveReturnStatement(statement)
 	case ClassStatementType:
@@ -92,8 +101,8 @@ func (s *StaticAnalyzer) resolveStatement(statement Statement) *Err {
 }
 
 func (s *StaticAnalyzer) resolveClassStatement(statement Statement) *Err {
-	insideClass := s.isInClass
-	s.isInClass = true
+	classStatus := s.currentClassStatus
+	s.currentClassStatus = InClassClassStatus
 
 	err := s.declare(*statement.ClassIdentifier, false)
 	if err != nil {
@@ -102,93 +111,124 @@ func (s *StaticAnalyzer) resolveClassStatement(statement Statement) *Err {
 
 	s.define(*statement.ClassIdentifier)
 
-	for _, classMethodDeclaration := range statement.ClassInstanceMethodDeclarations {
-		s.beginScope()
-		err = s.declare(thisIdentifier, false)
+	var superToken *Token
+	if statement.ClassSuperClassExpression != nil {
+		classIdentifier := statement.ClassIdentifier.Value.(string)
+		superToken = &superIdentifier
+
+		if statement.ClassSuperClassExpression.Type != IdentifierExpressionType {
+			return &Err{
+				Message:           "SuperClass must be an identifier",
+				Line:              statement.ClassSuperClassExpression.Line,
+				Column:            statement.ClassSuperClassExpression.Column,
+				FromGeneratedCode: statement.ClassSuperClassExpression.IsGenerated,
+			}
+		}
+
+		superClassIdentifier := statement.ClassSuperClassExpression.Identifier.Value.(string)
+		if classIdentifier == superClassIdentifier {
+			return &Err{
+				Message:           "A class cannot inherit from itself",
+				Line:              statement.ClassSuperClassExpression.Line,
+				Column:            statement.ClassSuperClassExpression.Column,
+				FromGeneratedCode: statement.ClassSuperClassExpression.IsGenerated,
+			}
+		}
+
+		s.currentClassStatus = InSubClassClassStatus
+		err = s.resolveExpression(*statement.ClassSuperClassExpression)
 		if err != nil {
 			return err
 		}
+	}
 
-		s.define(thisIdentifier)
+	err = s.withIdentifierInNewScope(superToken, func() *Err {
+		for _, classMethodDeclaration := range statement.ClassInstanceMethodDeclarations {
+			err = s.withIdentifierInNewScope(&thisIdentifier, func() *Err {
+				callableStatus := InMethodCallableStatus
+				if classMethodDeclaration.CallableName.Value.(string) == ConstructorMethodName {
+					callableStatus = InConstructorCallableStatus
+				}
 
-		callableType := MethodCallableType
-		if classMethodDeclaration.CallableName.Value.(string) == ConstructorMethodName {
-			callableType = ConstructorCallableType
+				return s.resolveCallableStatement(classMethodDeclaration, callableStatus)
+			})
+			if err != nil {
+				return err
+			}
 		}
 
-		err = s.resolveCallableStatement(classMethodDeclaration, callableType)
-		if err != nil {
-			return err
+		for _, classGetterDeclaration := range statement.ClassInstanceGetterDeclarations {
+			err = s.withIdentifierInNewScope(&thisIdentifier, func() *Err {
+				return s.resolveCallableStatement(classGetterDeclaration, InMethodCallableStatus)
+			})
+			if err != nil {
+				return err
+			}
 		}
 
-		err = s.endScope()
-		if err != nil {
-			return err
+		for _, classSetterDeclaration := range statement.ClassInstanceSetterDeclarations {
+			err = s.withIdentifierInNewScope(&thisIdentifier, func() *Err {
+				return s.resolveCallableStatement(classSetterDeclaration, InMethodCallableStatus)
+			})
+			if err != nil {
+				return err
+			}
 		}
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	for _, classMethodDeclaration := range statement.ClassStaticMethodDeclarations {
-		err = s.resolveCallableStatement(classMethodDeclaration, MethodCallableType)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, classGetterDeclaration := range statement.ClassInstanceGetterDeclarations {
-		s.beginScope()
-		err = s.declare(thisIdentifier, false)
-		if err != nil {
-			return err
-		}
-
-		s.define(thisIdentifier)
-
-		err = s.resolveCallableStatement(classGetterDeclaration, MethodCallableType)
-		if err != nil {
-			return err
-		}
-
-		err = s.endScope()
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, classSetterDeclaration := range statement.ClassInstanceSetterDeclarations {
-		s.beginScope()
-		err = s.declare(thisIdentifier, false)
-		if err != nil {
-			return err
-		}
-
-		s.define(thisIdentifier)
-
-		err = s.resolveCallableStatement(classSetterDeclaration, MethodCallableType)
-		if err != nil {
-			return err
-		}
-
-		err = s.endScope()
+		err = s.resolveCallableStatement(classMethodDeclaration, InMethodCallableStatus)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, classGetterDeclaration := range statement.ClassStaticGetterDeclarations {
-		err = s.resolveCallableStatement(classGetterDeclaration, MethodCallableType)
+		err = s.resolveCallableStatement(classGetterDeclaration, InMethodCallableStatus)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, classSetterDeclaration := range statement.ClassStaticSetterDeclarations {
-		err = s.resolveCallableStatement(classSetterDeclaration, MethodCallableType)
+		err = s.resolveCallableStatement(classSetterDeclaration, InMethodCallableStatus)
 		if err != nil {
 			return err
 		}
 	}
 
-	s.isInClass = insideClass
+	s.currentClassStatus = classStatus
+	return nil
+}
+
+func (s *StaticAnalyzer) withIdentifierInNewScope(identifier *Token, resolve func() *Err) *Err {
+	if identifier != nil {
+		s.beginScope()
+		err := s.declare(*identifier, false)
+		if err != nil {
+			return err
+		}
+
+		s.define(*identifier)
+	}
+
+	resolveErr := resolve()
+	if resolveErr != nil {
+		return resolveErr
+	}
+
+	if identifier != nil {
+		err := s.endScope()
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -197,7 +237,7 @@ func (s *StaticAnalyzer) resolveExpressionStatement(statement Statement) *Err {
 }
 
 func (s *StaticAnalyzer) resolveReturnStatement(statement Statement) *Err {
-	if s.currentCallableType == NoneCallableType {
+	if s.currentCallableStatus == GlobalCallableStatus {
 		return &Err{
 			Message:           "Return outside of a callable",
 			Line:              statement.Line,
@@ -207,7 +247,7 @@ func (s *StaticAnalyzer) resolveReturnStatement(statement Statement) *Err {
 	}
 
 	if statement.ReturnValueExpression != nil {
-		if s.currentCallableType == ConstructorCallableType {
+		if s.currentCallableStatus == InConstructorCallableStatus {
 			return &Err{
 				Message:           "Cannot return a value from a constructor",
 				Line:              statement.Line,
@@ -249,7 +289,7 @@ func (s *StaticAnalyzer) resolveIfStatement(statement Statement) *Err {
 	return nil
 }
 
-func (s *StaticAnalyzer) resolveCallableStatement(statement Statement, callableType CallableType) *Err {
+func (s *StaticAnalyzer) resolveCallableStatement(statement Statement, callableStatus CallableStatus) *Err {
 	err := s.declare(*statement.CallableName, false)
 	if err != nil {
 		return err
@@ -257,8 +297,8 @@ func (s *StaticAnalyzer) resolveCallableStatement(statement Statement, callableT
 
 	s.define(*statement.CallableName)
 
-	currentCallableType := s.currentCallableType
-	s.currentCallableType = callableType
+	currentCallableStatus := s.currentCallableStatus
+	s.currentCallableStatus = callableStatus
 	s.beginScope()
 	for _, param := range statement.CallableParameters {
 		err = s.declare(param, false)
@@ -279,7 +319,7 @@ func (s *StaticAnalyzer) resolveCallableStatement(statement Statement, callableT
 		return err
 	}
 
-	s.currentCallableType = currentCallableType
+	s.currentCallableStatus = currentCallableStatus
 	return nil
 }
 
@@ -347,6 +387,8 @@ func (s *StaticAnalyzer) resolveExpression(expression Expression) *Err {
 		return s.resolveSetExpression(expression)
 	case ThisExpressionType:
 		return s.resolveThisExpression(expression)
+	case SuperExpressionType:
+		return s.resolveSuperExpression(expression)
 	default:
 		return &Err{
 			Message:           fmt.Sprintf("Unknown expression type: %v", expression.Type),
@@ -357,8 +399,23 @@ func (s *StaticAnalyzer) resolveExpression(expression Expression) *Err {
 	}
 }
 
+func (s *StaticAnalyzer) resolveSuperExpression(expression Expression) *Err {
+	if s.currentClassStatus != InSubClassClassStatus {
+		return &Err{
+			Message:           "Cannot use 'super' outside of a subClass",
+			Line:              expression.Line,
+			Column:            expression.Column,
+			FromGeneratedCode: expression.IsGenerated,
+		}
+	}
+
+	s.resolveLocal(expression.NodeID, newSuperIdentifier(expression.Line, expression.Column, expression.IsGenerated))
+	return nil
+}
+
 func (s *StaticAnalyzer) resolveThisExpression(expression Expression) *Err {
-	if !s.isInClass {
+	if s.currentClassStatus != InClassClassStatus &&
+		s.currentClassStatus != InSubClassClassStatus {
 		return &Err{
 			Message:           "Cannot use 'this' outside of a class",
 			Line:              expression.Line,
@@ -367,7 +424,7 @@ func (s *StaticAnalyzer) resolveThisExpression(expression Expression) *Err {
 		}
 	}
 
-	s.resolveLocal(expression.NodeID, expression.ThisIdentifier)
+	s.resolveLocal(expression.NodeID, newThisIdentifier(expression.Line, expression.Column, expression.IsGenerated))
 	return nil
 }
 
@@ -401,8 +458,8 @@ func (s *StaticAnalyzer) resolveNewInstanceExpression(expression Expression) *Er
 }
 
 func (s *StaticAnalyzer) resolveLambdaExpression(expression Expression) *Err {
-	currentCallableType := s.currentCallableType
-	s.currentCallableType = FunctionCallableType
+	currentCallableStatus := s.currentCallableStatus
+	s.currentCallableStatus = InFunctionCallableStatus
 	s.beginScope()
 	for _, param := range expression.LambdaParameters {
 		err := s.declare(param, false)
@@ -423,7 +480,7 @@ func (s *StaticAnalyzer) resolveLambdaExpression(expression Expression) *Err {
 		return err
 	}
 
-	s.currentCallableType = currentCallableType
+	s.currentCallableStatus = currentCallableStatus
 	return nil
 }
 

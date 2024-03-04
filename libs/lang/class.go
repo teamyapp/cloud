@@ -1,6 +1,5 @@
 package lang
 
-import "C"
 import "fmt"
 
 const ConstructorMethodName = "constructor"
@@ -9,13 +8,19 @@ var thisIdentifier = Token{
 	Type:        IdentifierTokenType,
 	Lexeme:      "this",
 	Value:       "this",
-	Line:        0,
-	Column:      0,
+	IsGenerated: true,
+}
+
+var superIdentifier = Token{
+	Type:        IdentifierTokenType,
+	Lexeme:      "super",
+	Value:       "super",
 	IsGenerated: true,
 }
 
 type Class struct {
 	name            string
+	superClass      *Class
 	instanceMethods map[string]Callable
 	instanceGetters map[string]Callable
 	instanceSetters map[string]Callable
@@ -28,17 +33,41 @@ type Class struct {
 
 func (c *Class) GetInstanceMethod(methodName string) (Callable, bool) {
 	method, ok := c.instanceMethods[methodName]
-	return method, ok
+	if ok {
+		return method, ok
+	}
+
+	if c.superClass != nil {
+		return c.superClass.GetInstanceMethod(methodName)
+	}
+
+	return Callable{}, false
 }
 
 func (c *Class) GetInstanceGetter(name string) (Callable, bool) {
 	getter, ok := c.instanceGetters[name]
-	return getter, ok
+	if ok {
+		return getter, ok
+	}
+
+	if c.superClass != nil {
+		return c.superClass.GetInstanceGetter(name)
+	}
+
+	return Callable{}, false
 }
 
 func (c *Class) GetInstanceSetter(name string) (Callable, bool) {
 	setter, ok := c.instanceSetters[name]
-	return setter, ok
+	if ok {
+		return setter, ok
+	}
+
+	if c.superClass != nil {
+		return c.superClass.GetInstanceSetter(name)
+	}
+
+	return Callable{}, false
 }
 
 func (c *Class) GetStaticMethod(methodName string) (Callable, bool) {
@@ -80,6 +109,7 @@ func (c *Class) SetStatic(fieldName string, value any) *Err {
 
 func NewClass(
 	name string,
+	superClass *Class,
 	instanceMethods map[string]Callable,
 	instanceGetters map[string]Callable,
 	instanceSetters map[string]Callable,
@@ -114,6 +144,7 @@ func NewClass(
 
 	return &Class{
 		name:            name,
+		superClass:      superClass,
 		instanceMethods: instanceMethods,
 		instanceGetters: instanceGetters,
 		instanceSetters: instanceSetters,
@@ -230,4 +261,26 @@ func bindMethodToInstance(instance *Instance, method Callable) Callable {
 	method = method.Copy()
 	method.Closure = environment
 	return method
+}
+
+func newThisIdentifier(line int, column int, isGenerated bool) Token {
+	return Token{
+		Type:        thisIdentifier.Type,
+		Lexeme:      thisIdentifier.Lexeme,
+		Value:       thisIdentifier.Value,
+		Line:        line,
+		Column:      column,
+		IsGenerated: isGenerated,
+	}
+}
+
+func newSuperIdentifier(line int, column int, isGenerated bool) Token {
+	return Token{
+		Type:        superIdentifier.Type,
+		Lexeme:      superIdentifier.Lexeme,
+		Value:       superIdentifier.Value,
+		Line:        line,
+		Column:      column,
+		IsGenerated: isGenerated,
+	}
 }

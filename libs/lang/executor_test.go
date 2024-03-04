@@ -689,6 +689,49 @@ func TestEvaluate(t *testing.T) {
 			`,
 			expectedValues: []any{int64(5), int64(6), int64(30), int64(10), int64(300)},
 		},
+		{
+			name: "inherit from super class",
+			source: `
+				class A {
+				  constructor() {
+					this.name = "A";
+				  }
+
+				  method() {
+					print("A method" + " -> " + this.name);
+				  }
+				}
+				
+				class B : A {
+				  method() {
+					super.method();
+					print(" | ");
+					print("B method" + " -> " + this.name);
+				  }
+				
+				  test() {
+					this.name = "B";
+					super.method();
+				  }
+				}
+				
+				class C : B {
+				  method() {
+					this.name = "C";
+					super.method();
+					print(" | ");
+					print("C method");
+				  }
+				}
+				
+				let c = new C();
+				c.test();
+				print(" || ");
+				c.method();
+			`,
+			expectedOutput: "A method -> B || A method -> C | B method -> C | C method",
+			expectedValues: []any{nil, nil, nil},
+		},
 	}
 
 	for _, tc := range testCases {

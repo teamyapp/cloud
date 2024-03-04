@@ -41,6 +41,7 @@ type Statement struct {
 	CallableBody                    *Statement
 	ReturnValueExpression           *Expression
 	ClassIdentifier                 *Token
+	ClassSuperClassExpression       *Expression
 	ClassInstanceMethodDeclarations []Statement
 	ClassStaticMethodDeclarations   []Statement
 	ClassInstanceGetterDeclarations []Statement
@@ -120,8 +121,9 @@ func (s Statement) String() string {
 			staticSetters = append(staticSetters, setterDeclaration.String())
 		}
 
-		return fmt.Sprintf("(class %s [instance (methods %s) (getters %s) (setters %s)] [static (methods %s) (getters %s) (setters %s)])",
+		return fmt.Sprintf("(class %s%s[instance (methods %s) (getters %s) (setters %s)] [static (methods %s) (getters %s) (setters %s)])",
 			s.ClassIdentifier.Lexeme,
+			formatSuperClass(s.ClassSuperClassExpression),
 			strings.Join(instanceMethods, " "),
 			strings.Join(instanceGetters, " "),
 			strings.Join(instanceSetters, " "),
@@ -131,4 +133,12 @@ func (s Statement) String() string {
 	}
 
 	return fmt.Sprintf("[unknown statement type: %v]", s.Type)
+}
+
+func formatSuperClass(superClassExpression *Expression) string {
+	if superClassExpression == nil {
+		return " "
+	}
+
+	return fmt.Sprintf(" [super %v] ", superClassExpression.Identifier.Lexeme)
 }
