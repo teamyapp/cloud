@@ -7,6 +7,8 @@ import (
 	"github.com/teamyapp/cloud/libs/env"
 )
 
+var responseTimeBuckets = prometheus.ExponentialBuckets(1, 2, 20)
+
 type Prometheus struct {
 	httpIncomingRequestCountMetric *prometheus.CounterVec
 	httpIncomingResponseTimeMetric *prometheus.HistogramVec
@@ -71,7 +73,7 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			ConstLabels: map[string]string{
 				EnvironmentLabel: string(environment),
 			},
-			Buckets: ResponseTimeBuckets,
+			Buckets: responseTimeBuckets,
 		},
 		[]string{"method", "pattern"})
 	httpOutgoingRequestCountMetric := prometheus.NewCounterVec(
@@ -92,7 +94,7 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			ConstLabels: map[string]string{
 				EnvironmentLabel: string(environment),
 			},
-			Buckets: ResponseTimeBuckets,
+			Buckets: responseTimeBuckets,
 		},
 		[]string{"target", "method", "pattern"})
 	grpcIncomingRequestCountMetric := prometheus.NewCounterVec(
@@ -113,7 +115,7 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			ConstLabels: map[string]string{
 				EnvironmentLabel: string(environment),
 			},
-			Buckets: ResponseTimeBuckets,
+			Buckets: responseTimeBuckets,
 		},
 		[]string{"method"})
 	grpcOutgoingRequestCountMetric := prometheus.NewCounterVec(
@@ -134,7 +136,7 @@ func NewPrometheus(appMame string, serviceName string, environment env.Environme
 			ConstLabels: map[string]string{
 				EnvironmentLabel: string(environment),
 			},
-			Buckets: ResponseTimeBuckets,
+			Buckets: responseTimeBuckets,
 		},
 		[]string{"target", "method"})
 	prometheus.MustRegister(httpIncomingRequestCountMetric)
