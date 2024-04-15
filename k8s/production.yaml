@@ -72,6 +72,14 @@ spec:
                 secretKeyRef:
                   name: cloud
                   key: db-name
+            - name: DB_MAX_OPEN_CONNECTIONS
+              value: "150"
+            - name: DB_MAX_IDLE_CONNECTIONS
+              value: "15"
+            - name: DB_CONNECTION_MAX_LIFE_TIME
+              value: "30m"
+            - name: DB_CONNECTION_MAX_IDLE_TIME
+              value: "30m"
             - name: JWT_SIGNING_KEY
               valueFrom:
                 secretKeyRef:
