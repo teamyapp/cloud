@@ -28,8 +28,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-
-
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
