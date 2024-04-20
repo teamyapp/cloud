@@ -1,6 +1,6 @@
 module github.com/teamyapp/cloud
 
-go 1.21
+go 1.21.9
 
 require (
 	github.com/BurntSushi/toml v1.3.2
@@ -16,7 +16,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/minio/minio-go/v7 v7.0.67
 	github.com/prometheus/client_golang v1.16.0
-	github.com/rubenv/sql-migrate v1.5.2
+	github.com/rubenv/sql-migrate v1.2.0
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
 	go.opentelemetry.io/otel v1.16.0

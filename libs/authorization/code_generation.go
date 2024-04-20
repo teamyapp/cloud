@@ -9,9 +9,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/teamyapp/cloud/libs/telemetry"
-
 	"github.com/teamyapp/cloud/libs/errs"
+	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
 //go:embed resource_type.gotmpl

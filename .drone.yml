@@ -48,7 +48,7 @@ steps:
       status: [ success, failure ]
 volumes:
   - name: go-mod-cache
-    temp: {}
+    temp: { }
   - name: cache
     host:
       path: /var/drone/cache
@@ -131,7 +131,7 @@ steps:
       status: [ success, failure ]
 volumes:
   - name: go-mod-cache
-    temp: {}
+    temp: { }
   - name: cache
     host:
       path: /var/drone/cache
@@ -214,7 +214,7 @@ steps:
       status: [ success, failure ]
 volumes:
   - name: go-mod-cache
-    temp: {}
+    temp: { }
   - name: cache
     host:
       path: /var/drone/cache
@@ -297,7 +297,7 @@ steps:
       status: [ success, failure ]
 volumes:
   - name: go-mod-cache
-    temp: {}
+    temp: { }
   - name: cache
     host:
       path: /var/drone/cache

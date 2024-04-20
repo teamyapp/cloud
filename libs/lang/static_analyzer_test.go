@@ -1,8 +1,9 @@
 package lang
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestStaticAnalyzer_Analyze(t *testing.T) {

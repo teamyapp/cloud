@@ -38,6 +38,7 @@ spec:
             - containerPort: 8080
             - containerPort: 8081
             - containerPort: 10000
+            - containerPort: 10001
           env:
             - name: ENVIRONMENT
               value: testing
@@ -154,7 +155,8 @@ spec:
       targetPort: 8081
     - name: monitoring
       port: 10000
-      targetPort: 10000
+    - name: profiling
+      port: 10001
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"sync"
 	"time"
 
@@ -32,6 +33,7 @@ type ServiceRunnerConfig struct {
 	WebServerPort          int           `envconfig:"SERVICE_RUNNER_WEB_SERVER_PORT" default:"9011"`
 	GRPCServerPort         int           `envconfig:"SERVICE_RUNNER_GRPC_SERVER_PORT" default:"9012"`
 	MonitoringServerPort   int           `envconfig:"SERVICE_RUNNER_MONITORING_SERVER_PORT" default:"10000"`
+	ProfilingServerPort    int           `envconfig:"SERVICE_RUNNER_PROFILING_SERVER_PORT" default:"10001"`
 	IdentityAPIEndpoint    string        `envconfig:"SERVICE_RUNNER_IDENTITY_API_ENDPOINT" default:"http://localhost:9500/identity"`
 	RequestTimeout         time.Duration `envconfig:"SERVICE_RUNNER_REQUEST_TIMEOUT" default:"10s"`
 	EnableTracing          bool          `envconfig:"SERVICE_RUNNER_ENABLE_TRACING" default:"false"`
@@ -95,6 +97,13 @@ func (s *ServiceRunner) Start(afterServicesStarted func(listeners []net.Listener
 
 	listeners = append(listeners, lis)
 	lis, err = s.startMonitoringServer(&wg)
+	if err != nil {
+		s.logger.Error(err)
+		return err
+	}
+
+	listeners = append(listeners, lis)
+	lis, err = s.startProfilingServer(&wg)
 	if err != nil {
 		s.logger.Error(err)
 		return err
@@ -167,6 +176,41 @@ func (s *ServiceRunner) startMonitoringServer(wg *sync.WaitGroup) (net.Listener,
 	router.Handle("/metrics", promhttp.Handler())
 
 	hostAndPort := fmt.Sprintf(":%d", s.config.MonitoringServerPort)
+	lis, err := s.network.Listen("tcp", hostAndPort)
+	if err != nil {
+		return nil, errs.NewError(errs.Unknown, err.Error())
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = http.Serve(lis, router)
+		if err != nil {
+			s.logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
+		}
+	}()
+	return lis, nil
+}
+
+func (s *ServiceRunner) startProfilingServer(wg *sync.WaitGroup) (net.Listener, *errs.Error) {
+	s.logger.Log(telemetry.Info, telemetry.Props{
+		telemetry.MessageProp: fmt.Sprintf("service runner Profiling server started at %v", s.config.ProfilingServerPort),
+	})
+	router := chi.NewRouter()
+	router.HandleFunc("/", pprof.Index)
+	router.HandleFunc("/cmdline", pprof.Cmdline)
+	router.HandleFunc("/profile", pprof.Profile)
+	router.HandleFunc("/symbol", pprof.Symbol)
+	router.HandleFunc("/trace", pprof.Trace)
+
+	router.HandleFunc("/goroutine", pprof.Handler("goroutine").ServeHTTP)
+	router.HandleFunc("/heap", pprof.Handler("heap").ServeHTTP)
+	router.HandleFunc("/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
+	router.HandleFunc("/block", pprof.Handler("block").ServeHTTP)
+	router.HandleFunc("/allocs", pprof.Handler("allocs").ServeHTTP)
+	router.HandleFunc("/mutex", pprof.Handler("mutex").ServeHTTP)
+
+	hostAndPort := fmt.Sprintf(":%d", s.config.ProfilingServerPort)
 	lis, err := s.network.Listen("tcp", hostAndPort)
 	if err != nil {
 		return nil, errs.NewError(errs.Unknown, err.Error())
