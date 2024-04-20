@@ -15,6 +15,7 @@
 1. Visit `http://localhost:8080/random`
 
 ## Deployment Environments
+
 - [testing](https://cloud.testing.teamyapp.com)
 - [staging](https://cloud.staging.teamyapp.com)
 - [production](https://cloud.teamyapp.com)
