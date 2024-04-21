@@ -70,7 +70,7 @@ func NewPrometheusTracer(appMame string, serviceName string, environment env.Env
 			ConstLabels: map[string]string{
 				metrics.EnvironmentLabel: string(environment),
 			},
-			Buckets: metrics.ResponseTimeBuckets,
+			Buckets: prometheus.ExponentialBuckets(1, 2, 20),
 		},
 		[]string{"path"})
 	prometheus.MustRegister(requestCountMetric)

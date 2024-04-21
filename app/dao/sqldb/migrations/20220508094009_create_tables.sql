@@ -1,8 +1,8 @@
 -- +migrate Up
 CREATE TABLE identity_allocated_range
 (
-    key         VARCHAR(255) PRIMARY KEY,
-    range_end   BIGINT
+    key       VARCHAR(255) PRIMARY KEY,
+    range_end BIGINT
 );
 
 CREATE TABLE identity_sign_in_session

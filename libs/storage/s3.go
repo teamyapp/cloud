@@ -1,16 +1,16 @@
 package storage
 
 import (
+	"context"
 	"io"
 	"path"
 
-	"github.com/minio/minio-go"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/teamyapp/cloud/libs/env"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
-
-const appDataRoot = "appData"
 
 type S3Bucket struct {
 	logger     telemetry.Logger
@@ -19,12 +19,63 @@ type S3Bucket struct {
 	bucketName string
 }
 
-var _ MapClient = (*S3Bucket)(nil)
-var _ MapRequestHandlers = (*S3Bucket)(nil)
+var _ ObjectStore = (*S3Bucket)(nil)
+var _ ObjectStoreRequestHandlers = (*S3Bucket)(nil)
 
-func (s S3Bucket) Get(key string) (io.Reader, *errs.Error) {
-	fullPath := path.Join(appDataRoot, string(s.env), key)
-	obj, err := s.client.GetObject(s.bucketName, fullPath, minio.GetObjectOptions{})
+func (s *S3Bucket) GetMetadata(ct context.Context, key string) (ObjectMetadata, *errs.Error) {
+	fullPath := path.Join(string(s.env), key)
+	stats, err := s.client.StatObject(ct, s.bucketName, fullPath, minio.StatObjectOptions{})
+	if err != nil {
+		return ObjectMetadata{}, errs.NewError(errs.Unknown, err.Error())
+	}
+
+	return ObjectMetadata{
+		ContentType:  stats.ContentType,
+		ETag:         stats.ETag,
+		LastModified: stats.LastModified,
+		Size:         stats.Size,
+		Name:         stats.Key,
+	}, nil
+}
+
+func (s *S3Bucket) GetDataStreams(ct context.Context, key string) ([]ObjectDataStream, *errs.Error) {
+	fileStreams := []ObjectDataStream{}
+	// We need the slash at the end to make sure we only get the files in the directory
+	prefix := path.Join(string(s.env), key, "/")
+	objectList := s.client.ListObjects(ct, s.bucketName, minio.ListObjectsOptions{
+		Prefix:       prefix,
+		WithMetadata: true,
+		Recursive:    true,
+	})
+
+	for obj := range objectList {
+		if obj.Err != nil {
+			return nil, errs.NewError(errs.Unknown, obj.Err.Error())
+		}
+
+		objReader, err := s.client.GetObject(ct, s.bucketName, obj.Key, minio.GetObjectOptions{})
+		if err != nil {
+			return nil, errs.NewError(errs.Unknown, err.Error())
+		}
+
+		fileStreams = append(fileStreams, ObjectDataStream{
+			Reader: objReader,
+			Metadata: ObjectMetadata{
+				ContentType:  obj.ContentType,
+				ETag:         obj.ETag,
+				LastModified: obj.LastModified,
+				Size:         obj.Size,
+				Name:         obj.Key,
+			},
+		})
+	}
+
+	return fileStreams, nil
+}
+
+func (s *S3Bucket) Get(ct context.Context, key string) (io.Reader, *errs.Error) {
+	fullPath := path.Join(string(s.env), key)
+	obj, err := s.client.GetObject(ct, s.bucketName, fullPath, minio.GetObjectOptions{})
 	if err != nil {
 		return nil, errs.NewError(errs.Unknown, err.Error())
 	}
@@ -32,9 +83,11 @@ func (s S3Bucket) Get(key string) (io.Reader, *errs.Error) {
 	return obj, nil
 }
 
-func (s S3Bucket) Put(key string, data io.Reader) *errs.Error {
-	fullPath := path.Join(appDataRoot, string(s.env), key)
-	_, err := s.client.PutObject(s.bucketName, fullPath, data, -1, minio.PutObjectOptions{})
+func (s *S3Bucket) Put(ct context.Context, key string, data io.Reader, objectMetadataInput ObjectMetadataInput) *errs.Error {
+	fullPath := path.Join(string(s.env), key)
+	_, err := s.client.PutObject(ct, s.bucketName, fullPath, data, -1, minio.PutObjectOptions{
+		ContentType: objectMetadataInput.ContentType,
+	})
 	if err != nil {
 		return errs.NewError(errs.Unknown, err.Error())
 	}
@@ -42,9 +95,9 @@ func (s S3Bucket) Put(key string, data io.Reader) *errs.Error {
 	return nil
 }
 
-func (s S3Bucket) Delete(key string) *errs.Error {
-	fullPath := path.Join(appDataRoot, string(s.env), key)
-	err := s.client.RemoveObject(s.bucketName, fullPath)
+func (s *S3Bucket) Delete(ct context.Context, key string) *errs.Error {
+	fullPath := path.Join(string(s.env), key)
+	err := s.client.RemoveObject(ct, s.bucketName, fullPath, minio.RemoveObjectOptions{})
 	if err != nil {
 		return errs.NewError(errs.Unknown, err.Error())
 	}
@@ -52,16 +105,16 @@ func (s S3Bucket) Delete(key string) *errs.Error {
 	return nil
 }
 
-func (s S3Bucket) HandleGet(key string) (io.Reader, *errs.Error) {
-	return s.Get(key)
+func (s *S3Bucket) HandleGet(ct context.Context, key string) (io.Reader, *errs.Error) {
+	return s.Get(ct, key)
 }
 
-func (s S3Bucket) HandlePut(key string, data io.Reader) *errs.Error {
-	return s.Put(key, data)
+func (s *S3Bucket) HandlePut(ct context.Context, key string, data io.Reader, objectMetadataInput ObjectMetadataInput) *errs.Error {
+	return s.Put(ct, key, data, objectMetadataInput)
 }
 
-func (s S3Bucket) HandleDelete(key string) *errs.Error {
-	return s.Delete(key)
+func (s *S3Bucket) HandleDelete(ct context.Context, key string) *errs.Error {
+	return s.Delete(ct, key)
 }
 
 func NewS3Bucket(
@@ -71,13 +124,16 @@ func NewS3Bucket(
 	accessKey string,
 	env env.Environment,
 	bucketName string,
-) (S3Bucket, error) {
-	client, err := minio.New(endpoint, accessKeyID, accessKey, true)
+) (*S3Bucket, error) {
+	client, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKeyID, accessKey, ""),
+		Secure: true,
+	})
 	if err != nil {
-		return S3Bucket{}, err
+		return nil, err
 	}
 
-	return S3Bucket{
+	return &S3Bucket{
 		logger:     logger,
 		client:     client,
 		env:        env,

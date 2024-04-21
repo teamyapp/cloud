@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"io"
+	"mime"
+	"path/filepath"
 
 	"github.com/teamyapp/cloud/app/dao"
 	"github.com/teamyapp/cloud/app/entity"
@@ -13,7 +15,7 @@ import (
 
 type Stream struct {
 	logger          telemetry.Logger
-	mapClient       storage.MapClient
+	objectStore     storage.ObjectStore
 	fileMetadataDao dao.FileMetadata
 }
 
@@ -22,7 +24,11 @@ func (s Stream) GetFileMetadata(ct context.Context, fileID uint64) (entity.FileM
 }
 
 func (s Stream) AddFile(ct context.Context, fileName string, fileData io.Reader) *errs.Error {
-	return s.mapClient.Put(fileName, fileData)
+	ext := filepath.Ext(fileName)
+	mimeType := mime.TypeByExtension(ext)
+	return s.objectStore.Put(ct, fileName, fileData, storage.ObjectMetadataInput{
+		ContentType: mimeType,
+	})
 }
 
 func (s Stream) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Error) {
@@ -31,7 +37,7 @@ func (s Stream) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.E
 		return entity.File{}, err
 	}
 
-	chunksIterator := newChunksIterator(s.logger, s.mapClient, metadata.ChunkIDs)
+	chunksIterator := newChunksIterator(s.logger, s.objectStore, metadata.ChunkIDs)
 	chunksBufferReader, chunksBufferWriter := io.Pipe()
 
 	go func() {
@@ -70,10 +76,10 @@ func (s Stream) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.E
 	}, nil
 }
 
-func NewStream(logger telemetry.Logger, mapClient storage.MapClient, fileMetadataDao dao.FileMetadata) Stream {
+func NewStream(logger telemetry.Logger, objectStore storage.ObjectStore, fileMetadataDao dao.FileMetadata) Stream {
 	return Stream{
 		logger:          logger,
-		mapClient:       mapClient,
+		objectStore:     objectStore,
 		fileMetadataDao: fileMetadataDao,
 	}
 }

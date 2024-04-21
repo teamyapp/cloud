@@ -1,6 +1,8 @@
 package service
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding"
@@ -8,6 +10,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -19,9 +22,15 @@ import (
 	"github.com/teamyapp/cloud/libs/telemetry"
 )
 
+type CompressedFileStream struct {
+	Name            string
+	MIMEContentType string
+	ContentReader   io.Reader
+}
+
 type File struct {
 	logger             telemetry.Logger
-	mapClient          storage.MapClient
+	objectStore        storage.ObjectStore
 	uploadSessionDao   dao.UploadSession
 	fileMetadataDao    dao.FileMetadata
 	chunkMetadataDao   dao.ChunkMetadata
@@ -142,7 +151,7 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		internalErr = saveChunk(f.mapClient, chunkID, chunkReader)
+		internalErr = saveChunk(ct, f.objectStore, chunkID, chunkReader)
 		if internalErr != nil {
 			once.Do(func() {
 				wgErr = internalErr
@@ -227,13 +236,67 @@ func (f File) GetFileMetadata(ct context.Context, fileID uint64) (entity.FileMet
 	return f.fileMetadataDao.FindMetadataByFileID(ct, fileID)
 }
 
+func (f File) GetCompressedFileStream(ct context.Context, filePath string) (CompressedFileStream, *errs.Error) {
+	fileStreams, err := f.objectStore.GetDataStreams(ct, filePath)
+	if err != nil {
+		return CompressedFileStream{}, err
+	}
+
+	pipeReader, pipeWriter := io.Pipe()
+	gzipWriter := gzip.NewWriter(pipeWriter)
+	tarWriter := tar.NewWriter(gzipWriter)
+
+	name := filepath.Base(filePath)
+	fullName := fmt.Sprintf("%s.tar.gz", name)
+	compressedFileStream := CompressedFileStream{
+		Name:            fullName,
+		MIMEContentType: "application/gzip",
+		ContentReader:   pipeReader,
+	}
+
+	go func() {
+		defer pipeWriter.Close()
+		defer gzipWriter.Close()
+		defer tarWriter.Close()
+
+		for _, fileStream := range fileStreams {
+			header := &tar.Header{
+				Name: fileStream.Metadata.Name,
+				Size: fileStream.Metadata.Size,
+				Mode: 0600,
+			}
+			err := tarWriter.WriteHeader(header)
+			if err != nil {
+				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, err.Error()))
+				return
+			}
+
+			_, err = io.Copy(tarWriter, fileStream.Reader)
+			if err != nil {
+				f.logger.ErrorWithContext(ct, errs.NewError(errs.IO, err.Error()))
+				return
+			}
+		}
+	}()
+
+	return compressedFileStream, nil
+}
+
+func (f File) GetFileFromPath(ct context.Context, filePath string) (io.Reader, *errs.Error) {
+	return f.objectStore.Get(ct, filePath)
+}
+
+func (f File) GetFileMetadataFromPath(ct context.Context, filePath string) (storage.ObjectMetadata, *errs.Error) {
+	return f.objectStore.GetMetadata(ct, filePath)
+}
+
 func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Error) {
 	metadata, err := f.GetFileMetadata(ct, fileID)
 	if err != nil {
 		return entity.File{}, err
 	}
 
-	chunksIterator := newChunksIterator(f.logger, f.mapClient, metadata.ChunkIDs)
+	chunksIterator := newChunksIterator(f.logger, f.objectStore, metadata.ChunkIDs)
 	chunksBufferReader, chunksBufferWriter := io.Pipe()
 
 	go func() {
@@ -274,7 +337,7 @@ func (f File) GetFile(ct context.Context, fileID uint64) (entity.File, *errs.Err
 
 func NewFile(
 	logger telemetry.Logger,
-	mapClient storage.MapClient,
+	objectStore storage.ObjectStore,
 	uniqueNumberRegistry *UniqueNumberGenRegistry,
 	uploadSessionDao dao.UploadSession,
 	fileMetadataDao dao.FileMetadata,
@@ -297,7 +360,7 @@ func NewFile(
 
 	return File{
 		logger:             logger,
-		mapClient:          mapClient,
+		objectStore:        objectStore,
 		uploadSessionDao:   uploadSessionDao,
 		fileMetadataDao:    fileMetadataDao,
 		chunkMetadataDao:   chunkMetadataDao,

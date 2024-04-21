@@ -1,0 +1,774 @@
+package lang
+
+import (
+	"bytes"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestEvaluate(t *testing.T) {
+	now := time.Now().UTC()
+	testCases := []struct {
+		name                  string
+		source                string
+		runtime               *Runtime
+		expectedValues        []any
+		expectedOutput        string
+		expectHasEvaluatorErr bool
+	}{
+		{
+			name:           "simple nil",
+			source:         `nil;`,
+			expectedValues: []any{nil},
+			expectedOutput: "",
+		},
+		{
+			name:           "simple expression",
+			source:         `2 + 5 * 6;`,
+			expectedValues: []any{int64(32)},
+		},
+		{
+			name:           "simple expression with grouping",
+			source:         `(2 + 5) * 6;`,
+			expectedValues: []any{int64(42)},
+		},
+		{
+			name:           "simple expression with unary",
+			source:         `!!5;`,
+			expectedValues: []any{true},
+		},
+		{
+			name:           "simple equality expression",
+			source:         `2 == 5;`,
+			expectedValues: []any{false},
+		},
+		{
+			name:           "simple nil equality expression",
+			source:         `nil == 2;`,
+			expectedValues: []any{false},
+		},
+		{
+			name:           "simple comparison expression",
+			source:         `2 > 5;`,
+			expectedValues: []any{false},
+		},
+		{
+			name:           "simple equality expression with comparison",
+			source:         `2 >= 5 == true;`,
+			expectedValues: []any{false},
+		},
+		{
+			name:           "simple comparison expression with term",
+			source:         `2 + 5 > 6;`,
+			expectedValues: []any{true},
+		},
+		{
+			name:           "simple term expression with factor",
+			source:         `2 * 5 + 6;`,
+			expectedValues: []any{int64(16)},
+		},
+		{
+			name:           "simple factor expression with unary",
+			source:         `2 * -5;`,
+			expectedValues: []any{int64(-10)},
+		},
+		{
+			name:           "simple string equality expression equal",
+			source:         `"Hello" == "World";`,
+			expectedValues: []any{false},
+		},
+		{
+			name:           "simple string equality expression not equal",
+			source:         `"Hello" == "Hel" + "lo";`,
+			expectedValues: []any{true},
+		},
+		{
+			name:           "simple string concatenation expression",
+			source:         `"Hello" + " " + "World";`,
+			expectedValues: []any{"Hello World"},
+		},
+		{
+			name:           "complex expression",
+			source:         `!(2 * (5 + 6) <= 4) == true;`,
+			expectedValues: []any{true},
+		},
+		{
+			name:           "simple bitwise left shift expression",
+			source:         `2 << 2;`,
+			expectedValues: []any{int64(8)},
+		},
+		{
+			name:           "simple bitwise right shift expression",
+			source:         `8 >> 2;`,
+			expectedValues: []any{int64(2)},
+		},
+		{
+			name:           "simple bitwise or expression",
+			source:         `2 | 4;`,
+			expectedValues: []any{int64(6)},
+		},
+		{
+			name:           "simple bitwise xor expression",
+			source:         `2 ^ 4;`,
+			expectedValues: []any{int64(6)},
+		},
+		{
+			name:           "simple bitwise and expression",
+			source:         `2 & 4;`,
+			expectedValues: []any{int64(0)},
+		},
+		{
+			name:           "simple division expression",
+			source:         `10 / 2;`,
+			expectedValues: []any{int64(5)},
+		},
+		{
+			name:           "simple division expression with float",
+			source:         `10.0 / 3.0;`,
+			expectedValues: []any{float64(10) / float64(3)},
+		},
+		{
+			name:           "simple modulo expression",
+			source:         `10 % 3;`,
+			expectedValues: []any{int64(1)},
+		},
+		{
+			name:           "simple ternary expression",
+			source:         `true ? 2 : 3;`,
+			expectedValues: []any{int64(2)},
+		},
+		{
+			name:           "complex ternary expression",
+			source:         `1 == 2 ? 2 + 5 * 6 : 3 + 4 / 2;`,
+			expectedValues: []any{int64(5)},
+		},
+		{
+			name: "multiple statements",
+			source: `
+				2 + 5 * 6; 
+				2 == 5;`,
+			expectedValues: []any{int64(32), false},
+		},
+		{
+			name: "define and read variables",
+			source: `
+				let a = 5;
+				let b = 6;
+				let c = a + b;
+				c * 2;`,
+			expectedValues: []any{int64(22)},
+		},
+		{
+			name: "define, assign value to and read from variables",
+			source: `
+				let a = 5;
+				let b = 6;
+				a = 1 + 2 * b;
+				b = a - 4;
+`,
+			expectedValues: []any{int64(13), int64(9)},
+		},
+		{
+			name: "variable scope with block statement",
+			source: `
+				let a = 5;
+				let b = 6;
+				{
+					let a = 8;
+					b = b + 1;
+					print(a + " " + b);
+				}
+				print(" | ");
+				print(a + " " + b);
+			`,
+			expectedOutput: "8 7 | 5 7",
+			expectedValues: []any{nil, nil},
+		},
+		{
+			name: "access uninitialized variables",
+			source: `
+				let a;
+				let b;
+				let c = 1;
+				b = 10;
+				c;
+				a;
+			`,
+			expectHasEvaluatorErr: true,
+			expectedValues:        []any{int64(10), int64(1)},
+		},
+		{
+			name: "if without else",
+			source: `
+				if (1 + 2 > 0) {
+					print("first true");
+
+					if (3 * 4 > 1) {
+						print(" | second true");
+					}
+				}
+			`,
+			expectedOutput: "first true | second true",
+		},
+		{
+			name: "if with else",
+			source: `
+				if (1 + 2 > 0) {
+					print("first true");
+
+					if (3 * 4 < 1) {
+						print(" | second true");
+					} else {
+						print(" | second false");
+					}
+				} else {
+					print("first false");
+				}
+			`,
+			expectedOutput: "first true | second false",
+		},
+		{
+			name: "while loop",
+			source: `
+				let a = 0;
+				while (a < 5) {
+					print(a);
+					a = a + 1;
+				}
+
+				a;
+`,
+			expectedOutput: "01234",
+			expectedValues: []any{int64(5)},
+		},
+		{
+			name: "for loop",
+			source: `
+				for (let i = 0; i < 5; i = i + 1) {
+					let num = i * 2;
+					print(num);
+				}
+			`,
+			expectedOutput: "02468",
+		},
+		{
+			name: "while loop with break",
+			source: `
+				let i = 0;
+				while (i < 5) {
+					let a = 10 + i;
+					while (true) {
+						if (a >= 13 + i) {
+							break;
+						}
+					
+						print(a);
+						a = a + 1;
+					}
+
+					print("(" + i + ")");
+					i = i + 1;
+				}
+			`,
+			expectedOutput: "101112(0)111213(1)121314(2)131415(3)141516(4)",
+		},
+		{
+			name: "for loop with break",
+			source: `
+				for (let i = 0; i < 5; i = i + 1) {
+					for (let a = 10 + i; a < 20 + i; a = a + 1) {
+						if (a == 13 + i) {
+							break;
+						}
+
+						print(a);
+					}
+
+					print("(" + i + ")");
+				}
+`,
+			expectedOutput: "101112(0)111213(1)121314(2)131415(3)141516(4)",
+		},
+		{
+			name: "break without loop",
+			source: `
+				let a = 10;
+				if (a > 5) {
+					break;
+				}
+			`,
+			expectHasEvaluatorErr: true,
+		},
+		{
+			name: "while loop with continue",
+			source: `
+				for (let i = 0; i < 5; i = i + 1) {
+					let a = 0;
+					while (a < 5) {
+						a = a + 1;
+						if (a % 2 == 0) {
+							continue;
+						}
+	
+						print(a);
+					}
+
+					print("(" + i + ")");
+				}
+`,
+			expectedOutput: "135(0)135(1)135(2)135(3)135(4)",
+		},
+		{
+			name: "call native function",
+			source: `
+				now();
+			`,
+			runtime: &Runtime{
+				Now: func() time.Time {
+					return now
+				},
+			},
+			expectedValues: []any{now.UnixNano()},
+		},
+		{
+			name: "define and call function",
+			source: `
+				func hello() {
+					print("Hello world!");
+				}
+
+				func add(a, b) {
+					let c = 10;
+					return a + b + c;
+				}
+
+				hello();
+				add(5, 6);
+			`,
+			expectedOutput: "Hello world!",
+			expectedValues: []any{nil, int64(21)},
+		},
+		{
+			name: "recursive function",
+			source: `
+				func fib(n) {
+				  if (n <= 1) return n;
+				  return fib(n - 2) + fib(n - 1);
+				}
+				
+				for (let i = 0; i < 10; i = i + 1) {
+				  print(fib(i));
+				}
+			`,
+			expectedOutput: "0112358132134",
+		},
+		{
+			name: "function with closure",
+			source: `
+				func makeCounter() {
+				  let i = 0;
+				  func count() {
+					i = i + 1;
+					print(i);
+				  }
+				
+				  return count;
+				}
+				
+				let counter = makeCounter();
+				counter();
+				print(" | ");
+				counter();
+				print(" | ");
+				counter();
+			`,
+			expectedOutput: "1 | 2 | 3",
+			expectedValues: []any{nil, nil, nil, nil, nil},
+		},
+		{
+			name: "define and call lambda",
+			source: `
+				func printNums(calc) {
+		            for (let i = 0; i < 5; i = i + 1) {
+		                print(calc(i));
+		            }
+				}
+
+				printNums(func (num) {
+					return num * 2;
+				});
+			`,
+			expectedOutput: "02468",
+			expectedValues: []any{nil},
+		},
+		{
+			name: "define lambda as expression statement",
+			source: `
+				func (num) {
+					print(num * 2);
+				}(10);
+			`,
+			expectedOutput: "20",
+			expectedValues: []any{nil},
+		},
+		{
+			name: "lambda with closure",
+			source: `
+				func makeCounter() {
+				  let i = 0;
+				  return func () {
+					i = i + 1;
+					print(i);
+				  };
+				}
+				
+				let counter = makeCounter();
+				counter();
+				print(" | ");
+				counter();
+				print(" | ");
+				counter();
+			`,
+			expectedOutput: "1 | 2 | 3",
+			expectedValues: []any{nil, nil, nil, nil, nil},
+		},
+		{
+			name: "closure static scope",
+			source: `
+				let text = "global";
+				{
+				  func showText() {
+					print(text);
+				  }
+				
+				  showText();
+				  let text = "block1";
+				  showText();
+				  text = "block2";
+				}
+			`,
+			expectedOutput: "globalglobal",
+		},
+		{
+			name: "define class",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = count + 1;
+					}
+
+					decrement() {
+						this.count = count - 1;
+					}
+
+					getCount() {
+						return this.count;
+					}
+				}
+			`,
+		},
+		{
+			name: "initialize class and call method",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+				}
+				
+				let counter = new Counter(10);
+				counter.increment();
+				counter.count;
+			`,
+			expectedValues: []any{nil, int64(11)},
+		},
+		{
+			name: "initialize class and get field",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+				}
+
+				class CounterBox {
+					constructor(counter) {
+						this.counter = counter;
+					}
+				}
+				
+				let counter = new Counter(5);
+				let counterBox = new CounterBox(counter);
+				counterBox.counter.count;
+			`,
+			expectedValues: []any{int64(5)},
+		},
+		{
+			name: "initialize class and set field",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+				}
+
+				class CounterBox {
+					constructor(initialCounter) {
+						this.counter = initialCounter;
+					}
+				}
+				
+				let counter = new Counter(10);
+				let counterBox = new CounterBox(counter);
+				counterBox.counter.count = 20;
+				counterBox.counter.count;
+			`,
+			expectedValues: []any{int64(20), int64(20)},
+		},
+		{
+			name: "initialize class and call method with closure",
+			source: `
+				let name = "New Counter";
+				
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+
+					toString() {
+						return "[name=" + name + ", count=" + this.count + "]";
+					}
+				}
+
+				let counter = new Counter(10);
+				counter.increment();
+				counter.toString();
+			`,
+			expectedValues: []any{nil, "[name=New Counter, count=11]"},
+		},
+		{
+			name: "manually call instance constructor",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+
+					toString() {
+						return "[name=" + name + ", count=" + this.count + "]";
+					}
+				}
+
+				let counter = new Counter(10);
+				let manualCounter = counter.constructor(20);
+				counter == manualCounter;
+			`,
+			expectedValues: []any{true},
+		},
+		{
+			name: "constructor return with empty value",
+			source: `
+				class Counter {
+					constructor(initialCount) {
+						return;
+					}
+				}
+
+				let counter = new Counter(10);
+				counter == counter.constructor(20);
+			`,
+			expectedValues: []any{true},
+		},
+		{
+			name: "define and call static method and static field in class",
+			source: `
+				let external = "External";
+				class Counter {
+					constructor(initialCount) {
+						this.count = initialCount;
+					}
+
+					increment() {
+						this.count = this.count + 1;
+					}
+
+					static getStaticName(num) {
+						return "StaticCounter" + " | " + num + " | " + external + " | static field " + Counter.instance.count;
+					}
+				}
+
+				(Counter.instance = new Counter(8)).count;
+				external = "External Updated";
+				Counter.instance.increment();
+				Counter.getStaticName(1 + 5);
+			`,
+			expectedValues: []any{
+				int64(8),
+				"External Updated",
+				nil,
+				"StaticCounter | 6 | External Updated | static field 9",
+			},
+		},
+		{
+			name: "define and access instance getters and setters in class",
+			source: `
+				class Rectangle3D {
+					constructor(width, height) {
+						this.width = width;
+						this.height = height;
+					}
+
+					get area {
+						return this.width * this.height;
+					}
+
+					get volume {
+						return this.width * this.height * this._depth;
+					}
+
+					set depth(value) {
+						this._depth = value;
+					}
+				}
+
+				let rectangle = new Rectangle3D(5, 6);
+				rectangle.area;
+				rectangle.depth = 10;
+				rectangle.volume;
+			`,
+			expectedValues: []any{int64(30), int64(10), int64(300)},
+		},
+		{
+			name: "define and access static getters and setters in class",
+			source: `
+				class Rectangle3D {
+					static get area {
+						return Rectangle3D.width * Rectangle3D.height;
+					}
+
+					static get volume {
+						return Rectangle3D.width * Rectangle3D.height * Rectangle3D._depth;
+					}
+
+					static set depth(value) {
+						Rectangle3D._depth = value;
+					}
+				}
+
+				Rectangle3D.width = 5;
+				Rectangle3D.height = 6;
+				Rectangle3D.area;
+				Rectangle3D.depth = 10;
+				Rectangle3D.volume;
+			`,
+			expectedValues: []any{int64(5), int64(6), int64(30), int64(10), int64(300)},
+		},
+		{
+			name: "inherit from super class",
+			source: `
+				class A {
+				  constructor() {
+					this.name = "A";
+				  }
+
+				  method() {
+					print("A method" + " -> " + this.name);
+				  }
+				}
+				
+				class B : A {
+				  method() {
+					super.method();
+					print(" | ");
+					print("B method" + " -> " + this.name);
+				  }
+				
+				  test() {
+					this.name = "B";
+					super.method();
+				  }
+				}
+				
+				class C : B {
+				  method() {
+					this.name = "C";
+					super.method();
+					print(" | ");
+					print("C method");
+				  }
+				}
+				
+				let c = new C();
+				c.test();
+				print(" || ");
+				c.method();
+			`,
+			expectedOutput: "A method -> B || A method -> C | B method -> C | C method",
+			expectedValues: []any{nil, nil, nil},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			scanner := NewScanner()
+			tokens, errs := scanner.ScanTokens(tc.source)
+			require.Equal(t, 0, len(errs))
+
+			parser := NewParser()
+			statements, errs := parser.Parse(tokens)
+			require.Equal(t, 0, len(errs))
+
+			scopeResolver := NewStaticAnalyzer()
+			err := scopeResolver.Analyze(statements)
+			require.Nil(t, err)
+
+			var outputBuf bytes.Buffer
+
+			runtime := DefaultRuntime()
+			runtime.Output = &outputBuf
+			if tc.runtime != nil {
+				runtime.Now = tc.runtime.Now
+			}
+
+			executor := NewExecutor(runtime)
+			values, err := executor.Execute(scopeResolver, statements)
+			if tc.expectHasEvaluatorErr {
+				require.NotNil(t, err)
+				return
+			} else {
+				require.Nil(t, err)
+			}
+
+			require.Equal(t, tc.expectedValues, values)
+			require.Equal(t, tc.expectedOutput, outputBuf.String())
+		})
+	}
+}

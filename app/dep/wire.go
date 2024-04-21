@@ -69,8 +69,8 @@ var daoSet = wire.NewSet(
 )
 
 var storageSet = wire.NewSet(
-	wire.Bind(new(storage.MapClient), new(storage.S3Bucket)),
-	wire.Bind(new(storage.MapRequestHandlers), new(storage.S3Bucket)),
+	wire.Bind(new(storage.ObjectStore), new(*storage.S3Bucket)),
+	wire.Bind(new(storage.ObjectStoreRequestHandlers), new(*storage.S3Bucket)),
 	newS3Bucket,
 )
 
@@ -171,7 +171,7 @@ func newS3Bucket(
 	s3AccessKey S3AccessKey,
 	s3BucketName S3BucketName,
 	env env.Environment,
-) (storage.S3Bucket, error) {
+) (*storage.S3Bucket, error) {
 	return storage.NewS3Bucket(
 		logger,
 		string(s3Endpoint),

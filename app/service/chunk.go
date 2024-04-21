@@ -17,7 +17,7 @@ const chunkKeyPrefix = "chunks"
 
 type ChunksIterator struct {
 	logger         telemetry.Logger
-	mapClient      storage.MapClient
+	objectStore    storage.ObjectStore
 	chunkIDs       []uint64
 	nextChunkIndex int
 }
@@ -42,7 +42,7 @@ func (c *ChunksIterator) Next(ct context.Context) (io.Reader, *errs.Error) {
 
 	chunkIDPath := strconv.FormatUint(c.chunkIDs[c.nextChunkIndex], 10)
 	fullPath := path.Join(chunkKeyPrefix, chunkIDPath)
-	data, err := c.mapClient.Get(fullPath)
+	data, err := c.objectStore.Get(ct, fullPath)
 	if err != nil {
 		return nil, err
 	}
@@ -53,19 +53,21 @@ func (c *ChunksIterator) Next(ct context.Context) (io.Reader, *errs.Error) {
 
 func newChunksIterator(
 	logger telemetry.Logger,
-	mapClient storage.MapClient,
+	objectStore storage.ObjectStore,
 	chunkIDs []uint64,
 ) *ChunksIterator {
 	return &ChunksIterator{
 		logger:         logger,
-		mapClient:      mapClient,
+		objectStore:    objectStore,
 		chunkIDs:       chunkIDs,
 		nextChunkIndex: 0,
 	}
 }
 
-func saveChunk(mapClient storage.MapClient, chunkID uint64, data io.Reader) *errs.Error {
+func saveChunk(ct context.Context, objectStore storage.ObjectStore, chunkID uint64, data io.Reader) *errs.Error {
 	chunkIDPath := strconv.FormatUint(chunkID, 10)
 	fullPath := path.Join(chunkKeyPrefix, chunkIDPath)
-	return mapClient.Put(fullPath, data)
+	return objectStore.Put(ct, fullPath, data, storage.ObjectMetadataInput{
+		ContentType: "application/octet-stream",
+	})
 }

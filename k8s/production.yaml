@@ -38,6 +38,7 @@ spec:
             - containerPort: 8080
             - containerPort: 8081
             - containerPort: 10000
+            - containerPort: 10001
           env:
             - name: ENVIRONMENT
               value: production
@@ -72,6 +73,14 @@ spec:
                 secretKeyRef:
                   name: cloud
                   key: db-name
+            - name: DB_MAX_OPEN_CONNECTIONS
+              value: "150"
+            - name: DB_MAX_IDLE_CONNECTIONS
+              value: "15"
+            - name: DB_CONNECTION_MAX_LIFE_TIME
+              value: "30m"
+            - name: DB_CONNECTION_MAX_IDLE_TIME
+              value: "30m"
             - name: JWT_SIGNING_KEY
               valueFrom:
                 secretKeyRef:
@@ -146,7 +155,8 @@ spec:
       targetPort: 8081
     - name: monitoring
       port: 10000
-      targetPort: 10000
+    - name: profiling
+      port: 10001
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
