@@ -109,10 +109,13 @@ func (f File) InitUploadSession(
 }
 
 func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.Reader, contentLength int64) (entity.UploadSession, *errs.Error) {
+	f.logger.InfoWithContext(ct, fmt.Sprintf("AddChunk: uploadSessionID=%v, contentLength=%v", uploadSessionID, contentLength))
 	uploadSession, internalErr := f.uploadSessionDao.FindUploadSessionByID(ct, uploadSessionID)
 	if internalErr != nil {
 		return entity.UploadSession{}, internalErr
 	}
+
+	f.logger.InfoWithContext(ct, fmt.Sprintf("AddChunk: uploadSession=%+v", uploadSession))
 
 	switch uploadSession.Status {
 	case entity.CompletedUploadSessionStatus:
@@ -126,6 +129,8 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.
 		return entity.UploadSession{}, internalErr
 	}
 
+	f.logger.InfoWithContext(ct, fmt.Sprintf("AddChunk: chunkID=%v", chunkID))
+
 	now := time.Now().UTC()
 	chunkMetadata := entity.ChunkMetadata{
 		ID:          chunkID,
@@ -137,11 +142,15 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.
 		return entity.UploadSession{}, internalErr
 	}
 
+	f.logger.InfoWithContext(ct, fmt.Sprintf("AddChunk: chunkMetadata=%+v", chunkMetadata))
+
 	hashBuffer := sha256.New()
 	err := hashBuffer.(encoding.BinaryUnmarshaler).UnmarshalBinary(uploadSession.HashState)
 	if err != nil {
 		return entity.UploadSession{}, errs.NewError(errs.Deserialization, err.Error())
 	}
+
+	f.logger.InfoWithContext(ct, fmt.Sprintf("AddChunk: hashBuffer succeed"))
 
 	readers := tmio.NewMultiReaders(chunkData, 2)
 	hashReader, chunkReader := readers[0], readers[1]
@@ -156,7 +165,10 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.
 			once.Do(func() {
 				wgErr = internalErr
 			})
+			return
 		}
+
+		f.logger.InfoWithContext(ct, fmt.Sprintf("AddChunk: saveChunk succeed"))
 	}()
 
 	go func() {
@@ -166,14 +178,19 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.
 			once.Do(func() {
 				wgErr = errs.NewError(errs.IO, err.Error())
 			})
+			return
 		}
+
+		f.logger.InfoWithContext(ct, fmt.Sprintf("AddChunk: hashBuffer succeed"))
 	}()
 
+	f.logger.InfoWithContext(ct, fmt.Sprintf("AddChunk: wait for wg"))
 	wg.Wait()
 	if wgErr != nil {
 		return entity.UploadSession{}, wgErr
 	}
 
+	f.logger.InfoWithContext(ct, fmt.Sprintf("AddChunk: wg succeed"))
 	hashState, err := hashBuffer.(encoding.BinaryMarshaler).MarshalBinary()
 	if err != nil {
 		return entity.UploadSession{}, errs.NewError(errs.Serialization, err.Error())
@@ -185,12 +202,16 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.
 	uploadSession.UploadedSizeInBytes += chunkMetadata.SizeInBytes
 	uploadSession.UpdatedAt = &now
 	if uploadSession.NextChunkIndexToUpload < uploadSession.TotalNumOfChunks {
+		f.logger.InfoWithContext(ct, fmt.Sprintf("AddChunk: uploading chunk in progress"))
 		uploadSession.Status = entity.UploadingChunksUploadSessionStatus
 	} else {
+		f.logger.InfoWithContext(ct, fmt.Sprintf("AddChunk: finish upload starting"))
 		uploadSession, internalErr = f.FinishFileUpload(ct, uploadSession, hashBuffer)
 		if internalErr != nil {
 			return entity.UploadSession{}, internalErr
 		}
+
+		f.logger.InfoWithContext(ct, fmt.Sprintf("AddChunk: finish upload succeed"))
 	}
 
 	internalErr = f.uploadSessionDao.UpdateUploadSession(ct, uploadSession)
@@ -198,6 +219,7 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.
 		return uploadSession, internalErr
 	}
 
+	f.logger.InfoWithContext(ct, fmt.Sprintf("AddChunk: update upload session succeed"))
 	uploadSession.HashState = nil
 	return uploadSession, nil
 }
