@@ -135,6 +135,19 @@ spec:
             - name: S3_BUCKET_NAME
               value: teamyapp
 ---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  namespace: testing
+  name: cloud
+spec:
+  targetRef:
+    apiVersion: "apps/v1"
+    kind:       Deployment
+    name:       cloud
+  updatePolicy:
+    updateMode: "Auto"
+---
 apiVersion: v1
 kind: Service
 metadata:
