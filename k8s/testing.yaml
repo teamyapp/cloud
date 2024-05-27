@@ -143,6 +143,10 @@ metadata:
   annotations:
     prometheus.io/scrape: 'true'
     prometheus.io/port: '10000'
+  labels:
+    app.kubernetes.io/name: core
+    app.kubernetes.io/component: cloud
+    app.kubernetes.io/part-of: teamy
 spec:
   selector:
     app: cloud
