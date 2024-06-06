@@ -171,7 +171,6 @@ func (s *ServiceRunner) startGRPCServer(wg *sync.WaitGroup) (net.Listener, *errs
 			w.WriteHeader(http.StatusNotImplemented)
 		}
 	}))
-
 	httpServer := &http.Server{
 		Handler: h2c.NewHandler(mux, &http2.Server{}),
 	}
