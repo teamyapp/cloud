@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/teamyapp/cloud/app/config"
 	"github.com/teamyapp/cloud/libs/errs"
@@ -18,6 +19,8 @@ import (
 	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
 )
 
@@ -157,10 +160,26 @@ func (s *ServiceRunner) startGRPCServer(wg *sync.WaitGroup) (net.Listener, *errs
 		telemetry.MessageProp: fmt.Sprintf("service runner gRPC server started at %v", s.config.GRPCServerPort),
 	})
 
+	grpcWebServer := grpcweb.WrapServer(s.gRPCServer)
+	mux := http.NewServeMux()
+	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isGrpcWebRequest(grpcWebServer, r) {
+			grpcWebServer.ServeHTTP(w, r)
+		} else if isGrpcRequest(r) {
+			s.gRPCServer.ServeHTTP(w, r)
+		} else {
+			w.WriteHeader(http.StatusNotImplemented)
+		}
+	}))
+
+	httpServer := &http.Server{
+		Handler: h2c.NewHandler(mux, &http2.Server{}),
+	}
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err = s.gRPCServer.Serve(lis)
+		err = httpServer.Serve(lis)
 		if err != nil {
 			s.logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
 		}
@@ -367,4 +386,12 @@ func getClientHTTPRequestPatternFunc(request *http.Request) (string, bool) {
 	}
 
 	return tmpCtx.RoutePattern(), true
+}
+
+func isGrpcWebRequest(grpcWebServer *grpcweb.WrappedGrpcServer, request *http.Request) bool {
+	return grpcWebServer.IsGrpcWebRequest(request) || grpcWebServer.IsGrpcWebSocketRequest(request) || grpcWebServer.IsAcceptableGrpcCorsRequest(request)
+}
+
+func isGrpcRequest(request *http.Request) bool {
+	return request.ProtoMajor == 2 && request.Header.Get("Content-Type") == "application/grpc"
 }
