@@ -166,7 +166,6 @@ func (s *ServiceRunner) startFileServer(wg *sync.WaitGroup) (net.Listener, *errs
 			s.logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
 		}
 	}()
-
 	return lis, nil
 }
 
