@@ -37,6 +37,7 @@ type ServiceRunnerConfig struct {
 	GRPCServerPort         int           `envconfig:"SERVICE_RUNNER_GRPC_SERVER_PORT" default:"9012"`
 	MonitoringServerPort   int           `envconfig:"SERVICE_RUNNER_MONITORING_SERVER_PORT" default:"10000"`
 	ProfilingServerPort    int           `envconfig:"SERVICE_RUNNER_PROFILING_SERVER_PORT" default:"10001"`
+	FileServerPort         int           `envconfig:"SERVICE_RUNNER_FILE_SERVER_PORT" default:"10002"`
 	IdentityAPIEndpoint    string        `envconfig:"SERVICE_RUNNER_IDENTITY_API_ENDPOINT" default:"http://localhost:9500/identity"`
 	RequestTimeout         time.Duration `envconfig:"SERVICE_RUNNER_REQUEST_TIMEOUT" default:"10s"`
 	EnableTracing          bool          `envconfig:"SERVICE_RUNNER_ENABLE_TRACING" default:"false"`
@@ -53,6 +54,11 @@ func ServiceRunnerConfigFromEnv() (ServiceRunnerConfig, *errs.Error) {
 	return cfg, nil
 }
 
+type DirRoute struct {
+	WebPath        string
+	FileSystemPath string
+}
+
 type ServiceRunner struct {
 	logger                 telemetry.Logger
 	network                network.Network
@@ -60,6 +66,7 @@ type ServiceRunner struct {
 	serviceName            string
 	httpClient             web.HTTPClient
 	webRouter              chi.Router
+	dirRoutes              []DirRoute
 	gRPCServer             *grpc.Server
 	services               []Service
 	includeIdentityWebFunc middleware.IncludeIdentityWebFunc
@@ -86,6 +93,13 @@ func (s *ServiceRunner) Start(afterServicesStarted func(listeners []net.Listener
 	wg := sync.WaitGroup{}
 	listeners := make([]net.Listener, 0)
 	lis, err := s.startWebServer(&wg)
+	if err != nil {
+		s.logger.Error(err)
+		return err
+	}
+
+	listeners = append(listeners, lis)
+	lis, err = s.startFileServer(&wg)
 	if err != nil {
 		s.logger.Error(err)
 		return err
@@ -127,6 +141,33 @@ func (s *ServiceRunner) Start(afterServicesStarted func(listeners []net.Listener
 	}
 
 	return nil
+}
+
+func (s *ServiceRunner) startFileServer(wg *sync.WaitGroup) (net.Listener, *errs.Error) {
+	s.logger.Log(telemetry.Info, telemetry.Props{
+		telemetry.MessageProp: fmt.Sprintf("service runner File server started at %v", s.config.FileServerPort),
+	})
+	addressAndPort := fmt.Sprintf(":%d", s.config.FileServerPort)
+	lis, err := s.network.Listen("tcp", addressAndPort)
+	if err != nil {
+		return lis, errs.NewError(errs.Unknown, err.Error())
+	}
+
+	mux := http.NewServeMux()
+	for _, route := range s.dirRoutes {
+		mux.Handle(route.WebPath, http.StripPrefix(route.WebPath, http.FileServer(http.Dir(route.FileSystemPath))))
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = http.Serve(lis, mux)
+		if err != nil {
+			s.logger.Fatal(errs.NewError(errs.Unknown, err.Error()))
+		}
+	}()
+
+	return lis, nil
 }
 
 func (s *ServiceRunner) startWebServer(wg *sync.WaitGroup) (net.Listener, *errs.Error) {
@@ -260,6 +301,7 @@ type ServiceRunnerBuilder struct {
 	network                         network.Network
 	metrics                         metrics.Metrics
 	config                          ServiceRunnerConfig
+	dirRoutes                       []DirRoute
 	serviceName                     string
 	services                        []Service
 	includeIdentityWebFunc          middleware.IncludeIdentityWebFunc
@@ -285,6 +327,11 @@ func (s *ServiceRunnerBuilder) GetClientHTTPRequestPatternFunc(
 	getClientHTTPRequestPatternFunc middleware.GetPatternFunc,
 ) *ServiceRunnerBuilder {
 	s.getClientHTTPRequestPatternFunc = getClientHTTPRequestPatternFunc
+	return s
+}
+
+func (s *ServiceRunnerBuilder) ServeDirs(dirRoutes []DirRoute) *ServiceRunnerBuilder {
+	s.dirRoutes = append(s.dirRoutes, dirRoutes...)
 	return s
 }
 
@@ -325,6 +372,7 @@ func (s *ServiceRunnerBuilder) Build() ServiceRunner {
 		serviceName: s.serviceName,
 		httpClient:  httpClient,
 		webRouter:   webRouter,
+		dirRoutes:   s.dirRoutes,
 		gRPCServer: grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
 				middleware.ServerGRPCWithMetrics(s.metrics),
