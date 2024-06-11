@@ -1,50 +1,50 @@
 package client
 
 import (
-	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/libs/middleware"
 	"github.com/teamyapp/cloud/libs/network"
 	"github.com/teamyapp/cloud/libs/retry"
 	"github.com/teamyapp/cloud/libs/rpc"
 	"github.com/teamyapp/cloud/libs/telemetry"
+	pbcloud "github.com/teamyapp/protocol/pb/pbgo/cloud"
 	"google.golang.org/grpc"
 )
 
 type Registry struct {
 	conn                *grpc.ClientConn
-	generatorClient     proto.GeneratorClient
-	identityClient      proto.IdentityClient
-	authorizationClient proto.AuthorizationClient
-	fileClient          proto.FileClient
+	generatorClient     pbcloud.GeneratorClient
+	identityClient      pbcloud.IdentityClient
+	authorizationClient pbcloud.AuthorizationClient
+	fileClient          pbcloud.FileClient
 }
 
-func (r *Registry) GeneratorClient() proto.GeneratorClient {
+func (r *Registry) GeneratorClient() pbcloud.GeneratorClient {
 	if r.generatorClient == nil {
-		r.generatorClient = proto.NewGeneratorClient(r.conn)
+		r.generatorClient = pbcloud.NewGeneratorClient(r.conn)
 	}
 
 	return r.generatorClient
 }
 
-func (r *Registry) IdentityClient() proto.IdentityClient {
+func (r *Registry) IdentityClient() pbcloud.IdentityClient {
 	if r.identityClient == nil {
-		r.identityClient = proto.NewIdentityClient(r.conn)
+		r.identityClient = pbcloud.NewIdentityClient(r.conn)
 	}
 
 	return r.identityClient
 }
 
-func (r *Registry) AuthorizationClient() proto.AuthorizationClient {
+func (r *Registry) AuthorizationClient() pbcloud.AuthorizationClient {
 	if r.authorizationClient == nil {
-		r.authorizationClient = proto.NewAuthorizationClient(r.conn)
+		r.authorizationClient = pbcloud.NewAuthorizationClient(r.conn)
 	}
 
 	return r.authorizationClient
 }
 
-func (r *Registry) FileClient() proto.FileClient {
+func (r *Registry) FileClient() pbcloud.FileClient {
 	if r.fileClient == nil {
-		r.fileClient = proto.NewFileClient(r.conn)
+		r.fileClient = pbcloud.NewFileClient(r.conn)
 	}
 
 	return r.fileClient

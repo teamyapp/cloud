@@ -3,36 +3,36 @@ package api
 import (
 	"context"
 
-	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
+	pbcloud "github.com/teamyapp/protocol/pb/pbgo/cloud"
 	"google.golang.org/grpc"
 )
 
 type Generator struct {
 	logger telemetry.Logger
-	proto.UnimplementedGeneratorServer
+	pbcloud.UnimplementedGeneratorServer
 	uniqueNumberGeneratorRegistry *service.UniqueNumberGenRegistry
 	uniqueNumberGenerators        map[string]*service.UniqueNumberGen
 	uniqueStringGenerators        map[string]*service.UniqueStringGen
 }
 
-var _ proto.GeneratorServer = (*Generator)(nil)
+var _ pbcloud.GeneratorServer = (*Generator)(nil)
 var _ runner.Service = (*Generator)(nil)
 
 func (g *Generator) Start(runner *runner.ServiceRunner) *errs.Error {
 	runner.WithGRPCServer(func(server *grpc.Server) {
-		proto.RegisterGeneratorServer(server, g)
+		pbcloud.RegisterGeneratorServer(server, g)
 	})
 	return nil
 }
 
 func (g *Generator) GenerateUniqueNumber(
 	ct context.Context,
-	request *proto.GenerateUniqueNumberRequest,
-) (*proto.GenerateUniqueNumberResponse, error) {
+	request *pbcloud.GenerateUniqueNumberRequest,
+) (*pbcloud.GenerateUniqueNumberResponse, error) {
 	uniqueNumGen, ok := g.uniqueNumberGenerators[request.SequenceName]
 	if !ok {
 		var err *errs.Error
@@ -51,13 +51,13 @@ func (g *Generator) GenerateUniqueNumber(
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &proto.GenerateUniqueNumberResponse{UniqueNumber: uniqueNum}, nil
+	return &pbcloud.GenerateUniqueNumberResponse{UniqueNumber: uniqueNum}, nil
 }
 
 func (g *Generator) GenerateUniqueString(
 	ct context.Context,
-	request *proto.GenerateUniqueStringRequest,
-) (*proto.GenerateUniqueStringResponse, error) {
+	request *pbcloud.GenerateUniqueStringRequest,
+) (*pbcloud.GenerateUniqueStringResponse, error) {
 	uniqueStringGen, ok := g.uniqueStringGenerators[request.SequenceName]
 	if !ok {
 		strGen, err := service.NewUniqueStringGen(
@@ -79,7 +79,7 @@ func (g *Generator) GenerateUniqueString(
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &proto.GenerateUniqueStringResponse{UniqueString: uniqueStr}, nil
+	return &pbcloud.GenerateUniqueStringResponse{UniqueString: uniqueStr}, nil
 }
 
 func NewGenerator(

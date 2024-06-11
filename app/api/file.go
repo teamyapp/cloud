@@ -11,12 +11,12 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
+	pbcloud "github.com/teamyapp/protocol/pb/pbgo/cloud"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -28,11 +28,11 @@ const fileIDParam = "fileId"
 type File struct {
 	logger      telemetry.Logger
 	fileService service.File
-	proto.UnimplementedFileServer
+	pbcloud.UnimplementedFileServer
 }
 
 var _ runner.Service = (*File)(nil)
-var _ proto.FileServer = (*File)(nil)
+var _ pbcloud.FileServer = (*File)(nil)
 
 func (f File) Start(rn *runner.ServiceRunner) *errs.Error {
 	rn.RegisterWebRoutes([]runner.WebRoute{
@@ -78,32 +78,32 @@ func (f File) Start(rn *runner.ServiceRunner) *errs.Error {
 		},
 	})
 	rn.WithGRPCServer(func(server *grpc.Server) {
-		proto.RegisterFileServer(server, f)
+		pbcloud.RegisterFileServer(server, f)
 	})
 
 	return nil
 }
 
-func (f File) CreateUploadSession(ct context.Context, empty *emptypb.Empty) (*proto.CreateUploadSessionResponse, error) {
+func (f File) CreateUploadSession(ct context.Context, empty *emptypb.Empty) (*pbcloud.CreateUploadSessionResponse, error) {
 	uploadSessionID, err := f.fileService.CreateUploadSession(ct)
 	if err != nil {
 		f.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &proto.CreateUploadSessionResponse{
+	return &pbcloud.CreateUploadSessionResponse{
 		UploadSessionId: uploadSessionID,
 	}, nil
 }
 
-func (f File) FindUploadSession(ct context.Context, req *proto.FindUploadSessionRequest) (*proto.UploadSession, error) {
+func (f File) FindUploadSession(ct context.Context, req *pbcloud.FindUploadSessionRequest) (*pbcloud.UploadSession, error) {
 	uploadSession, err := f.fileService.GetUploadSession(ct, req.UploadSessionId)
 	if err != nil {
 		f.logger.ErrorWithContext(ct, err)
-		return &proto.UploadSession{}, errs.ToGRPCErr(err)
+		return &pbcloud.UploadSession{}, errs.ToGRPCErr(err)
 	}
 
-	return &proto.UploadSession{
+	return &pbcloud.UploadSession{
 		Id:                     uploadSession.ID,
 		Status:                 toProtoUploadSessionStatus[uploadSession.Status],
 		UploadedSizeInBytes:    uploadSession.UploadedSizeInBytes,

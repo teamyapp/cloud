@@ -3,16 +3,16 @@ package api
 import (
 	"time"
 
-	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/entity"
+	pbcloud "github.com/teamyapp/protocol/pb/pbgo/cloud"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var toProtoUploadSessionStatus = map[entity.UploadSessionStatus]proto.UploadSessionStatus{
-	entity.CreatedUploadSessionStatus:         proto.UploadSessionStatus_CREATED,
-	entity.InitializedUploadSessionStatus:     proto.UploadSessionStatus_INITIALIZED,
-	entity.UploadingChunksUploadSessionStatus: proto.UploadSessionStatus_UPLOADING_CHUNKS,
-	entity.CompletedUploadSessionStatus:       proto.UploadSessionStatus_COMPLETED,
+var toProtoUploadSessionStatus = map[entity.UploadSessionStatus]pbcloud.UploadSessionStatus{
+	entity.CreatedUploadSessionStatus:         pbcloud.UploadSessionStatus_CREATED,
+	entity.InitializedUploadSessionStatus:     pbcloud.UploadSessionStatus_INITIALIZED,
+	entity.UploadingChunksUploadSessionStatus: pbcloud.UploadSessionStatus_UPLOADING_CHUNKS,
+	entity.CompletedUploadSessionStatus:       pbcloud.UploadSessionStatus_COMPLETED,
 }
 
 func toProtoTimePtr(tm *time.Time) *timestamppb.Timestamp {
