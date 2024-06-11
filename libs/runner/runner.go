@@ -200,7 +200,9 @@ func (s *ServiceRunner) startGRPCServer(wg *sync.WaitGroup) (net.Listener, *errs
 		telemetry.MessageProp: fmt.Sprintf("service runner gRPC server started at %v", s.config.GRPCServerPort),
 	})
 
-	grpcWebServer := grpcweb.WrapServer(s.gRPCServer)
+	grpcWebServer := grpcweb.WrapServer(s.gRPCServer, grpcweb.WithOriginFunc(func(origin string) bool {
+		return true
+	}))
 	mux := http.NewServeMux()
 	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if isGrpcWebRequest(grpcWebServer, r) {
