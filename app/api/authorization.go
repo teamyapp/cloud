@@ -3,13 +3,13 @@ package api
 import (
 	"context"
 
-	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/libs/collect"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
+	pbcloud "github.com/teamyapp/protocol/pb/pbgo/cloud"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -18,30 +18,30 @@ import (
 type Authorization struct {
 	logger               telemetry.Logger
 	authorizationService service.Authorization
-	proto.UnimplementedAuthorizationServer
+	pbcloud.UnimplementedAuthorizationServer
 }
 
 var _ runner.Service = (*Authorization)(nil)
-var _ proto.AuthorizationServer = (*Authorization)(nil)
+var _ pbcloud.AuthorizationServer = (*Authorization)(nil)
 
 func (a Authorization) Start(rn *runner.ServiceRunner) *errs.Error {
 	rn.WithGRPCServer(func(server *grpc.Server) {
-		proto.RegisterAuthorizationServer(server, a)
+		pbcloud.RegisterAuthorizationServer(server, a)
 	})
 	return nil
 }
 
-func (a Authorization) HasPermission(ct context.Context, req *proto.HasPermissionRequest) (*proto.HasPermissionResponse, error) {
+func (a Authorization) HasPermission(ct context.Context, req *pbcloud.HasPermissionRequest) (*pbcloud.HasPermissionResponse, error) {
 	hasPermission, err := a.authorizationService.HasPermission(ct, req.ResourceType, req.ResourceId, req.Operation, req.UserId)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &proto.HasPermissionResponse{HasPermission: hasPermission}, nil
+	return &pbcloud.HasPermissionResponse{HasPermission: hasPermission}, nil
 }
 
-func (a Authorization) ListResourceTypes(ct context.Context, query *proto.ListResourceTypesQuery) (*proto.ListResourceTypesResponse, error) {
+func (a Authorization) ListResourceTypes(ct context.Context, query *pbcloud.ListResourceTypesQuery) (*pbcloud.ListResourceTypesResponse, error) {
 	resourceTypeQuery := service.ResourceTypeQuery{
 		ResourceTypeName: query.ResourceType,
 		CreatorUserID:    query.CreatorUserId,
@@ -64,18 +64,18 @@ func (a Authorization) ListResourceTypes(ct context.Context, query *proto.ListRe
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	var resourceTypes []*proto.ResourceType
-	resourceTypes = collect.Map(resourceTypeEntities, func(resourceTypeEntity entity.ResourceType, _ int) *proto.ResourceType {
-		return &proto.ResourceType{
+	var resourceTypes []*pbcloud.ResourceType
+	resourceTypes = collect.Map(resourceTypeEntities, func(resourceTypeEntity entity.ResourceType, _ int) *pbcloud.ResourceType {
+		return &pbcloud.ResourceType{
 			ResourceType:  resourceTypeEntity.ResourceTypeName,
 			CreatedAt:     timestamppb.New(resourceTypeEntity.CreatedAt),
 			CreatorUserId: resourceTypeEntity.CreatorUserID,
 		}
 	})
-	return &proto.ListResourceTypesResponse{ResourceTypes: resourceTypes}, nil
+	return &pbcloud.ListResourceTypesResponse{ResourceTypes: resourceTypes}, nil
 }
 
-func (a Authorization) RegisterResourceType(ct context.Context, request *proto.RegisterResourceTypeRequest) (*emptypb.Empty, error) {
+func (a Authorization) RegisterResourceType(ct context.Context, request *pbcloud.RegisterResourceTypeRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RegisterResourceType(ct, request.ResourceType)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
@@ -85,7 +85,7 @@ func (a Authorization) RegisterResourceType(ct context.Context, request *proto.R
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) UnregisterResourceType(ct context.Context, request *proto.UnregisterResourceTypeRequest) (*emptypb.Empty, error) {
+func (a Authorization) UnregisterResourceType(ct context.Context, request *pbcloud.UnregisterResourceTypeRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnregisterResourceType(ct, request.ResourceType)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
@@ -95,7 +95,7 @@ func (a Authorization) UnregisterResourceType(ct context.Context, request *proto
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) ListResources(ct context.Context, query *proto.ListResourcesQuery) (*proto.ListResourcesResponse, error) {
+func (a Authorization) ListResources(ct context.Context, query *pbcloud.ListResourcesQuery) (*pbcloud.ListResourcesResponse, error) {
 	resourceQuery := service.ResourceQuery{
 		ResourceTypeName: query.ResourceType,
 		ResourceID:       query.ResourceId,
@@ -118,8 +118,8 @@ func (a Authorization) ListResources(ct context.Context, query *proto.ListResour
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	resources := collect.Map(resourceEntities, func(resource entity.Resource, _ int) *proto.Resource {
-		return &proto.Resource{
+	resources := collect.Map(resourceEntities, func(resource entity.Resource, _ int) *pbcloud.Resource {
+		return &pbcloud.Resource{
 			ResourceType:  resource.ResourceTypeName,
 			ResourceId:    resource.ResourceID,
 			CreatedAt:     timestamppb.New(resource.CreatedAt),
@@ -127,10 +127,10 @@ func (a Authorization) ListResources(ct context.Context, query *proto.ListResour
 		}
 	})
 
-	return &proto.ListResourcesResponse{Resources: resources}, nil
+	return &pbcloud.ListResourcesResponse{Resources: resources}, nil
 }
 
-func (a Authorization) RegisterResource(ct context.Context, request *proto.RegisterResourceRequest) (*emptypb.Empty, error) {
+func (a Authorization) RegisterResource(ct context.Context, request *pbcloud.RegisterResourceRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RegisterResource(ct, request.ResourceType, request.ResourceId)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
@@ -140,7 +140,7 @@ func (a Authorization) RegisterResource(ct context.Context, request *proto.Regis
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) UnregisterResource(ct context.Context, request *proto.UnregisterResourceRequest) (*emptypb.Empty, error) {
+func (a Authorization) UnregisterResource(ct context.Context, request *pbcloud.UnregisterResourceRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnregisterResource(ct, request.ResourceType, request.ResourceId)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
@@ -150,7 +150,7 @@ func (a Authorization) UnregisterResource(ct context.Context, request *proto.Unr
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) ListResourceRelations(ct context.Context, query *proto.ListResourceRelationsQuery) (*proto.ListResourceRelationsResponse, error) {
+func (a Authorization) ListResourceRelations(ct context.Context, query *pbcloud.ListResourceRelationsQuery) (*pbcloud.ListResourceRelationsResponse, error) {
 	resourceRelationQuery := service.ResourceRelationQuery{
 		ChildResourceType:  query.ChildResourceType,
 		ChildResourceID:    query.ChildResourceId,
@@ -175,8 +175,8 @@ func (a Authorization) ListResourceRelations(ct context.Context, query *proto.Li
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	resourceRelations := collect.Map(resourceRelationEntities, func(resourceRelation entity.ResourceRelation, _ int) *proto.ResourceRelation {
-		return &proto.ResourceRelation{
+	resourceRelations := collect.Map(resourceRelationEntities, func(resourceRelation entity.ResourceRelation, _ int) *pbcloud.ResourceRelation {
+		return &pbcloud.ResourceRelation{
 			ChildResourceType:  resourceRelation.ChildResourceType,
 			ChildResourceId:    resourceRelation.ChildResourceID,
 			ParentResourceType: resourceRelation.ParentResourceType,
@@ -186,10 +186,10 @@ func (a Authorization) ListResourceRelations(ct context.Context, query *proto.Li
 		}
 	})
 
-	return &proto.ListResourceRelationsResponse{ResourceRelations: resourceRelations}, nil
+	return &pbcloud.ListResourceRelationsResponse{ResourceRelations: resourceRelations}, nil
 }
 
-func (a Authorization) AssignParentResource(ct context.Context, request *proto.AssignParentResourceRequest) (*emptypb.Empty, error) {
+func (a Authorization) AssignParentResource(ct context.Context, request *pbcloud.AssignParentResourceRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.AssignParentResource(
 		ct,
 		request.ChildResourceType,
@@ -205,7 +205,7 @@ func (a Authorization) AssignParentResource(ct context.Context, request *proto.A
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) UnassignParentResource(ct context.Context, request *proto.UnassignParentResourceRequest) (*emptypb.Empty, error) {
+func (a Authorization) UnassignParentResource(ct context.Context, request *pbcloud.UnassignParentResourceRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnassignParentResource(
 		ct,
 		request.ChildResourceType,
@@ -221,7 +221,7 @@ func (a Authorization) UnassignParentResource(ct context.Context, request *proto
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) ListOperations(ct context.Context, query *proto.ListOperationsQuery) (*proto.ListOperationsResponse, error) {
+func (a Authorization) ListOperations(ct context.Context, query *pbcloud.ListOperationsQuery) (*pbcloud.ListOperationsResponse, error) {
 	operationQuery := service.OperationQuery{
 		ResourceTypeName: query.ResourceType,
 		OperationName:    query.Operation,
@@ -244,8 +244,8 @@ func (a Authorization) ListOperations(ct context.Context, query *proto.ListOpera
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	operations := collect.Map(operationEntities, func(operation entity.Operation, _ int) *proto.Operation {
-		return &proto.Operation{
+	operations := collect.Map(operationEntities, func(operation entity.Operation, _ int) *pbcloud.Operation {
+		return &pbcloud.Operation{
 			ResourceType:  operation.ResourceTypeName,
 			Operation:     operation.OperationName,
 			CreatedAt:     timestamppb.New(operation.CreatedAt),
@@ -253,10 +253,10 @@ func (a Authorization) ListOperations(ct context.Context, query *proto.ListOpera
 		}
 	})
 
-	return &proto.ListOperationsResponse{Operations: operations}, nil
+	return &pbcloud.ListOperationsResponse{Operations: operations}, nil
 }
 
-func (a Authorization) RegisterOperation(ct context.Context, request *proto.RegisterOperationRequest) (*emptypb.Empty, error) {
+func (a Authorization) RegisterOperation(ct context.Context, request *pbcloud.RegisterOperationRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RegisterOperation(ct, request.ResourceType, request.Operation)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
@@ -266,7 +266,7 @@ func (a Authorization) RegisterOperation(ct context.Context, request *proto.Regi
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) UnregisterOperation(ct context.Context, request *proto.UnregisterOperationRequest) (*emptypb.Empty, error) {
+func (a Authorization) UnregisterOperation(ct context.Context, request *pbcloud.UnregisterOperationRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnregisterOperation(ct, request.ResourceType, request.Operation)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
@@ -276,7 +276,7 @@ func (a Authorization) UnregisterOperation(ct context.Context, request *proto.Un
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) ListOperationRelations(ct context.Context, query *proto.ListOperationRelationsQuery) (*proto.ListOperationRelationsResponse, error) {
+func (a Authorization) ListOperationRelations(ct context.Context, query *pbcloud.ListOperationRelationsQuery) (*pbcloud.ListOperationRelationsResponse, error) {
 	operationRelationQuery := service.OperationRelationQuery{
 		ChildResourceType:  query.ChildResourceType,
 		ChildOperation:     query.ChildOperation,
@@ -301,8 +301,8 @@ func (a Authorization) ListOperationRelations(ct context.Context, query *proto.L
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	operationRelations := collect.Map(operationRelationEntities, func(operationRelation entity.OperationRelation, _ int) *proto.OperationRelation {
-		return &proto.OperationRelation{
+	operationRelations := collect.Map(operationRelationEntities, func(operationRelation entity.OperationRelation, _ int) *pbcloud.OperationRelation {
+		return &pbcloud.OperationRelation{
 			ChildResourceType:  operationRelation.ChildResourceType,
 			ChildOperation:     operationRelation.ChildOperation,
 			ParentResourceType: operationRelation.ParentResourceType,
@@ -312,10 +312,10 @@ func (a Authorization) ListOperationRelations(ct context.Context, query *proto.L
 		}
 	})
 
-	return &proto.ListOperationRelationsResponse{OperationRelations: operationRelations}, nil
+	return &pbcloud.ListOperationRelationsResponse{OperationRelations: operationRelations}, nil
 }
 
-func (a Authorization) AssignParentOperation(ct context.Context, request *proto.AssignParentOperationRequest) (*emptypb.Empty, error) {
+func (a Authorization) AssignParentOperation(ct context.Context, request *pbcloud.AssignParentOperationRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.AssignParentOperation(
 		ct,
 		request.ChildResourceType,
@@ -331,7 +331,7 @@ func (a Authorization) AssignParentOperation(ct context.Context, request *proto.
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) UnassignParentOperation(ct context.Context, request *proto.UnassignParentOperationRequest) (*emptypb.Empty, error) {
+func (a Authorization) UnassignParentOperation(ct context.Context, request *pbcloud.UnassignParentOperationRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UnassignParentOperation(
 		ct,
 		request.ChildResourceType,
@@ -347,7 +347,7 @@ func (a Authorization) UnassignParentOperation(ct context.Context, request *prot
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) ListUserGroups(ct context.Context, query *proto.ListUserGroupsQuery) (*proto.ListUserGroupsResponse, error) {
+func (a Authorization) ListUserGroups(ct context.Context, query *pbcloud.ListUserGroupsQuery) (*pbcloud.ListUserGroupsResponse, error) {
 	userGroupQuery := service.UserGroupQuery{
 		ID:                  query.Id,
 		NameContains:        query.NameContains,
@@ -371,8 +371,8 @@ func (a Authorization) ListUserGroups(ct context.Context, query *proto.ListUserG
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	userGroups := collect.Map(userGroupEntities, func(userGroup entity.UserGroup, _ int) *proto.UserGroup {
-		return &proto.UserGroup{
+	userGroups := collect.Map(userGroupEntities, func(userGroup entity.UserGroup, _ int) *pbcloud.UserGroup {
+		return &pbcloud.UserGroup{
 			GroupId:       userGroup.ID,
 			Name:          userGroup.Name,
 			Description:   userGroup.Description,
@@ -381,17 +381,17 @@ func (a Authorization) ListUserGroups(ct context.Context, query *proto.ListUserG
 			UpdatedAt:     toProtoTimePtr(userGroup.UpdatedAt),
 		}
 	})
-	return &proto.ListUserGroupsResponse{UserGroups: userGroups}, nil
+	return &pbcloud.ListUserGroupsResponse{UserGroups: userGroups}, nil
 }
 
-func (a Authorization) CreateUserGroup(ct context.Context, request *proto.CreateUserGroupRequest) (*proto.CreateUserGroupResponse, error) {
+func (a Authorization) CreateUserGroup(ct context.Context, request *pbcloud.CreateUserGroupRequest) (*pbcloud.CreateUserGroupResponse, error) {
 	userGroup, err := a.authorizationService.CreateUserGroup(ct, request.Name, request.Description)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &proto.CreateUserGroupResponse{UserGroup: &proto.UserGroup{
+	return &pbcloud.CreateUserGroupResponse{UserGroup: &pbcloud.UserGroup{
 		GroupId:       userGroup.ID,
 		Name:          userGroup.Name,
 		Description:   userGroup.Description,
@@ -401,7 +401,7 @@ func (a Authorization) CreateUserGroup(ct context.Context, request *proto.Create
 	}}, nil
 }
 
-func (a Authorization) UpdateUserGroup(ct context.Context, request *proto.UpdateUserGroupRequest) (*emptypb.Empty, error) {
+func (a Authorization) UpdateUserGroup(ct context.Context, request *pbcloud.UpdateUserGroupRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.UpdateUserGroup(ct, request.GroupId, request.Name, request.Description)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
@@ -411,7 +411,7 @@ func (a Authorization) UpdateUserGroup(ct context.Context, request *proto.Update
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) DeleteUserGroup(ct context.Context, request *proto.DeleteUserGroupRequest) (*emptypb.Empty, error) {
+func (a Authorization) DeleteUserGroup(ct context.Context, request *pbcloud.DeleteUserGroupRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.DeleteUserGroup(ct, request.GroupId)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
@@ -421,7 +421,7 @@ func (a Authorization) DeleteUserGroup(ct context.Context, request *proto.Delete
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) ListUserGroupMembers(ct context.Context, query *proto.ListUserGroupMembersQuery) (*proto.ListUserGroupMembersResponse, error) {
+func (a Authorization) ListUserGroupMembers(ct context.Context, query *pbcloud.ListUserGroupMembersQuery) (*pbcloud.ListUserGroupMembersResponse, error) {
 	userGroupMemberQuery := service.UserGroupMemberQuery{
 		GroupID:       query.GroupId,
 		UserID:        query.UserId,
@@ -444,18 +444,18 @@ func (a Authorization) ListUserGroupMembers(ct context.Context, query *proto.Lis
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	userGroupMembers := collect.Map(userGroupMemberEntities, func(userGroupMember entity.UserGroupMember, _ int) *proto.UserGroupMember {
-		return &proto.UserGroupMember{
+	userGroupMembers := collect.Map(userGroupMemberEntities, func(userGroupMember entity.UserGroupMember, _ int) *pbcloud.UserGroupMember {
+		return &pbcloud.UserGroupMember{
 			GroupId:       userGroupMember.GroupID,
 			UserId:        userGroupMember.UserID,
 			CreatedAt:     timestamppb.New(userGroupMember.CreatedAt),
 			CreatorUserId: userGroupMember.CreatorUserID,
 		}
 	})
-	return &proto.ListUserGroupMembersResponse{UserGroupMembers: userGroupMembers}, nil
+	return &pbcloud.ListUserGroupMembersResponse{UserGroupMembers: userGroupMembers}, nil
 }
 
-func (a Authorization) AddUserGroupMember(ct context.Context, request *proto.AddUserGroupMemberRequest) (*emptypb.Empty, error) {
+func (a Authorization) AddUserGroupMember(ct context.Context, request *pbcloud.AddUserGroupMemberRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.AddUserGroupMember(ct, request.GroupId, request.UserId)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
@@ -465,7 +465,7 @@ func (a Authorization) AddUserGroupMember(ct context.Context, request *proto.Add
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) RemoveUserGroupMember(ct context.Context, request *proto.RemoveUserGroupMemberRequest) (*emptypb.Empty, error) {
+func (a Authorization) RemoveUserGroupMember(ct context.Context, request *pbcloud.RemoveUserGroupMemberRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RemoveUserGroupMember(ct, request.GroupId, request.UserId)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
@@ -475,7 +475,7 @@ func (a Authorization) RemoveUserGroupMember(ct context.Context, request *proto.
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) ListPermissions(ct context.Context, query *proto.ListPermissionsQuery) (*proto.ListPermissionsResponse, error) {
+func (a Authorization) ListPermissions(ct context.Context, query *pbcloud.ListPermissionsQuery) (*pbcloud.ListPermissionsResponse, error) {
 	permissionQuery := service.PermissionQuery{
 		ResourceType:  query.ResourceType,
 		ResourceID:    query.ResourceId,
@@ -500,8 +500,8 @@ func (a Authorization) ListPermissions(ct context.Context, query *proto.ListPerm
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	permissions := collect.Map(permissionEntities, func(permission entity.Permission, _ int) *proto.Permission {
-		return &proto.Permission{
+	permissions := collect.Map(permissionEntities, func(permission entity.Permission, _ int) *pbcloud.Permission {
+		return &pbcloud.Permission{
 			ResourceType:  permission.ResourceType,
 			ResourceId:    permission.ResourceID,
 			Operation:     permission.Operation,
@@ -510,10 +510,10 @@ func (a Authorization) ListPermissions(ct context.Context, query *proto.ListPerm
 			CreatorUserId: permission.CreatorUserID,
 		}
 	})
-	return &proto.ListPermissionsResponse{Permissions: permissions}, nil
+	return &pbcloud.ListPermissionsResponse{Permissions: permissions}, nil
 }
 
-func (a Authorization) AddPermission(ct context.Context, request *proto.AddPermissionRequest) (*emptypb.Empty, error) {
+func (a Authorization) AddPermission(ct context.Context, request *pbcloud.AddPermissionRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.AddPermission(ct, request.ResourceType, request.ResourceId, request.Operation, request.GroupId)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
@@ -523,7 +523,7 @@ func (a Authorization) AddPermission(ct context.Context, request *proto.AddPermi
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) RemovePermission(ct context.Context, request *proto.RemovePermissionRequest) (*emptypb.Empty, error) {
+func (a Authorization) RemovePermission(ct context.Context, request *pbcloud.RemovePermissionRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.RemovePermission(ct, request.ResourceType, request.ResourceId, request.Operation, request.GroupId)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)
@@ -533,7 +533,7 @@ func (a Authorization) RemovePermission(ct context.Context, request *proto.Remov
 	return &emptypb.Empty{}, nil
 }
 
-func (a Authorization) ApplyAuthorizationConfig(ct context.Context, request *proto.ApplyAuthorizationConfigRequest) (*emptypb.Empty, error) {
+func (a Authorization) ApplyAuthorizationConfig(ct context.Context, request *pbcloud.ApplyAuthorizationConfigRequest) (*emptypb.Empty, error) {
 	err := a.authorizationService.ApplyAuthorizationConfig(ct, request.ConfigContent)
 	if err != nil {
 		a.logger.ErrorWithContext(ct, err)

@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/libs/authorization"
 	"github.com/teamyapp/cloud/libs/errs"
 	"github.com/teamyapp/cloud/libs/telemetry"
+	pbcloud "github.com/teamyapp/protocol/pb/pbgo/cloud"
 )
 
 type Authorizer struct {
@@ -16,7 +16,7 @@ type Authorizer struct {
 }
 
 func (a Authorizer) HasPermission(ct context.Context, query authorization.Query) (bool, *errs.Error) {
-	hasPermissionReq := &proto.HasPermissionRequest{
+	hasPermissionReq := &pbcloud.HasPermissionRequest{
 		ResourceType: query.ResourceType,
 		ResourceId:   query.ResourceID,
 		Operation:    query.Operation,
@@ -32,7 +32,7 @@ func (a Authorizer) HasPermission(ct context.Context, query authorization.Query)
 }
 
 func (a Authorizer) RegisterResource(ct context.Context, resourceType string, resourceID uint64) *errs.Error {
-	registerResourceReq := &proto.RegisterResourceRequest{
+	registerResourceReq := &pbcloud.RegisterResourceRequest{
 		ResourceType: resourceType,
 		ResourceId:   resourceID,
 	}
@@ -51,7 +51,7 @@ func (a Authorizer) AssignParentResource(
 	childResourceID uint64,
 	parentResourceType string,
 	parentResourceID uint64) *errs.Error {
-	assignParentResourceReq := &proto.AssignParentResourceRequest{
+	assignParentResourceReq := &pbcloud.AssignParentResourceRequest{
 		ChildResourceType:  childResourceType,
 		ChildResourceId:    childResourceID,
 		ParentResourceType: parentResourceType,
@@ -67,7 +67,7 @@ func (a Authorizer) AssignParentResource(
 }
 
 func (a Authorizer) AddMemberToUserGroup(ct context.Context, userGroupID uint64, memberID uint64) *errs.Error {
-	addUserGroupMemberReq := &proto.AddUserGroupMemberRequest{
+	addUserGroupMemberReq := &pbcloud.AddUserGroupMemberRequest{
 		GroupId: userGroupID,
 		UserId:  memberID,
 	}
@@ -81,7 +81,7 @@ func (a Authorizer) AddMemberToUserGroup(ct context.Context, userGroupID uint64,
 }
 
 func (a Authorizer) CreateUserGroup(ct context.Context, creatorUserID uint64, userGroupName string, description *string) (uint64, *errs.Error) {
-	createUserGroupReq := &proto.CreateUserGroupRequest{
+	createUserGroupReq := &pbcloud.CreateUserGroupRequest{
 		Name:        userGroupName,
 		Description: description,
 	}
@@ -107,7 +107,7 @@ func (a Authorizer) AssignPermission(
 	resourceOperation authorization.ResourceOperation,
 	userGroupID uint64,
 ) *errs.Error {
-	addPermissionReq := &proto.AddPermissionRequest{
+	addPermissionReq := &pbcloud.AddPermissionRequest{
 		ResourceType: resourceOperation.ResourceType,
 		ResourceId:   resourceOperation.ResourceID,
 		Operation:    resourceOperation.Operation,

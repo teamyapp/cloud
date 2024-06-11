@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/teamyapp/cloud/app/api/proto"
 	"github.com/teamyapp/cloud/app/entity"
 	"github.com/teamyapp/cloud/app/service"
 	"github.com/teamyapp/cloud/libs/collect"
@@ -20,6 +19,7 @@ import (
 	"github.com/teamyapp/cloud/libs/runner"
 	"github.com/teamyapp/cloud/libs/telemetry"
 	"github.com/teamyapp/cloud/libs/web"
+	pbcloud "github.com/teamyapp/protocol/pb/pbgo/cloud"
 	"google.golang.org/grpc"
 )
 
@@ -46,11 +46,11 @@ var _ middleware.IncludeIdentityWebFunc = IncludeIdentityWebFunc
 type Identity struct {
 	logger          telemetry.Logger
 	identityService service.Identity
-	proto.UnimplementedIdentityServer
+	pbcloud.UnimplementedIdentityServer
 }
 
 var _ runner.Service = (*Identity)(nil)
-var _ proto.IdentityServer = (*Identity)(nil)
+var _ pbcloud.IdentityServer = (*Identity)(nil)
 
 func (i Identity) Start(rn *runner.ServiceRunner) *errs.Error {
 	rn.RegisterWebRoutes([]runner.WebRoute{
@@ -106,7 +106,7 @@ func (i Identity) Start(rn *runner.ServiceRunner) *errs.Error {
 		},
 	})
 	rn.WithGRPCServer(func(server *grpc.Server) {
-		proto.RegisterIdentityServer(server, i)
+		pbcloud.RegisterIdentityServer(server, i)
 	})
 	return nil
 }
@@ -370,32 +370,32 @@ func (i Identity) webDeleteServiceAccount(writer http.ResponseWriter, request *h
 	writer.WriteHeader(http.StatusNoContent)
 }
 
-func (i Identity) GetInternalUserId(ct context.Context, req *proto.GetInternalUserIdRequest) (*proto.GetInternalUserIdResponse, error) {
+func (i Identity) GetInternalUserId(ct context.Context, req *pbcloud.GetInternalUserIdRequest) (*pbcloud.GetInternalUserIdResponse, error) {
 	internalUserID, err := i.identityService.GetInternalUserID(ct, req.AuthProvider, req.ExternalUserId)
 	if err != nil {
 		i.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	return &proto.GetInternalUserIdResponse{InternalUserId: internalUserID}, nil
+	return &pbcloud.GetInternalUserIdResponse{InternalUserId: internalUserID}, nil
 }
 
-func (i Identity) ListUserLinks(ct context.Context, req *proto.ListUserLinksRequest) (*proto.ListUserLinksResponse, error) {
+func (i Identity) ListUserLinks(ct context.Context, req *pbcloud.ListUserLinksRequest) (*pbcloud.ListUserLinksResponse, error) {
 	userLinks, err := i.identityService.ListUserLinks(ct, req.InternalUserId)
 	if err != nil {
 		i.logger.ErrorWithContext(ct, err)
 		return nil, errs.ToGRPCErr(err)
 	}
 
-	protoUserLinks := collect.Map(userLinks, func(userLink entity.UserLink, index int) *proto.UserLink {
-		return &proto.UserLink{
+	protoUserLinks := collect.Map(userLinks, func(userLink entity.UserLink, index int) *pbcloud.UserLink {
+		return &pbcloud.UserLink{
 			AuthProvider:      userLink.AuthProvider,
 			InternalUserId:    userLink.InternalUserID,
 			ExternalUserId:    userLink.ExternalUserID,
 			ExternalUserLabel: userLink.ExternalUserLabel,
 		}
 	})
-	return &proto.ListUserLinksResponse{UserLinks: protoUserLinks}, nil
+	return &pbcloud.ListUserLinksResponse{UserLinks: protoUserLinks}, nil
 }
 
 func NewIdentity(logger telemetry.Logger, identityService service.Identity) Identity {
