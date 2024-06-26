@@ -151,7 +151,7 @@ func (f File) AddChunk(ct context.Context, uploadSessionID uint64, chunkData io.
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		internalErr = saveChunk(ct, f.objectStore, chunkID, chunkReader)
+		internalErr = saveChunk(ct, f.objectStore, chunkID, int64(chunkMetadata.SizeInBytes), chunkReader)
 		if internalErr != nil {
 			once.Do(func() {
 				wgErr = internalErr
