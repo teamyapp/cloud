@@ -85,7 +85,7 @@ func (s *S3Bucket) Get(ct context.Context, key string) (io.Reader, *errs.Error) 
 
 func (s *S3Bucket) Put(ct context.Context, key string, data io.Reader, objectMetadataInput ObjectMetadataInput) *errs.Error {
 	fullPath := path.Join(string(s.env), key)
-	_, err := s.client.PutObject(ct, s.bucketName, fullPath, data, -1, minio.PutObjectOptions{
+	_, err := s.client.PutObject(ct, s.bucketName, fullPath, data, objectMetadataInput.ObjectSize, minio.PutObjectOptions{
 		ContentType: objectMetadataInput.ContentType,
 	})
 	if err != nil {

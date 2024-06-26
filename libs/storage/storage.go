@@ -18,6 +18,7 @@ type ObjectMetadata struct {
 
 type ObjectMetadataInput struct {
 	ContentType string
+	ObjectSize  int64
 }
 
 type ObjectDataStream struct {
