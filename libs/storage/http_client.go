@@ -56,6 +56,7 @@ func (c *HTTPClient) Put(ct context.Context, key string, value io.Reader, object
 		return errs.NewError(errs.Unknown, internalErr.Error())
 	}
 
+	req.ContentLength = objectMetadataInput.ObjectSize
 	_, internalErr = http.DefaultClient.Do(req)
 	if internalErr != nil {
 		return errs.NewError(errs.Unknown, internalErr.Error())
