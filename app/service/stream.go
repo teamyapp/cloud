@@ -23,11 +23,12 @@ func (s Stream) GetFileMetadata(ct context.Context, fileID uint64) (entity.FileM
 	return s.fileMetadataDao.FindMetadataByFileID(ct, fileID)
 }
 
-func (s Stream) AddFile(ct context.Context, fileName string, fileData io.Reader) *errs.Error {
+func (s Stream) AddFile(ct context.Context, fileName string, fileSize int64, fileData io.Reader) *errs.Error {
 	ext := filepath.Ext(fileName)
 	mimeType := mime.TypeByExtension(ext)
 	return s.objectStore.Put(ct, fileName, fileData, storage.ObjectMetadataInput{
 		ContentType: mimeType,
+		ObjectSize:  fileSize,
 	})
 }
 

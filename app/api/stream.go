@@ -94,7 +94,7 @@ func (s Stream) webUploadFile(writer http.ResponseWriter, request *http.Request)
 		return
 	}
 
-	internalErr := s.streamService.AddFile(ct, fileName, request.Body)
+	internalErr := s.streamService.AddFile(ct, fileName, request.ContentLength, request.Body)
 	if internalErr != nil {
 		s.logger.ErrorWithContext(ct, internalErr)
 		errs.SetHTTPErr(internalErr, writer)
